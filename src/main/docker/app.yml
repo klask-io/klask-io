@@ -1,0 +1,22 @@
+version: '2'
+services:
+    research-app:
+        image: research
+        external_links:
+            - research-postgresql:postgresql
+            - research-elasticsearch:elasticsearch
+        environment:
+            - SPRING_PROFILES_ACTIVE=prod
+            - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/research
+            - JHIPSTER_SLEEP=10 # gives time for the database to boot before the application
+            - SPRING_DATA_ELASTICSEARCH_CLUSTER_NODES=elasticsearch:9300
+        ports:
+            - 8080:8080
+    research-postgresql:
+        extends:
+            file: postgresql.yml
+            service: research-postgresql
+    research-elasticsearch:
+        extends:
+            file: elasticsearch.yml
+            service: research-elasticsearch

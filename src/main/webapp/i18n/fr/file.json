@@ -1,0 +1,28 @@
+{
+    "researchApp": {
+        "file": {
+            "home": {
+                "title": "Fichiers",
+                "createLabel": "Créer un nouveau fichier",
+                "crawler": "Indexer les fichiers",
+                "createOrEditLabel": "Créer ou éditer un fichier",
+                "search": "Recherche pour fichier"
+            },
+            "created": "Un nouveau fichier a été créé avec l'identifiant {{ param }}",
+            "updated": "Le fichier avec l'identifiant {{ param }} a été mis à jour",
+            "deleted": "Le fichier avec l'identifiant {{ param }} a été supprimé",
+            "delete": {
+                "question": "Etes-vous certain de vouloir supprimer le fichier {{ id }} ?"
+            },
+            "detail": {
+                "title": "Fichier"
+            },
+            "name": "Nom",
+            "extension": "Extension",
+            "path": "Chemin",
+            "content": "Contenu",
+            "version": "Version",
+            "size": "Taille"
+        }
+    }
+}

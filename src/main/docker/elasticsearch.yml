@@ -1,0 +1,10 @@
+version: '2'
+services:
+    research-elasticsearch:
+        container_name: research-elasticsearch
+        image: elasticsearch:1.7.5
+        volumes:
+            - /tmp/elasticsearch/:/usr/share/elasticsearch/data/
+        ports:
+            - 9200:9200
+            - 9300:9300

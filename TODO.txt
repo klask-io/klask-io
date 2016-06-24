@@ -1,0 +1,9 @@
+- régler le problème du retour navigateur qui ne fonctionne pas
+- utiliser une coloration syntaxique en fonction du contenu (Prism ou SyntaxeHighlighter)
+- lors du retour de recherche, tout le contenu est envoyé en json, requêtes très lourdes,
+il faudrait faire un retour FileDTO qui contient un résumé (à voir coté elasticsearch comment ça marche
+- si non connecté, la recherche de fichiers fonctionne, mais pas l'ouverture d'un document
+- liste de requêtes prédéfinies (exemple sur date de création de fichier en cohérence avec le SVN : alors range "gte": "01/01/2016")
+cela permettrait de récupérer tous les derniers fichiers modifiés sur le SVN
+
+- mettre à jour jhipster quand c'est possible (update)

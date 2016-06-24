@@ -1,0 +1,12 @@
+version: '2'
+services:
+    research-postgresql:
+        container_name: research-postgresql
+        image: postgres:9.5.2
+        volumes:
+            - /tmp/postgresql/:/var/lib/postgresql/
+        environment:
+            - POSTGRES_USER=research
+            - POSTGRES_PASSWORD=
+        ports:
+            - 5432:5432

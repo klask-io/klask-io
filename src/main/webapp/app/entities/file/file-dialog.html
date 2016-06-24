@@ -1,0 +1,76 @@
+<form name="editForm" role="form" novalidate ng-submit="vm.save()" show-validation>
+
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true"
+                ng-click="vm.clear()">&times;</button>
+        <h4 class="modal-title" id="myFileLabel" translate="researchApp.file.home.createOrEditLabel">Create or edit a File</h4>
+    </div>
+    <div class="modal-body">
+        <jhi-alert-error></jhi-alert-error>
+        <div class="form-group" ng-show="vm.file.id">
+            <label for="id" translate="global.field.id">ID</label>
+            <input type="text" class="form-control" id="id" name="id"
+                    ng-model="vm.file.id" readonly />
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="researchApp.file.name" for="field_name">Name</label>
+            <input type="text" class="form-control" name="name" id="field_name"
+                    ng-model="vm.file.name"
+                    required ng-maxlength="255" />
+            <div ng-show="editForm.name.$invalid">
+                <p class="help-block"
+                    ng-show="editForm.name.$error.required" translate="entity.validation.required">
+                    This field is required.
+                </p>
+                <p class="help-block"
+                    ng-show="editForm.name.$error.maxlength" translate="entity.validation.maxlength" translate-value-max="255">
+                    This field cannot be longer than 255 characters.
+                </p>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="researchApp.file.extension" for="field_extension">Extension</label>
+            <input type="text" class="form-control" name="extension" id="field_extension"
+                    ng-model="vm.file.extension"
+                    ng-maxlength="255" />
+            <div ng-show="editForm.extension.$invalid">
+                <p class="help-block"
+                    ng-show="editForm.extension.$error.maxlength" translate="entity.validation.maxlength" translate-value-max="255">
+                    This field cannot be longer than 255 characters.
+                </p>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="researchApp.file.path" for="field_path">Path</label>
+            <input type="text" class="form-control" name="path" id="field_path"
+                    ng-model="vm.file.path"
+                    required />
+            <div ng-show="editForm.path.$invalid">
+                <p class="help-block"
+                    ng-show="editForm.path.$error.required" translate="entity.validation.required">
+                    This field is required.
+                </p>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="researchApp.file.content" for="field_content">Content</label>
+                <textarea class="form-control" name="content" id="field_content"
+                    ng-model="vm.file.content"  />
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="researchApp.file.version" for="field_version">Version</label>
+            <input type="text" class="form-control" name="version" id="field_version"
+                    ng-model="vm.file.version"
+                     />
+        </div>
+
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal" ng-click="vm.clear()">
+            <span class="glyphicon glyphicon-ban-circle"></span>&nbsp;<span translate="entity.action.cancel">Cancel</span>
+        </button>
+        <button type="submit" ng-disabled="editForm.$invalid || vm.isSaving" class="btn btn-primary">
+            <span class="glyphicon glyphicon-save"></span>&nbsp;<span translate="entity.action.save">Save</span>
+        </button>
+    </div>
+</form>

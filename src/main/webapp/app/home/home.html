@@ -1,0 +1,124 @@
+<div ng-cloak>
+    <div class="row">
+<!--        <div class="col-md-4">
+            <span class="hipster img-responsive img-rounded"></span>
+        </div>
+        <div class="col-md-8">
+            <h1 translate="home.title">Welcome, Java Hipster!</h1>
+            <p class="lead" translate="home.subtitle">This is your homepage</p>
+
+            <div ng-switch="vm.isAuthenticated()">
+                <div class="alert alert-success" ng-switch-when="true" translate="home.logged.message" translate-values="{username: '{{vm.account.login}}'}">
+                    You are logged in as user "{{vm.account.login}}".
+                </div>
+
+                <div class="alert alert-warning" ng-switch-when="false" translate="global.messages.info.authenticated" translate-compile>
+                    If you want to <a class="alert-link" href="" ng-click="vm.login()">sign in</a>, you can try the default accounts:<br/>- Administrator (login="admin" and password="admin") <br/>- User (login="user" and password="user").
+                </div>
+
+                <div class="alert alert-warning" ng-switch-when="false" translate="global.messages.info.register" translate-compile>
+                    You don't have an account yet? <a class="alert-link" ui-sref="register">Register a new account</a>
+                </div>
+            </div>
+
+            <p translate="home.question">
+                If you have any question on JHipster:
+            </p>
+
+            <ul>
+                <li><a href="http://jhipster.github.io/" target="_blank" translate="home.link.homepage">JHipster homepage</a></li>
+                <li><a href="http://stackoverflow.com/tags/jhipster/info" target="_blank" translate="home.link.stackoverflow">JHipster on Stack Overflow</a></li>
+                <li><a href="https://github.com/jhipster/generator-jhipster/issues?state=open" target="_blank" translate="home.link.bugtracker">JHipster bug tracker</a></li>
+                <li><a href="https://gitter.im/jhipster/generator-jhipster" target="_blank" translate="home.link.chat">JHipster public chat room</a></li>
+                <li><a href="https://twitter.com/java_hipster" target="_blank"  translate="home.link.follow">follow @java_hipster on Twitter</a></li>
+            </ul>
+
+            <p>
+             <span translate="home.like">If you like JHipster, don't forget to give us a star on </span>&nbsp;<a href="https://github.com/jhipster/generator-jhipster" target="_blank" translate="home.github">Github</a>!
+            </p>
+        </div>
+-->
+
+<div>
+    <h2 translate="researchApp.file.home.title">Files</h2>
+    <jhi-alert></jhi-alert>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-xs-4 no-padding-left">
+                <button class="btn btn-primary" ng-disabled="isCrawling" ng-click="vm.crawler()"
+                        ng-class="{active: vm.$state.includes('admin')}" has-authority="ROLE_ADMIN">
+                    <span class="glyphicon glyphicon-plus"></span>
+                    <span class="hidden-xs" translate="researchApp.file.home.crawler">
+                        Crawler
+                    </span>
+                </button>
+            </div>
+            <div class="col-xs-8 no-padding-right">
+                <form name="searchForm" class="form-inline">
+                    <div class="input-group pull-right">
+                        <input type="text" class="form-control" ng-model="vm.searchQuery" id="searchQuery"
+                               placeholder="{{ 'researchApp.file.home.search' | translate }}">
+                        <span class="input-group-btn width-min">
+                            <button class="btn btn-info" ng-click="vm.search(vm.searchQuery)">
+                                <span class="glyphicon glyphicon-search"></span>
+                            </button>
+                        </span>
+                        <span class="input-group-btn width-min" ng-if="vm.currentSearch">
+                            <button class="btn btn-info" ng-click="vm.clear()">
+                                <span class="glyphicon glyphicon-trash"></span>
+                            </button>
+                        </span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+<!-- vérifier ce qu'il y a avant cette balise -->
+    </div>
+    <br/>
+    <div class="table-responsive">
+        <table class="jh-table table table-striped">
+            <thead>
+            <tr jh-sort="vm.predicate" ascending="vm.reverse" callback="vm.transition()">
+                <th jh-sort-by="name"><span translate="researchApp.file.name">Name</span> <span
+                    class="glyphicon glyphicon-sort"></span></th>
+                <th jh-sort-by="extension"><span translate="researchApp.file.extension">Extension</span> <span
+                    class="glyphicon glyphicon-sort"></span></th>
+                <th jh-sort-by="path"><span translate="researchApp.file.path">Path</span> <span
+                    class="glyphicon glyphicon-sort"></span></th>
+                <th jh-sort-by="content"><span translate="researchApp.file.content">Content</span> <span
+                    class="glyphicon glyphicon-sort"></span></th>
+                <th jh-sort-by="version"><span translate="researchApp.file.version">Version</span> <span
+                    class="glyphicon glyphicon-sort"></span></th>
+                <th jh-sort-by="size"><span translate="researchApp.file.size">Size</span> <span
+                    class="glyphicon glyphicon-sort"></span></th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr ng-repeat="file in vm.files track by file.id">
+                <td><a ui-sref="home-detail({id:file.id})">{{file.name}}</a></td>
+                <td>{{file.extension}}</td>
+                <td>{{file.path | characters:25}}</td>
+                <td>{{file.content | characters:30}}</td>
+                <td>{{file.version}}</td>
+                <td>{{file.size | formatKoMoGo}}</td>
+                <td class="text-right">
+                    <div class="btn-group flex-btn-group-container">
+                        <button type="submit"
+                                ui-sref="home-detail({id:file.id})"
+                                class="btn btn-info btn-sm">
+                            <span class="glyphicon glyphicon-eye-open"></span>
+                            <span class="hidden-xs hidden-sm" translate="entity.action.view"></span>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="text-center">
+        <jhi-item-count page="vm.page" total="vm.queryCount" items-per-page="vm.itemsPerPage"></jhi-item-count>
+        <uib-pagination class="pagination-sm" total-items="vm.totalItems" ng-model="vm.page" ng-change="vm.transition()"></uib-pagination>
+    </div>
+</div>
