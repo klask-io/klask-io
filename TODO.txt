@@ -8,3 +8,4 @@ cela permettrait de récupérer tous les derniers fichiers modifiés sur le SVN
 
 - mettre à jour jhipster quand c'est possible (update)
 - faire des liens dans les vues de fichiers
+
