@@ -9,3 +9,8 @@ cela permettrait de récupérer tous les derniers fichiers modifiés sur le SVN
 - mettre à jour jhipster quand c'est possible (update)
 - faire des liens dans les vues de fichiers
 
+###### intégration continue
+ - dans jenkins configurer la tâche "research-release" pour réaliser une image docker (à containeriser)
+ - faire un maven release
+ - faire un gitpublisher sur la tâche "research-release" pour réaliser un tag Git avec la version releasée
+ - publier les versions releasées dans un nexus
