@@ -1,35 +1,30 @@
 <div>
-    <h2><span translate="researchApp.file.detail.title">File</span> {{vm.file.id}}</h2>
+    <h4><span translate="researchApp.file.detail.title">File</span> {{vm.file.name}}</h4>
     <hr>
     <jhi-alert-error></jhi-alert-error>
     <dl class="dl-horizontal jh-entity-details">
-        <dt><span translate="researchApp.file.name">Name</span></dt>
+        <dt><span translate="researchApp.file.id">Id</span></dt>
         <dd>
-            <span>{{vm.file.name}}</span>
+            <span>{{vm.file.id}}</span>
         </dd>
-        <hr>
         <dt><span translate="researchApp.file.size">Size</span></dt>
         <dd>
             <span>{{vm.file.size | formatKoMoGo}}</span>
         </dd>
-        <hr>
         <dt><span translate="researchApp.file.extension">Extension</span></dt>
         <dd>
             <span>{{vm.file.extension}}</span>
         </dd>
-        <hr>
         <dt><span translate="researchApp.file.path">Path</span></dt>
         <dd>
             <span>{{vm.file.path}}</span>
         </dd>
-        <hr>
         <dt><span translate="researchApp.file.version">Version</span></dt>
         <dd>
             <span>{{vm.file.version}}</span>
         </dd>
-        <hr>
         <div>
-            <pre nag-prism class="brush:java">{{vm.file.content}}</pre>
+            <pre style="width: auto;height: 400px" nag-prism class="language-css" source="{{vm.file.content}}"></pre>
         </div>
         <hr>
     </dl>

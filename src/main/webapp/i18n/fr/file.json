@@ -17,7 +17,7 @@
             "detail": {
                 "title": "Fichier"
             },
-            "name": "Nom",
+            "id": "Id",
             "extension": "Extension",
             "path": "Chemin",
             "content": "Contenu",

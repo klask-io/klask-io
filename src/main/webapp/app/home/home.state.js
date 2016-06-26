@@ -33,11 +33,6 @@
                     },
                     search: null
                 },
-/*            resolve: {
-                mainTranslatePartialLoader: ['$translate', '$translatePartialLoader', function ($translate,$translatePartialLoader) {
-                    $translatePartialLoader.addPart('home');
-                    return $translate.refresh();
-*/
                 resolve: {
                     pagingParams: ['$stateParams', 'PaginationUtil', function ($stateParams, PaginationUtil) {
                         return {

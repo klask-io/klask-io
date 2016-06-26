@@ -287,7 +287,38 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+            <!--<exclusions>
+                <exclusion>
+                    <groupId>org.springframework.data</groupId>
+                    <artifactId>spring-data-elasticsearch</artifactId>
+                </exclusion>
+            </exclusions>-->
         </dependency>
+        <!--<dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-elasticsearch</artifactId>
+            <version>2.1.0.BUILD-SNAPSHOT</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.elasticsearch</groupId>
+                    <artifactId>elasticsearch</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch</artifactId>
+            <version>2.3.3</version>
+        </dependency>-->
+
+        <!-- https://mvnrepository.com/artifact/net.java.dev.jna/jna -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>4.2.2</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-logging</artifactId>
@@ -828,6 +859,9 @@
             </properties>
         </profile>
     </profiles>
+
+    <!-- DEBUT nécessaire pour l'instant car la version 1.4 de spring-boot est en milestone
+        à supprimer quand il y aura une release -->
     <repositories>
         <repository>
             <id>spring-milestones</id>
@@ -837,6 +871,11 @@
                 <enabled>false</enabled>
             </snapshots>
         </repository>
+        <repository>
+            <id>spring-libs-snapshot</id>
+            <name>Spring Snapshot Repository</name>
+            <url>http://repo.spring.io/libs-snapshot</url>
+        </repository>
     </repositories>
     <pluginRepositories>
         <pluginRepository>
@@ -844,4 +883,6 @@
             <url>http://repo.spring.io/milestone</url>
         </pluginRepository>
     </pluginRepositories>
+    <!-- FIN nécessaire pour l'instant car la version 1.4 de spring-boot est en milestone
+        à supprimer quand il y aura une release -->
 </project>

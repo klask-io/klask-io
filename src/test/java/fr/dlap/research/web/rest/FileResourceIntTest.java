@@ -11,7 +11,6 @@ import org.springframework.boot.test.IntegrationTest;
 import org.springframework.boot.test.SpringApplicationConfiguration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
@@ -24,14 +23,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-import java.util.UUID;
 
 
 /**
@@ -122,7 +120,7 @@ public class FileResourceIntTest {
     @Transactional
     public void checkNameIsRequired() throws Exception {
     	Page<File> fichiers = fileSearchRepository.findAll(new PageRequest(0, 1000));
-    	
+
     	int databaseSizeBeforeTest = fichiers.getNumber();
         // set the field null
         file.setName(null);
@@ -162,20 +160,19 @@ public class FileResourceIntTest {
     public void getAllFiles() throws Exception {
         // Initialize the database
         fileSearchRepository.save(file);
-        
-        
-        
+
+
         // Get all the files
         restFileMockMvc.perform(get("/api/files?sort=id,desc"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
                 .andExpect(jsonPath("$.[*].id").value(hasItem(file.getId().toString())))
                 .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME.toString())))
                 .andExpect(jsonPath("$.[*].path").value(hasItem(DEFAULT_PATH.toString())))
                 .andExpect(jsonPath("$.[*].content").value(hasItem(DEFAULT_CONTENT.toString())))
                 .andExpect(jsonPath("$.[*].version").value(hasItem(DEFAULT_VERSION.toString())));
     }
-    
+
 //
 //    @Test
 //    @Transactional

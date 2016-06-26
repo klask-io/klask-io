@@ -1,14 +1,12 @@
 package fr.dlap.research.web.rest;
 
 import fr.dlap.research.ResearchApp;
-import fr.dlap.research.domain.User;
 import fr.dlap.research.repository.UserRepository;
 import fr.dlap.research.service.UserService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.springframework.boot.test.IntegrationTest;
-import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
@@ -18,8 +16,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import javax.inject.Inject;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -29,9 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @see UserResource
  */
 @RunWith(SpringJUnit4ClassRunner.class)
-@SpringApplicationConfiguration(classes = ResearchApp.class)
+@SpringBootTest(classes = ResearchApp.class)
 @WebAppConfiguration
-@IntegrationTest
 public class UserResourceIntTest {
 
     @Inject
@@ -53,16 +48,16 @@ public class UserResourceIntTest {
     @Test
     public void testGetExistingUser() throws Exception {
         restUserMockMvc.perform(get("/api/users/admin")
-                .accept(MediaType.APPLICATION_JSON))
+            .accept(MediaType.APPLICATION_JSON_UTF8))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType("application/json"))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath("$.lastName").value("Administrator"));
     }
 
     @Test
     public void testGetUnknownUser() throws Exception {
         restUserMockMvc.perform(get("/api/users/unknown")
-                .accept(MediaType.APPLICATION_JSON))
+            .accept(MediaType.APPLICATION_JSON_UTF8))
                 .andExpect(status().isNotFound());
     }
 
