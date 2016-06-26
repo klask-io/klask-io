@@ -1,5 +1,7 @@
 # research
 
+[![Build Status](https://jenkins.dlap.fr/job/research/badge/icon)](https://jenkins.dlap.fr/job/research/)
+
 This application was generated using JHipster, you can find documentation and help at [https://jhipster.github.io](https://jhipster.github.io).
 #### TODO
 - inclure un moteur de recherche intégré à la page, avec le raccourci clavier r
