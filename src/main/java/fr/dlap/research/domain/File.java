@@ -1,10 +1,7 @@
 package fr.dlap.research.domain;
 
 import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldIndex;
-import org.springframework.data.elasticsearch.annotations.FieldType;
+import org.springframework.data.elasticsearch.annotations.*;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -29,7 +26,7 @@ public class File extends AbstractAuditingEntity implements Serializable {
     @Field(type = FieldType.String,
         index = FieldIndex.analyzed,
         searchAnalyzer = "keyword",
-        indexAnalyzer = "keyword",
+        analyzer = "keyword",
         store = true)
     private String name;
 
@@ -37,7 +34,7 @@ public class File extends AbstractAuditingEntity implements Serializable {
     @Field(type = FieldType.String,
         index = FieldIndex.analyzed,
         searchAnalyzer = "keyword",
-        indexAnalyzer = "keyword",
+        analyzer = "keyword",
         store = true)
     private String extension;
 
@@ -45,8 +42,7 @@ public class File extends AbstractAuditingEntity implements Serializable {
     @Field(type = FieldType.String,
         index = FieldIndex.analyzed,
         searchAnalyzer = "keyword",
-        indexAnalyzer = "keyword",
-
+        analyzer = "keyword",
         store = true
     )
     private String path;
@@ -55,10 +51,19 @@ public class File extends AbstractAuditingEntity implements Serializable {
     @Field(type = FieldType.String,
         index = FieldIndex.analyzed,
         searchAnalyzer = "whitespace",
-        indexAnalyzer = "whitespace",
+        analyzer = "whitespace",
         store = false)
     private String content;
 
+    //ici le cas de la version est particulier, on souhaite pouvoir réaliser des requêtes du genre version:TRUNK, version:trunk, version:maint.15.*
+    // donc case insensitive et wildcard mais on souhaite également faire une requête d'aggrégation qui va compter les
+    //occurrences de chaque type de version (faire un nuage de versions) et être case sensitive cette fois
+    @MultiField(
+        mainField = @Field(type = FieldType.String),
+        otherFields = {
+            @InnerField(index = FieldIndex.not_analyzed, suffix = "unique", type = FieldType.String)
+        }
+    )
     private String version;
 
     private Long size;

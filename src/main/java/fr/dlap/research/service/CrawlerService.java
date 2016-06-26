@@ -211,6 +211,9 @@ public class CrawlerService {
     }
 
 
+    /**
+     * clear all the index
+     */
     public void clearIndex() {
         fileSearchRepository.deleteAll();
     }
