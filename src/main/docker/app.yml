@@ -1,7 +1,7 @@
 version: '2'
 services:
     research-app:
-        image: research
+        image: researchengine/research
         external_links:
             - research-postgresql:postgresql
             - research-elasticsearch:elasticsearch

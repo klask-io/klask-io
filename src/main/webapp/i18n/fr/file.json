@@ -6,7 +6,14 @@
                 "createLabel": "Créer un nouveau fichier",
                 "crawler": "Indexer les fichiers",
                 "createOrEditLabel": "Créer ou éditer un fichier",
-                "search": "Recherche pour fichier"
+                "search": "Rechercher un fichier",
+                "version": {
+                    "search": "filtre version"
+                },
+                "project": {
+                    "search": "filtre projet"
+                },
+                "totalFiles": "Total de fichiers"
             },
             "created": "Un nouveau fichier a été créé avec l'identifiant {{ param }}",
             "updated": "Le fichier avec l'identifiant {{ param }} a été mis à jour",
@@ -18,10 +25,12 @@
                 "title": "Fichier"
             },
             "id": "Id",
+            "name": "Nom",
             "extension": "Extension",
             "path": "Chemin",
             "content": "Contenu",
             "version": "Version",
+            "project": "Projet",
             "size": "Taille"
         }
     }

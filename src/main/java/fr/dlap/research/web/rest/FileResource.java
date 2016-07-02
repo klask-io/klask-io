@@ -1,16 +1,18 @@
 package fr.dlap.research.web.rest;
 
 import com.codahale.metrics.annotation.Timed;
+import fr.dlap.research.config.Constants;
 import fr.dlap.research.domain.File;
+import fr.dlap.research.repository.search.CustomSearchRepository;
 import fr.dlap.research.repository.search.FileSearchRepository;
+import fr.dlap.research.web.rest.util.EncodingUtil;
 import fr.dlap.research.web.rest.util.HeaderUtil;
 import fr.dlap.research.web.rest.util.PaginationUtil;
-
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.QueryStringQueryBuilder;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -37,6 +39,9 @@ public class FileResource {
 
     @Inject
     private FileSearchRepository fileSearchRepository;
+
+    @Inject
+    private CustomSearchRepository customSearchRepository;
 
     /**
      * POST  /files : Create a new file.
@@ -89,6 +94,8 @@ public class FileResource {
      * GET  /files : get all the files.
      *
      * @param pageable the pagination information
+     * @param version the version filter if set
+     * @param project the project filter if set
      * @return the ResponseEntity with status 200 (OK) and the list of files in body
      * @throws URISyntaxException if there is an error to generate the pagination HTTP headers
      */
@@ -96,10 +103,33 @@ public class FileResource {
         method = RequestMethod.GET,
         produces = MediaType.APPLICATION_JSON_VALUE)
     @Timed
-    public ResponseEntity<List<File>> getAllFiles(Pageable pageable)
+    public ResponseEntity<List<File>> getAllFiles(@RequestParam(required = false) String version,
+                                                  @RequestParam(required = false) String project, Pageable pageable)
         throws URISyntaxException {
-        log.debug("REST request to get a page of Files");
-        Page<File> page = fileSearchRepository.findAll(pageable);
+        log.debug("REST request to get a page for All Files with filter version {} and project {}", version, project);
+
+        //verification if we got a request with a big page number wich is greater than the max result search window
+        if (pageable.getPageNumber() * pageable.getPageSize() >= Constants.MAX_RESULT_SEARCH_WINDOW) {
+            log.warn("getAllFiles : page request too high : {}", pageable.getPageNumber());
+            pageable = new PageRequest(0, pageable.getPageSize());
+        }
+        Page<File> page;
+
+        if (StringUtils.isEmpty(version)) {
+            if (StringUtils.isEmpty(project))
+                page = fileSearchRepository.findAll(pageable);
+            else
+                page = fileSearchRepository.findAllByProject(project, pageable);
+        } else {
+            if (StringUtils.isEmpty(project))
+                page = fileSearchRepository.findAllByVersion(version, pageable);
+            else
+                page = fileSearchRepository.findAllByVersionAndProject(version, project, pageable);
+        }
+        //page = customSearchRepository.findWithHighlightedSummary(pageable,"",version);
+        //Page<File> page = customSearchRepository.findWithHighlightedSummary("", pageable);
+
+
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(page, "/api/files");
         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
     }
@@ -117,6 +147,12 @@ public class FileResource {
     public ResponseEntity<File> getFile(@PathVariable String id) {
         log.debug("REST request to get File : {}", id);
         File file = fileSearchRepository.findOne(id);
+
+        //TODO vérifier que le fichier est readable (extraire la configuration dans des classes à part)
+        //if( file != null && file is readable)
+        if (file != null && file.getContent() != null) {
+            file.setContent(EncodingUtil.convertToUTF8(file.getContent()));
+        }
         return Optional.ofNullable(file)
             .map(result -> new ResponseEntity<>(
                 result,
@@ -145,6 +181,8 @@ public class FileResource {
      * SEARCH  /_search/files?query=:query : search for the file corresponding
      * to the query.
      *
+     * @param version the version filter
+     * @param project the project filter
      * @param query the query of the file search
      * @return the result of the search
      */
@@ -152,17 +190,25 @@ public class FileResource {
         method = RequestMethod.GET,
         produces = MediaType.APPLICATION_JSON_VALUE)
     @Timed
-    public ResponseEntity<List<File>> searchFiles(@RequestParam String query, Pageable pageable)
+    public ResponseEntity<List<File>> searchFiles(@RequestParam(required = false) List<String> version,
+                                                  @RequestParam(required = false) List<String> project,
+                                                  @RequestParam String query, Pageable pageable)
         throws URISyntaxException {
-        log.debug("REST request to search for a page of Files for query {}", query);
+        log.debug("REST request to search for a page of Files for query {}, version filter {}, project filter {}", query, version, project);
         //par défaut
         //Page<File> page = fileSearchRepository.search(queryStringQuery(query), pageable);
         String default_operator = "AND";
-        //Page<File> page = fileSearchRepository.search(QueryBuilders.simpleQueryStringQuery(query), pageable);
-        Page<File> page = fileSearchRepository.search(QueryBuilders.queryStringQuery(query)
 
-            .defaultOperator(QueryStringQueryBuilder.Operator.AND), pageable);
+        //On utilise une classe custom pour construire un querybuilder, car ce querybuilder sera le même utilisé pour
+        //filtrer sur les versions
+        /*Page<File> page = fileSearchRepository.search(
+            Queries.constructQuery(query),
+            pageable);
+        */
 
+        Page<File> page = customSearchRepository.findWithHighlightedSummary(pageable, query, version, project);
+
+        //Page<FileDTO> result = page.map(file -> convertToDTO(file));
         HttpHeaders headers = PaginationUtil.generateSearchPaginationHttpHeaders(query, page, "/api/_search/files");
         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
     }

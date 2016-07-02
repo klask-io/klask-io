@@ -1,5 +1,6 @@
 package fr.dlap.research.domain;
 
+import fr.dlap.research.config.Constants;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.*;
 
@@ -12,7 +13,7 @@ import java.util.Objects;
  * @author Jérémie Harel
  */
 
-@Document(indexName = "file", shards = 5, replicas = 1, type = "file")
+@Document(indexName = Constants.INDEX_NAME, shards = 5, replicas = 1, type = Constants.TYPE_NAME)
 public class File extends AbstractAuditingEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -47,6 +48,15 @@ public class File extends AbstractAuditingEntity implements Serializable {
     )
     private String path;
 
+    @NotNull
+    @MultiField(
+        mainField = @Field(type = FieldType.String),
+        otherFields = {
+            @InnerField(index = FieldIndex.not_analyzed, suffix = "unique", type = FieldType.String)
+        }
+    )
+    private String project;
+
 
     @Field(type = FieldType.String,
         index = FieldIndex.analyzed,
@@ -66,7 +76,23 @@ public class File extends AbstractAuditingEntity implements Serializable {
     )
     private String version;
 
+    @Field(type = FieldType.Long)
     private Long size;
+
+    public File() {
+
+    }
+
+    public File(String id, String name, String extension, String path, String project, String content, String version, Long size) {
+        this.id = id;
+        this.name = name;
+        this.extension = extension;
+        this.path = path;
+        this.project = project;
+        this.content = content;
+        this.version = version;
+        this.size = size;
+    }
 
     public Long getSize() {
         return size;
@@ -124,6 +150,14 @@ public class File extends AbstractAuditingEntity implements Serializable {
         this.extension = extension;
     }
 
+    public String getProject() {
+        return project;
+    }
+
+    public void setProject(String project) {
+        this.project = project;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -153,6 +187,9 @@ public class File extends AbstractAuditingEntity implements Serializable {
             ", path='" + path + "'" +
             /*", content='" + content.substring(0,25) + "'" +*/
             ", version='" + version + "'" +
+            /*", project='" + project + "'" +*/
             '}';
     }
+
+
 }

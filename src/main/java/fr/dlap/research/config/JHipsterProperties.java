@@ -32,6 +32,7 @@ public class JHipsterProperties {
     private final CorsConfiguration cors = new CorsConfiguration();
 
     private final Ribbon ribbon = new Ribbon();
+    private final Logging logging = new Logging();
 
     public Async getAsync() {
         return async;
@@ -67,6 +68,10 @@ public class JHipsterProperties {
 
     public Ribbon getRibbon() {
         return ribbon;
+    }
+
+    public Logging getLogging() {
+        return logging;
     }
 
     public static class Async {
@@ -206,7 +211,7 @@ public class JHipsterProperties {
 
         private String description = "research API documentation";
 
-        private String version = "0.0.1";
+        private String version = "0.1.0";
 
         private String termsOfServiceUrl;
 
@@ -443,10 +448,6 @@ public class JHipsterProperties {
         }
     }
 
-    private final Logging logging = new Logging();
-
-    public Logging getLogging() { return logging; }
-
     public static class Logging {
 
         private final Logstash logstash = new Logstash();
@@ -489,10 +490,10 @@ public class JHipsterProperties {
         public String[] getDisplayOnActiveProfiles() {
             return displayOnActiveProfiles;
         }
-        
+
         public void setDisplayOnActiveProfiles(String[] displayOnActiveProfiles) {
             this.displayOnActiveProfiles = displayOnActiveProfiles;
         }
-    }  
+    }
 
 }

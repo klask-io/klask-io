@@ -1,12 +1,12 @@
 package fr.dlap.research.config;
 
-import fr.dlap.research.security.*;
-import fr.dlap.research.security.jwt.*;
-
+import fr.dlap.research.security.AuthoritiesConstants;
+import fr.dlap.research.security.Http401UnauthorizedEntryPoint;
+import fr.dlap.research.security.jwt.JWTConfigurer;
+import fr.dlap.research.security.jwt.TokenProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,10 +15,9 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.data.repository.query.SecurityEvaluationContextExtension;
-
 
 import javax.inject.Inject;
 
@@ -80,6 +79,10 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .antMatchers("/api/register").permitAll()
             .antMatchers("/api/activate").permitAll()
             .antMatchers("/api/authenticate").permitAll()
+            .antMatchers("/api/versions/**").permitAll()
+            .antMatchers("/api/_search/versions/**").permitAll()
+            .antMatchers("/api/projects/**").permitAll()
+            .antMatchers("/api/_search/projects/**").permitAll()
             .antMatchers("/api/files/**").permitAll()
             .antMatchers("/api/file-detail/**").permitAll()
             .antMatchers("/api/_search/files/**").permitAll()

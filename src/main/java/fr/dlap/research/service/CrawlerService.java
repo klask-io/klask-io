@@ -41,8 +41,14 @@ public class CrawlerService {
 
     private Set<String> filesToExcludeSet = new HashSet<>();
 
+    @Value("${extensionToExclude:md5,sha1}")
+    private String extensionToExclude;
+
+    private Set<String> extensionsToExcludeSet = new HashSet<>();
+
     @Value("${readableExtension:java,txt,php,xml,properties}")
     private String readableExtension;
+
 
     private Set<String> readableExtensionSet = new HashSet<>();
 
@@ -60,7 +66,7 @@ public class CrawlerService {
      * @param path
      */
     public void crawler(String path) throws IOException {
-        log.debug("Parsing files in {}", path);
+        log.debug("Start Parsing files in {}", path);
 
         directoriesToExcludeSet.clear();
         directoriesToExcludeSet.addAll(Arrays.asList(directoriesToExclude.split(",")));
@@ -70,9 +76,13 @@ public class CrawlerService {
         filesToExcludeSet.addAll(Arrays.asList(filesToExclude.split(",")));
         log.debug("exclude files : {}", filesToExcludeSet);
 
+        extensionsToExcludeSet.clear();
+        extensionsToExcludeSet.addAll(Arrays.asList(extensionToExclude.split(",")));
+        log.debug("exclude extensions : {}", extensionsToExcludeSet);
+
         readableExtensionSet.clear();
         readableExtensionSet.addAll(Arrays.asList(readableExtension.split(",")));
-        log.debug("readable extension : {}", readableExtensionSet);
+        log.debug("ascii files with extension : {}", readableExtensionSet);
 
         numberOfIndexingFiles = 0;
 
@@ -86,8 +96,25 @@ public class CrawlerService {
         if (numberOfIndexingFiles > 0) {
             log.error("{} files with indexing errors", numberOfIndexingFiles);
         }
+        log.debug("Finish to parse files in {}", path);
     }
 
+
+    private String extractExtension(String fileName, int posPoint) {
+        if (posPoint > 0) {
+            return fileName.substring(posPoint + 1, fileName.length());
+        }
+        //the file name doesn't contain a dot or the name is like ".project" so no extension
+        return "";
+    }
+
+    private String extractName(String fileName, int posPoint) {
+        if (posPoint > 0) {
+            return fileName.substring(0, posPoint);
+        }
+        //the file name doesn't contain a dot or if there is a dot, like .project, ".project" is the name
+        return fileName;
+    }
 
     /**
      * Parsing one file
@@ -95,24 +122,12 @@ public class CrawlerService {
      * @param p
      */
     private void addFile(Path p) {
-        log.debug("Parsing file : {}", p);
+        log.trace("Parsing file : {}", p);
 
         String fileName = p.getFileName().toString();
         int posPoint = fileName.lastIndexOf(".");
-        String name;
-        String extension;
-        if (posPoint >= 0) {
-            name = fileName.substring(0, posPoint);
-            extension = fileName.substring(posPoint + 1, fileName.length());
-        } else {//the file name doesn't contain a dot
-            name = fileName;
-            extension = "";
-        }
-        if (name == null || name.equals("")) {
-            name = extension;
-            extension = "";
-        }
-
+        String extension = extractExtension(fileName, posPoint);
+        String name = extractName(fileName, posPoint);
 
         log.trace("explode filename : name:{}\textension:{}", name, extension);
 
@@ -159,31 +174,52 @@ public class CrawlerService {
      * @throws IOException
      */
     private fr.dlap.research.domain.File constructFile(String name, String extension, Path path) throws IOException {
-        fr.dlap.research.domain.File fichier = new fr.dlap.research.domain.File();
-        fichier.setName(name);
-        fichier.setExtension(extension);
-        fichier.setId(UUID.randomUUID().toString());
-        String chemin = path.toString();
-        fichier.setPath(chemin);
 
         BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
-        fichier.setSize(attrs.size());
+        long size = attrs.size();
+
+        String content = null;
+        if (!readableExtensionSet.contains(extension)) {
+            log.trace("parsing only name on file : {}", path);
+        } else {
+            content = readContent(path);
+        }
+
+        fr.dlap.research.domain.File fichier = new fr.dlap.research.domain.File(
+            UUID.randomUUID().toString(),
+            name,
+            extension,
+            path.toString(),
+            null,
+            content,
+            null,
+            size
+        );
+        setVersionAndProject(fichier, path.toString());
         fichier.setCreatedDate(attrs.creationTime().toInstant().atZone(ZoneId.systemDefault()));
         fichier.setLastModifiedDate(attrs.lastModifiedTime().toInstant().atZone(ZoneId.systemDefault()));
 
-
-        if (chemin.contains("branches")) {
-            int positionBranches = chemin.indexOf("/branches/");
-            fichier.setVersion(chemin.substring(positionBranches + 10, chemin.indexOf("/", positionBranches + 10)));
-        } else
-            fichier.setVersion("trunk");
-
-        if (!readableExtensionSet.contains(extension)) {
-            log.debug("parsing only name on file : {}", path);
-        } else {
-            fichier.setContent(readContent(path));
-        }
         return fichier;
+    }
+
+
+    private void setVersionAndProject(fr.dlap.research.domain.File fichier, String path) {
+        String project = null;//par défaut
+        String version = "trunk";//par défaut
+        if (path.contains("branches")) {
+            int positionBranches = path.indexOf("/branches/");
+            version = path.substring(positionBranches + 10, path.indexOf("/", positionBranches + 10));
+            if (positionBranches > 1) {
+                project = path.substring(path.lastIndexOf("/", positionBranches - 1) + 1, positionBranches);
+            }
+        } else if (path.contains("trunk")) {
+            int positionBranches = path.indexOf("/trunk/");
+            if (positionBranches > 1) {
+                project = path.substring(path.lastIndexOf("/", positionBranches - 1) + 1, positionBranches);
+            }
+        }
+        fichier.setVersion(version);
+        fichier.setProject(project);
     }
 
     /**
@@ -195,19 +231,21 @@ public class CrawlerService {
      */
     private String readContent(Path p) throws IOException {
         byte[] content = Files.readAllBytes(p);
-        return new String(content, Charset.defaultCharset());
+        return new String(content, Charset.forName("iso-8859-1"));
 
     }
 
 
     /**
-     * Test if the Path contains an exclude directory
+     * Test if the Path contains an exclude directory, an exclude file or an file with an exclude extension
      *
      * @param path
      */
     private boolean doesntContainsExcludeDirectoriesOrFiles(Path path) {
+        String fileName = path.getFileName().toString();
         return directoriesToExcludeSet.stream().noneMatch(token -> path.toString().contains(token)) &&
-            filesToExcludeSet.stream().noneMatch(token -> path.getFileName().toString().equals(token));
+            filesToExcludeSet.stream().noneMatch(token -> fileName.equals(token)) &&
+            extensionsToExcludeSet.stream().noneMatch(token -> extractExtension(fileName, fileName.lastIndexOf(".")).equals(token));
     }
 
 

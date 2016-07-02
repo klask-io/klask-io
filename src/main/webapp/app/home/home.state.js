@@ -10,7 +10,7 @@
     function stateConfig($stateProvider) {
         $stateProvider.state('home', {
             parent: 'app',
-            url: '/?page&sort&search',
+            url: '/?page&sort&version&project&search',
             data: {
                 authorities: [],
                 pageTitle: 'researchApp.file.home.title'
@@ -31,6 +31,14 @@
                         value: 'id,asc',
                         squash: true
                     },
+                    version: {
+                        value: '',
+                        squash: true
+                    },
+                    project: {
+                        value: '',
+                        squash: true
+                    },
                     search: null
                 },
                 resolve: {
@@ -42,6 +50,13 @@
                             ascending: PaginationUtil.parseAscending($stateParams.sort),
                             search: $stateParams.search
                         };
+                    }],
+                    filters: ['$stateParams', function ($stateParams, PaginationUtil) {
+                        return {
+                            version:$stateParams.version,
+                            project:$stateParams.project,
+                            search: $stateParams.search
+                        }
                     }],
                     translatePartialLoader: ['$translate', '$translatePartialLoader', function ($translate, $translatePartialLoader) {
                         $translatePartialLoader.addPart('file');
@@ -71,6 +86,7 @@
                                     path: null,
                                     content: null,
                                     version: null,
+                                    project: null,
                                     size: null,
                                     id: null
                                 };
@@ -86,10 +102,10 @@
 
             .state('home-detail', {
                 parent: 'app',
-                url: '/file-detail/{id}',
+                url: '/home-detail/{id}',
                 data: {
                     authorities: ['ROLE_USER'],
-                    pageTitle: 'researchApp.file.detail.title'
+                    pageTitle: 'researchApp.home.detail.title'
                 },
                 views: {
                     'content@': {

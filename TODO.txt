@@ -9,6 +9,20 @@ cela permettrait de récupérer tous les derniers fichiers modifiés sur le SVN
 - mettre à jour jhipster quand c'est possible (update)
 - faire des liens dans les vues de fichiers
 
+- coloration syntaxique en fonction du fichier (voir http://prismjs.com/plugins/file-highlight/) ou autoload avec highlight.js
+- ajouter une détection automatique du charset (actuellement l'indexation dans le CrawlerService est fait en iso-8859-1
+et la restitution du FileResource en rest est converti en UTF-8 (l'html rendu par research est en UTF-8)
+=> voir http://stackoverflow.com/questions/774075/character-encoding-detection-algorithm
+
+
+ - dans le crawler, si le last_modified n'a pas bougé, alors on ne réindexe pas le fichier en question
+ - pouvoir parcourir dans le crawler directement le SVN
+
+####IDEE A PENSER####
+Faire des filtres directement sur les entêtes des colonnes (on pourrait par exemple imaginer que "extension" a un filtre "java" et version a un filtre "branche1"
+cela permettra d'éviter d'écrire directement dans le champ de recherche pour les non initiés des requêtes du genre "version:branche1 AND extension:java"
+
+
 ###### intégration continue
  - dans jenkins configurer la tâche "research-release" pour réaliser une image docker (à containeriser)
  - faire un maven release

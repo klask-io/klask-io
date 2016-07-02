@@ -21,6 +21,11 @@ public final class Constants {
 
     public static final String SYSTEM_ACCOUNT = "system";
 
+    public static final String INDEX_NAME = "file";
+
+    public static final String TYPE_NAME = "file";
+    public static final int MAX_RESULT_SEARCH_WINDOW = 10000;//parameter 'index.max_result_window' in elasticsearch
+
     private Constants() {
     }
 }

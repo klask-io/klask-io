@@ -332,3 +332,29 @@ ui bootstrap tweaks
 
 
 /* jhipster-needle-css-add-main JHipster will add new css style */
+
+.footer {
+    color: lightgrey;
+    text-align:right;
+    padding-right:15px;
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+.rightAlign {
+    list-style-type: none;
+    text-align:right;
+}
+
+.margin-top-zero {
+    margin-top:0px;
+}
+
+.padding-left-zero {
+    padding-left:0px;
+}
+
+.container-full {
+  margin: 0 auto;
+  width: 100%;
+}

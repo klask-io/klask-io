@@ -3,9 +3,9 @@
 
     angular
         .module('researchApp', [
-            'ngStorage', 
+            'ngStorage',
             'tmh.dynamicLocale',
-            'pascalprecht.translate', 
+            'pascalprecht.translate',
             'ngResource',
             'ngCookies',
             'ngAria',
@@ -32,22 +32,38 @@
 })();
 
 
-angular.module('filters', []).filter('formatKoMoGo', function () {
-    return function (size) {
-        if (isNaN(size))
-            size = 0;
-        if (size < 1024)
-            return size + ' o';
-        size /= 1024;
-        if (size < 1024)
-            return size.toFixed(2) + ' Kio';
-        size /= 1024;
-        if (size < 1024)
-            return size.toFixed(2) + ' Mio';
-        size /= 1024;
-        if (size < 1024)
-            return size.toFixed(2) + ' Gio';
-        size /= 1024;
-        return size.toFixed(2) + ' Tio';
-    };
-});
+
+
+angular.module('filters', [])
+    .filter('formatKoMoGo', function () {
+        return function (size) {
+            if (isNaN(size))
+                size = 0;
+            if (size < 1024)
+                return size + ' o';
+            size /= 1024;
+            if (size < 1024)
+                return size.toFixed(2) + ' Kio';
+            size /= 1024;
+            if (size < 1024)
+                return size.toFixed(2) + ' Mio';
+            size /= 1024;
+            if (size < 1024)
+                return size.toFixed(2) + ' Gio';
+            size /= 1024;
+            return size.toFixed(2) + ' Tio';
+        };
+    })
+    .filter('countDocs', function () {
+        return function (tableauClefValeur) {
+            if (tableauClefValeur === undefined)
+                return 0;
+            var count=0;
+            angular.forEach(tableauClefValeur, function(key, value) {
+                if (key.hasOwnProperty('docNumber')) {
+                    count = count + key['docNumber'];
+                }
+            });
+            return count.toLocaleString("fr");
+        };
+    });

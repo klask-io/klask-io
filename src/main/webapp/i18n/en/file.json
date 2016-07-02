@@ -6,7 +6,14 @@
                 "createLabel": "Create a new File",
                 "crawler": "Index Files",
                 "createOrEditLabel": "Create or edit a File",
-                "search": "Search for File"
+                "search": "Search for File",
+                "version": {
+                    "search": "filter version"
+                },
+                "project": {
+                    "search": "filter project"
+                },
+                "totalFiles": "Total Files"
             },
             "created": "A new File is created with identifier {{ param }}",
             "updated": "A File is updated with identifier {{ param }}",
@@ -18,10 +25,12 @@
                 "title": "File"
             },
             "id": "Id",
+            "name": "Name",
             "extension": "Extension",
             "path": "Path",
             "content": "Content",
             "version": "Version",
+            "project": "Project",
             "size": "Size"
         }
     }

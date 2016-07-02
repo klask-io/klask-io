@@ -4,6 +4,6 @@
     angular
         .module('researchApp')
         .constant('paginationConstants', {
-            'itemsPerPage': 20
+            'itemsPerPage': 12
         });
 })();
