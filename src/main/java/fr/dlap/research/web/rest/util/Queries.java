@@ -2,7 +2,6 @@ package fr.dlap.research.web.rest.util;
 
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.QueryStringQueryBuilder;
 import org.elasticsearch.search.highlight.HighlightBuilder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.query.FetchSourceFilterBuilder;
@@ -18,8 +17,11 @@ public class Queries {
             .defaultOperator(QueryStringQueryBuilder.Operator.AND);*/
         return new NativeSearchQueryBuilder()
             .withQuery(
-                QueryBuilders.queryStringQuery(query)
-                    .defaultOperator(QueryStringQueryBuilder.Operator.AND)
+                //QueryBuilders.queryStringQuery(query)
+                //.defaultOperator(QueryStringQueryBuilder.Operator.AND)
+
+                QueryBuilders.termQuery("content", query)
+
             )
 
             .withHighlightFields(
@@ -43,11 +45,15 @@ public class Queries {
         return new NativeSearchQueryBuilder()
             //.withQuery(termQuery("content", query))
             .withQuery(
-                QueryBuilders.queryStringQuery(query)
+                QueryBuilders.termQuery("content", query)
+                //QueryBuilders.queryStringQuery(query)
+                //.defaultOperator(QueryStringQueryBuilder.Operator.AND)
                     //TODO : attention, si on souhaite que la recherche s'effectue bien sur l'ensemble des champs
                     //il faut veuillez à ce qu'il soit tous présent ici
                     //en cas d'ajout, penser à les ajouter ici
-                    .defaultOperator(QueryStringQueryBuilder.Operator.AND)
+                //.field("content")
+
+
             )
             //.withFields("content", "name")
             .withPageable(p)
@@ -62,6 +68,7 @@ public class Queries {
                     .preTags("<mark>")
                     .postTags("</mark>")
                     .numOfFragments(numberOfFragments)
+                    .fragmentSize(50)
             );
     }
 

@@ -57,3 +57,20 @@
     }
 })();
 
+(function () {
+    'use strict';
+
+    angular
+        .module('researchApp')
+        .directive('html', htmlPrint);
+
+    function htmlPrint(){
+      return {
+        restrict: 'A',
+        link: function (scope, element, attrs) {
+          element.html(attrs.html);
+        }
+      };
+    }
+})();
+

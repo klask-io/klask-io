@@ -45,7 +45,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         //QueryBuilder searchQuery = Queries.constructQuery(query);
         //return elasticsearchTemplate.queryForPage(new NativeSearchQuery(searchQuery), File.class, new ResultHighlightMapper());
 
-        NativeSearchQueryBuilder nativeQuery = Queries.constructQueryWithHighlight(query, pageable, 2);
+        NativeSearchQueryBuilder nativeQuery = Queries.constructQueryWithHighlight(query, pageable, 3);
 
 
         BoolQueryBuilder ensembleVersion = QueryBuilders.boolQuery();

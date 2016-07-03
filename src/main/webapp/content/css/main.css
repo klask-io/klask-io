@@ -341,6 +341,23 @@ ui bootstrap tweaks
     font-size: 0.9em;
 }
 
+.sizeDoc {
+    color: grey;
+    float: right;
+    margin-right: 10px;
+    text-align:right;
+    font-style: italic;
+    font-size: 0.95em;
+}
+
+.versionDoc{
+    float: right;
+}
+
+.pathDoc {
+    color: grey;
+}
+
 .rightAlign {
     list-style-type: none;
     text-align:right;

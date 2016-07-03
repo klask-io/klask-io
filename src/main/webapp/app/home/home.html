@@ -38,7 +38,7 @@
                         ng-repeat="project in vm.projectsOnRequest | filter:queryproject as filteredProject ">
                         <h5>
                             <a ng-if="$index<limitProject || vm.isProjectIsActive(project.name)"
-                               ng-class="vm.isProjectIsActive(project.name) ? 'label label-success' : 'label label-info'"
+                               ng-class="vm.isProjectIsActive(project.name) ? 'label label-success' : 'label label-primary'"
                                ng-click="vm.filterByProject(project.name)">
                                 {{project.name}}
                                 <span class="badge">{{project.docNumber.toLocaleString("fr")}}</span>
@@ -46,7 +46,8 @@
                         </h5>
                     </li>
                     <li class="rightAlign">
-                        <a href ng-show="foldProject && filteredProject.length > limitProject" class="label label-info"
+                        <a href ng-show="foldProject && filteredProject.length > limitProject"
+                           class="label label-primary"
                            ng-click='limitProject=100;foldProject=!foldProject'>...</a>
                         <a href ng-show="!foldProject" class="label label-info"
                            ng-click='limitProject=5;foldProject=!foldProject'>&uarr;</a>
@@ -128,18 +129,32 @@
                                 </thead>
                                 <tbody>
                                 <tr ng-repeat="file in vm.files track by file.id">
-                                    <td><a data-toggle="tooltip" data-placement="left"
+                                    <td colspan="6">
+                                        <div>
+                                            <a data-toggle="tooltip" data-placement="left"
+                                               title="{{file.name}}.{{file.extension}}"
+                                               ui-sref="home-detail({id:file.id})">{{file.name|
+                                                characters:25}}.{{file.extension}}</a>
+                                            <span class="label label-info">{{file.version}}</span>
+                                            <span class="label label-primary">{{file.project}}</span>
+                                            <span class="sizeDoc">{{file.size | formatKoMoGo}}</span>
+                                            <p class="small" html="{{file.content | characters:200}}"></p>
+                                            <em class="pathDoc small">{{file.path}}</em>
+                                        </div>
+                                    </td>
+                                    <!-- mode tableau deprecated -->
+                                    <!--<td><a data-toggle="tooltip" data-placement="left"
                                            title="{{file.name}}.{{file.extension}}"
                                            ui-sref="home-detail({id:file.id})">{{file.name|
                                         characters:25}}.{{file.extension}}</a></td>
-                                    <!--<td>{{file.extension}}</td>-->
+                                    &lt;!&ndash;<td>{{file.extension}}</td>&ndash;&gt;
                                     <td data-toggle="tooltip" data-placement="left"
                                         title="{{file.path}}">{{file.path | characters:40}}
                                     </td>
                                     <td>{{file.content | characters:300}}</td>
                                     <td>{{file.version}}</td>
                                     <td>{{file.project}}</td>
-                                    <td>{{file.size | formatKoMoGo}}</td>
+                                    <td>{{file.size | formatKoMoGo}}</td>-->
                                 </tr>
                                 </tbody>
                             </table>
