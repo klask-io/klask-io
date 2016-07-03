@@ -14,9 +14,13 @@ cela permettrait de récupérer tous les derniers fichiers modifiés sur le SVN
 et la restitution du FileResource en rest est converti en UTF-8 (l'html rendu par research est en UTF-8)
 => voir http://stackoverflow.com/questions/774075/character-encoding-detection-algorithm
 
+## Highlight
+ - réaliser un custom sanitizer comme ici : https://github.com/BYU-ODH/hummedia-client/blob/master/app/js/custom-sanitize.js (source http://stackoverflow.com/questions/16969248/sanitize-custom-whitelist)
+ basé sur l'original ici
 
+## Crawler
  - dans le crawler, si le last_modified n'a pas bougé, alors on ne réindexe pas le fichier en question
- - pouvoir parcourir dans le crawler directement le SVN
+ - pouvoir parcourir dans le crawler directement le SVN / Git
 
 ####IDEE A PENSER####
 Faire des filtres directement sur les entêtes des colonnes (on pourrait par exemple imaginer que "extension" a un filtre "java" et version a un filtre "branche1"
