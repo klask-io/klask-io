@@ -76,5 +76,5 @@ jhipster:
 dirToExclude : .svn,.git
 fileToExclude : .project,.classpath
 extensionToExclude : sha1,md5
-readableExtension : java,properties,txt,xml,js,html,php,asm,md,json,sh,bat,sql,yml,pom
-directoryToScan : /home/jeremie/Developpement/svn
+readableExtension : java,properties,txt,xml,js,jsp,html,php,asm,md,json,sh,bat,sql,yml,pom,scala,dtd
+directoryToScan : /svn
