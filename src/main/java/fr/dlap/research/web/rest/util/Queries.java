@@ -2,6 +2,7 @@ package fr.dlap.research.web.rest.util;
 
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.QueryStringQueryBuilder;
 import org.elasticsearch.search.highlight.HighlightBuilder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.query.FetchSourceFilterBuilder;
@@ -20,7 +21,14 @@ public class Queries {
                 //QueryBuilders.queryStringQuery(query)
                 //.defaultOperator(QueryStringQueryBuilder.Operator.AND)
 
-                QueryBuilders.termQuery("content", query)
+                //QueryBuilders.termQuery("content", query)
+
+                QueryBuilders.boolQuery()
+                    .should(QueryBuilders.termQuery("content", query))
+                    .should(
+                        QueryBuilders.queryStringQuery(query)
+                            .defaultOperator(QueryStringQueryBuilder.Operator.AND)
+                    )
 
             )
 
@@ -45,7 +53,13 @@ public class Queries {
         return new NativeSearchQueryBuilder()
             //.withQuery(termQuery("content", query))
             .withQuery(
-                QueryBuilders.termQuery("content", query)
+                QueryBuilders.boolQuery()
+                    .should(QueryBuilders.termQuery("content", query))
+                    .should(
+                        QueryBuilders.queryStringQuery(query)
+                            .defaultOperator(QueryStringQueryBuilder.Operator.AND)
+                    )
+
                 //QueryBuilders.queryStringQuery(query)
                 //.defaultOperator(QueryStringQueryBuilder.Operator.AND)
                     //TODO : attention, si on souhaite que la recherche s'effectue bien sur l'ensemble des champs
