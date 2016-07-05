@@ -1,0 +1,6 @@
+{
+    "crawler": {
+        "title": "Configuration de l'indexation",
+        "call.button": "Lancer l'indexation"
+    }
+}

@@ -21,6 +21,7 @@
             },
             "admin": {
                 "main": "Administration",
+                "crawler": "Indexation",
                 "userManagement": "Gestion utilisateur",
                 "tracker": "Suivi des utilisateurs",
                 "metrics": "Métriques",

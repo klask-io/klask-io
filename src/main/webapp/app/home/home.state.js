@@ -65,41 +65,6 @@
                     }]
                 }
             })
-            .state('file.crawler', {
-                parent: 'app',
-                url: '/crawler',
-                data: {
-                    authorities: ['ROLE_USER']
-                },
-                onEnter: ['$stateParams', '$state', '$uibModal', function ($stateParams, $state, $uibModal) {
-                    $uibModal.open({
-                        templateUrl: 'app/entities/file/file-dialog.html',
-                        controller: 'FileDialogController',
-                        controllerAs: 'vm',
-                        backdrop: 'static',
-                        size: 'lg',
-                        resolve: {
-                            entity: function () {
-                                return {
-                                    name: null,
-                                    extension: null,
-                                    path: null,
-                                    content: null,
-                                    version: null,
-                                    project: null,
-                                    size: null,
-                                    id: null
-                                };
-                            }
-                        }
-                    }).result.then(function () {
-                        $state.go('file', null, {reload: true});
-                    }, function () {
-                        $state.go('file');
-                    });
-                }]
-            })
-
             .state('home-detail', {
                 parent: 'app',
                 url: '/home-detail/{id}',

@@ -11,7 +11,7 @@
                     <li class="rightAlign"
                         ng-repeat="version in vm.versionsOnRequest | filter:queryversion as filteredVersion ">
                         <h5>
-                            <a ng-if="$index<limitVersion || vm.isVersionIsActive(version.name)"
+                            <a href ng-if="$index<limitVersion || vm.isVersionIsActive(version.name)"
                                ng-class="vm.isVersionIsActive(version.name) ? 'label label-success' : 'label label-info'"
                                ng-click="vm.filterByVersion(version.name)">
                                 {{version.name}}
@@ -23,7 +23,8 @@
                         <a href ng-show="foldVersion && filteredVersion.length > limitVersion" class="label label-info"
                            ng-click='limitVersion=100;foldVersion=!foldVersion'>...</a>
                         <a href ng-show="!foldVersion" class="label label-info"
-                           ng-click='limitVersion=5;foldVersion=!foldVersion'>&uarr;</a>
+                           ng-click='limitVersion=5;foldVersion=!foldVersion'><span
+                            class="glyphicon glyphicon-triangle-top"></a>
                     </li>
                 </ul>
             </div>
@@ -37,7 +38,7 @@
                     <li class="rightAlign"
                         ng-repeat="project in vm.projectsOnRequest | filter:queryproject as filteredProject ">
                         <h5>
-                            <a ng-if="$index<limitProject || vm.isProjectIsActive(project.name)"
+                            <a href ng-if="$index<limitProject || vm.isProjectIsActive(project.name)"
                                ng-class="vm.isProjectIsActive(project.name) ? 'label label-success' : 'label label-primary'"
                                ng-click="vm.filterByProject(project.name)">
                                 {{project.name}}
@@ -49,23 +50,11 @@
                         <a href ng-show="foldProject && filteredProject.length > limitProject"
                            class="label label-primary"
                            ng-click='limitProject=100;foldProject=!foldProject'>...</a>
-                        <a href ng-show="!foldProject" class="label label-info"
-                           ng-click='limitProject=5;foldProject=!foldProject'>&uarr;</a>
+                        <a href ng-show="!foldProject" class="label label-primary"
+                           ng-click='limitProject=5;foldProject=!foldProject'><span
+                            class="glyphicon glyphicon-triangle-top"></span></a>
                     </li>
                 </ul>
-            </div>
-        </div>
-        <div class="well">
-            <div class="row">
-                <div class="no-padding-left">
-                    <button class="btn btn-primary" ng-disabled="isCrawling" ng-click="vm.crawler()"
-                            ng-class="{active: vm.$state.includes('admin')}" has-authority="ROLE_ADMIN">
-                        <span class="glyphicon glyphicon-plus"></span>
-                    <span class="hidden-xs" translate="researchApp.file.home.crawler">
-                        Crawler
-                    </span>
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -131,14 +120,16 @@
                                 <tr ng-repeat="file in vm.files track by file.id">
                                     <td colspan="6">
                                         <div>
-                                            <a data-toggle="tooltip" data-placement="left"
-                                               title="{{file.name}}.{{file.extension}}"
-                                               ui-sref="home-detail({id:file.id})">{{file.name|
-                                                characters:25}}.{{file.extension}}</a>
-                                            <span class="label label-info">{{file.version}}</span>
-                                            <span class="label label-primary">{{file.project}}</span>
-                                            <span class="sizeDoc">{{file.size | formatKoMoGo}}</span>
-                                            <p class="small" html="{{file.content | characters:200}}"></p>
+                                            <div style="padding-bottom:2px">
+                                                <a data-toggle="tooltip" data-placement="left"
+                                                   title="{{file.name}}.{{file.extension}}"
+                                                   ui-sref="home-detail({id:file.id})">{{file.name|
+                                                    characters:25}}.{{file.extension}}</a>
+                                                <span class="label label-info">{{file.version}}</span>
+                                                <span class="label label-primary">{{file.project}}</span>
+                                                <span class="sizeDoc">{{file.size | formatKoMoGo}}</span>
+                                            </div>
+                                            <p class="small" html="{{file.content | characters:460}}"></p>
                                             <em class="pathDoc small">{{file.path}}</em>
                                         </div>
                                     </td>

@@ -27,20 +27,3 @@
 
 })();
 
-(function () {
-    'use strict';
-    angular
-        .module('researchApp')
-        .factory('Crawler', Crawler);
-
-    Crawler.$inject = ['$resource'];
-
-    function Crawler($resource) {
-        var resourcelUrl = "api/crawler";
-
-        return $resource(resourcelUrl, {}, {
-            'crawler': {method: 'POST'}
-        });
-    }
-
-})();

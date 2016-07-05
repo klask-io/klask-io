@@ -21,6 +21,7 @@
             },
             "admin": {
                 "main": "Administration",
+                "crawler": "Crawler",
                 "userManagement": "User management",
                 "tracker": "User tracker",
                 "metrics": "Metrics",

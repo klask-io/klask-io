@@ -22,7 +22,7 @@ public class ResultHighlightMapper implements SearchResultMapper {
 
     @Override
     public <T> Page<T> mapResults(SearchResponse response, Class<T> clazz, Pageable pageable) {
-        List<File> result = new ArrayList<File>();
+        List<File> result = new ArrayList<>();
         long totalHits = response.getHits().getTotalHits();
         for (SearchHit searchHit : response.getHits()) {
             if (response.getHits().getHits().length <= 0) {

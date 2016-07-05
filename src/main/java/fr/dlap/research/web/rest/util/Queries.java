@@ -82,7 +82,7 @@ public class Queries {
                     .preTags("<mark>")
                     .postTags("</mark>")
                     .numOfFragments(numberOfFragments)
-                    .fragmentSize(50)
+                    .fragmentSize(150)
             );
     }
 

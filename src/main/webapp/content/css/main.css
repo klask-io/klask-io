@@ -375,3 +375,9 @@ ui bootstrap tweaks
   margin: 0 auto;
   width: 100%;
 }
+
+mark, .mark {
+    color: grey;
+    border-radius: .3em;
+    background-color: #FFFC95;
+}

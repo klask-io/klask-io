@@ -5,9 +5,9 @@
         .module('researchApp')
         .controller('HomeController', HomeController);
 
-    HomeController.$inject = ['$scope', '$state', 'DataUtils', 'File', 'FileSearch', 'VersionSearch', 'ProjectSearch', 'Crawler', 'ParseLinks', 'AlertService', 'pagingParams', 'paginationConstants', 'filters'];
+    HomeController.$inject = ['$scope', '$state', 'DataUtils', 'File', 'FileSearch', 'VersionSearch', 'ProjectSearch', 'ParseLinks', 'AlertService', 'pagingParams', 'paginationConstants', 'filters'];
 
-    function HomeController ($scope, $state, DataUtils, File, FileSearch, VersionSearch, ProjectSearch, Crawler, ParseLinks, AlertService, pagingParams, paginationConstants, filters) {
+    function HomeController ($scope, $state, DataUtils, File, FileSearch, VersionSearch, ProjectSearch, ParseLinks, AlertService, pagingParams, paginationConstants, filters) {
         var vm = this;
         vm.loadPage = loadPage;
         vm.predicate = pagingParams.predicate;
@@ -27,7 +27,6 @@
         vm.currentSearch = pagingParams.search;
         vm.openFile = DataUtils.openFile;
         vm.byteSize = DataUtils.byteSize;
-        vm.crawler = crawler;
 
 	loadAll();
 
@@ -230,19 +229,6 @@
             vm.reverse = true;
             vm.currentSearch = null;
             vm.transition();
-        }
-
-        function crawler() {
-            vm.isCrawling = true;
-            Crawler.crawler(onCrawlerSuccess, onCrawlerError);
-        }
-        function onCrawlerSuccess(result) {
-            vm.isCrawling = false;
-            $uibModalInstance.close(result);
-        }
-
-        function onCrawlerError() {
-            vm.isCrawling = false;
         }
 
         //on ne sait pas à l'avance si vm.versionsSelected est un tableau ou un string seul

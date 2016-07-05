@@ -3,23 +3,22 @@
         "file": {
             "home": {
                 "title": "Files",
-                "createLabel": "Create a new File",
-                "crawler": "Index Files",
-                "createOrEditLabel": "Create or edit a File",
-                "search": "Search for File",
+                "createLabel": "Create a new file",
+                "createOrEditLabel": "Create or edit a file",
+                "search": "Your search",
                 "version": {
                     "search": "filter version"
                 },
                 "project": {
                     "search": "filter project"
                 },
-                "totalFiles": "Total Files"
+                "totalFiles": "Total files"
             },
-            "created": "A new File is created with identifier {{ param }}",
-            "updated": "A File is updated with identifier {{ param }}",
-            "deleted": "A File is deleted with identifier {{ param }}",
+            "created": "A new file is created with identifier {{ param }}",
+            "updated": "A file is updated with identifier {{ param }}",
+            "deleted": "A file is deleted with identifier {{ param }}",
             "delete": {
-                "question": "Are you sure you want to delete File {{ id }}?"
+                "question": "Are you sure you want to delete file {{ id }}?"
             },
             "detail": {
                 "title": "File"
