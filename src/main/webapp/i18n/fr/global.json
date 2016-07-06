@@ -121,5 +121,5 @@
         "emailexists": "E-mail is already in use!",
         "idexists": "A new {{entityName}} cannot already have an ID"
     },
-    "footer": "Research - Jérémie Harel (2016)"
+    "footer": "Research (2016)"
 }
