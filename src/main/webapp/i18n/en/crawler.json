@@ -1,6 +1,7 @@
 {
     "crawler": {
         "title": "Crawler configuration",
-        "call.button": "Index files"
+        "call.button": "Index files",
+        "progress.title": "Crawling progress"
     }
 }

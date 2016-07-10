@@ -14,6 +14,8 @@ import java.util.Objects;
  */
 
 @Document(indexName = Constants.INDEX_NAME, shards = 5, replicas = 1, type = Constants.TYPE_NAME)
+@Setting(settingPath = "elasticsearch/settings.json")
+//@Mapping(mappingPath = "elasticsearch/mapping.json")
 public class File extends AbstractAuditingEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -60,8 +62,8 @@ public class File extends AbstractAuditingEntity implements Serializable {
 
     @Field(type = FieldType.String,
         index = FieldIndex.analyzed,
-        searchAnalyzer = "whitespace",
-        analyzer = "whitespace",
+        searchAnalyzer = "customanalyzer",
+        analyzer = "customanalyzer",
         store = false)
     private String content;
 

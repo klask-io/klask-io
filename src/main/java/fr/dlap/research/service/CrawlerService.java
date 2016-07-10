@@ -88,7 +88,9 @@ public class CrawlerService {
 
         Files.walk(new File(path).toPath())
             .filter(p -> p.toFile().isFile())
+            .peek(p -> notifyDiscoveredFile(p, "before"))
             .filter(path1 -> doesntContainsExcludeDirectoriesOrFiles(path1))
+            .peek(p -> notifyDiscoveredFile(p, "after"))
             .forEach(path2 -> this.addFile(path2));
 
         indexingBulkFiles(listeDeFichiers);
@@ -114,6 +116,12 @@ public class CrawlerService {
         }
         //the file name doesn't contain a dot or if there is a dot, like .project, ".project" is the name
         return fileName;
+    }
+
+    private void notifyDiscoveredFile(Path path, String position) {
+        if (path.getFileName().toString().equals("pom.xml")) {
+            log.debug("add {}, {}", position, path);
+        }
     }
 
     /**

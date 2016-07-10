@@ -381,3 +381,7 @@ mark, .mark {
     border-radius: .3em;
     background-color: #FFFC95;
 }
+
+pre > code {
+padding: 3px 4px;
+}

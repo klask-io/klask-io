@@ -5,6 +5,7 @@ import fr.dlap.research.config.Constants;
 import fr.dlap.research.domain.File;
 import fr.dlap.research.repository.search.CustomSearchRepository;
 import fr.dlap.research.repository.search.FileSearchRepository;
+import fr.dlap.research.web.rest.dto.FileDetailDTO;
 import fr.dlap.research.web.rest.util.EncodingUtil;
 import fr.dlap.research.web.rest.util.HeaderUtil;
 import fr.dlap.research.web.rest.util.PaginationUtil;
@@ -144,7 +145,7 @@ public class FileResource {
         method = RequestMethod.GET,
         produces = MediaType.APPLICATION_JSON_VALUE)
     @Timed
-    public ResponseEntity<File> getFile(@PathVariable String id) {
+    public ResponseEntity<FileDetailDTO> getFile(@PathVariable String id) {
         log.debug("REST request to get File : {}", id);
         File file = fileSearchRepository.findOne(id);
 
@@ -153,7 +154,7 @@ public class FileResource {
         if (file != null && file.getContent() != null) {
             file.setContent(EncodingUtil.convertToUTF8(file.getContent()));
         }
-        return Optional.ofNullable(file)
+        return Optional.ofNullable(new FileDetailDTO(file))
             .map(result -> new ResponseEntity<>(
                 result,
                 HttpStatus.OK))
