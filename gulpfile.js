@@ -65,8 +65,8 @@ gulp.task('copy', function () {
         .pipe(gulp.dest(config.dist)),
         gulp.src(config.app + 'syntaxhighlighter/**')
         .pipe(gulp.dest(config.dist + 'syntaxhighlighter/')),
-        /*gulp.src(config.app + 'prism/**')
-                .pipe(gulp.dest(config.dist + 'prism/')),*/
+        gulp.src(config.app + 'prism/**')
+                .pipe(gulp.dest(config.dist + 'prism/')),
         gulp.src([config.app + 'robots.txt', config.app + 'favicon.ico', config.app + '.htaccess'], { dot: true })
         .pipe(plumber({errorHandler: handleErrors}))
         .pipe(changed(config.dist))

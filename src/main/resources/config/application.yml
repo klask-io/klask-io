@@ -77,4 +77,4 @@ dirToExclude : .svn,.git
 fileToExclude : .project,.classpath
 extensionToExclude : sha1,md5
 readableExtension : java,properties,txt,xml,js,jsp,css,html,htm,php,asm,md,json,sh,bat,sql,yml,pom,scala,dtd,c,cpp,h,pc,as,mxml,xsl,xslt,tld,asp,jrxml,conf,desc
-directoryToScan : /home/jeremie/Developpement/svn
+directoryToScan : /svn
