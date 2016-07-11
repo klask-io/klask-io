@@ -42,9 +42,12 @@ public class FileMapper {
             case "sql":
                 return "sql";
             case "css":
+            case "less":
+            case "scss":
                 return "css";
             case "js":
             case "javascript":
+            case "gs":
                 return "javascript";
             case "makefile":
             case "sh":
