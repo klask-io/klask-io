@@ -21,6 +21,7 @@ et la restitution du FileResource en rest est converti en UTF-8 (l'html rendu pa
 ## Crawler
  - dans le crawler, si le last_modified n'a pas bougé, alors on ne réindexe pas le fichier en question
  - pouvoir parcourir dans le crawler directement le SVN / Git
+ - gérer l'accès en JWT à l'api crawler (utiliser le user system ?)
 
 ####IDEE A PENSER####
 Faire des filtres directement sur les entêtes des colonnes (on pourrait par exemple imaginer que "extension" a un filtre "java" et version a un filtre "branche1"
