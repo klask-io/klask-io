@@ -104,7 +104,7 @@ public class CrawlerService {
 
     private String extractExtension(String fileName, int posPoint) {
         if (posPoint > 0) {
-            return fileName.substring(posPoint + 1, fileName.length());
+            return fileName.substring(posPoint + 1, fileName.length()).toLowerCase();
         }
         //the file name doesn't contain a dot or the name is like ".project" so no extension
         return "";
