@@ -49,7 +49,6 @@ public class CrawlerService {
     @Value("${readableExtension:java,txt,php,xml,properties}")
     private String readableExtension;
 
-
     private Set<String> readableExtensionSet = new HashSet<>();
 
     private Set<fr.dlap.research.domain.File> listeDeFichiers = new HashSet<>();
@@ -58,7 +57,6 @@ public class CrawlerService {
 
     //TODO à supprimer
     private int numberOfIndexingFiles = 0;
-
 
     /**
      * execute the crawler on the path directory
@@ -88,19 +86,18 @@ public class CrawlerService {
 
         Files.walk(new File(path).toPath())
             .filter(p -> p.toFile().isFile())
-            .peek(p -> notifyDiscoveredFile(p, "before"))
+            //.peek(p -> notifyDiscoveredFile(p, "before"))
             .filter(path1 -> doesntContainsExcludeDirectoriesOrFiles(path1))
-            .peek(p -> notifyDiscoveredFile(p, "after"))
+            //.peek(p -> notifyDiscoveredFile(p, "after"))
             .forEach(path2 -> this.addFile(path2));
 
-        indexingBulkFiles(listeDeFichiers);
+        indexingBulkFiles();
 
         if (numberOfIndexingFiles > 0) {
             log.error("{} files with indexing errors", numberOfIndexingFiles);
         }
         log.debug("Finish to parse files in {}", path);
     }
-
 
     private String extractExtension(String fileName, int posPoint) {
         if (posPoint > 0) {
@@ -143,7 +140,7 @@ public class CrawlerService {
             fr.dlap.research.domain.File fichier = constructFile(name, extension, p);
 
             if (listeDeFichiers.size() > batchNumber) {
-                indexingBulkFiles(listeDeFichiers);
+                indexingBulkFiles();
                 listeDeFichiers.clear();
             }
             listeDeFichiers.add(fichier);
@@ -157,9 +154,8 @@ public class CrawlerService {
     /**
      * Index a bulk of files (Constant default : 100)
      *
-     * @param files
      */
-    private void indexingBulkFiles(Set<fr.dlap.research.domain.File> files) {
+    private void indexingBulkFiles() {
         log.trace("indexing bulk files : {}", listeDeFichiers);
         try {
             fileSearchRepository.save(listeDeFichiers);
@@ -169,6 +165,18 @@ public class CrawlerService {
             listeDeFichiers.stream()
                 .filter(f -> ids.contains(f.getId()))
                 .forEach(file -> log.error("Exception while indexing file {}, {}", file.getPath(), e.getFailedDocuments().get(file.getId())));
+        } catch (OutOfMemoryError e) {
+            log.error("OutOfMemory while indexing one file of the following files :");
+            StringBuilder sb = new StringBuilder();
+            listeDeFichiers.stream()
+                .forEach(file -> sb.append(file.getPath() + ","));
+            log.error(sb.toString());
+        } catch (Exception e) {
+            log.error("elasticsearch node is not avaible, waiting 10s and continue", e);
+            try {
+                Thread.sleep(10000);
+            } catch (Exception ee) {
+            }
         }
     }
 
@@ -210,11 +218,10 @@ public class CrawlerService {
         return fichier;
     }
 
-
     private void setVersionAndProject(fr.dlap.research.domain.File fichier, String path) {
         String project = null;//par défaut
         String version = "trunk";//par défaut
-        if (path.contains("branches")) {
+        if (path.contains("/branches/")) {
             int positionBranches = path.indexOf("/branches/");
             version = path.substring(positionBranches + 10, path.indexOf("/", positionBranches + 10));
             if (positionBranches > 1) {
@@ -243,7 +250,6 @@ public class CrawlerService {
 
     }
 
-
     /**
      * Test if the Path contains an exclude directory, an exclude file or an file with an exclude extension
      *
@@ -255,7 +261,6 @@ public class CrawlerService {
             filesToExcludeSet.stream().noneMatch(token -> fileName.equals(token)) &&
             extensionsToExcludeSet.stream().noneMatch(token -> extractExtension(fileName, fileName.lastIndexOf(".")).equals(token));
     }
-
 
     /**
      * clear all the index
