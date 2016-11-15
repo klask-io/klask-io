@@ -1,3 +1,3 @@
 <application>
-  <component name="MavenVersion" embedderJdk="#JAVA_HOME" mavenHome="Bundled (Maven 3)" />
+  <component name="MavenVersion" embedderJdk="#JAVA_HOME" mavenHome="C:/produits/Maven/apache-maven-3.2.3" />
 </application>
