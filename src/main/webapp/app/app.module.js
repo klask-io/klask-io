@@ -16,6 +16,7 @@
             'ui.router',
             'infinite-scroll',
             'filters',
+            'ngSanitize',
             // jhipster-needle-angularjs-add-module JHipster will add new module here
             'angular-loading-bar'
         ])
@@ -54,6 +55,11 @@ angular.module('filters', [])
             return size.toFixed(2) + ' Tio';
         };
     })
+    .filter('unsafe',['$sce', function ($sce) {
+        return function (content) {
+            return $sce.trustAsHtml(content);
+        };
+    }])
     .filter('countDocs', function () {
         return function (tableauClefValeur) {
             if (tableauClefValeur === undefined)

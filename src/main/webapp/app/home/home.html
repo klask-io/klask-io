@@ -124,12 +124,12 @@
                                                 <a data-toggle="tooltip" data-placement="left"
                                                    title="{{file.name}}.{{file.extension}}"
                                                    ui-sref="home-detail({id:file.id})">{{file.name|
-                                                    characters:25}}.{{file.extension}}</a>
+                                                    characters:40}}.{{file.extension}}</a>
                                                 <span class="label label-info">{{file.version}}</span>
                                                 <span class="label label-primary">{{file.project}}</span>
                                                 <span class="sizeDoc">{{file.size | formatKoMoGo}}</span>
                                             </div>
-                                            <p class="small" html="{{file.content | characters:460}}"></p>
+                                            <p class="small" ng-bind-html="file.content | characters:460 | unsafe"></p>
                                             <em class="pathDoc small">{{file.path}}</em>
                                         </div>
                                     </td>

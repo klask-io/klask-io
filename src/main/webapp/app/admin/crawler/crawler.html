@@ -2,10 +2,15 @@
     <h2 translate="crawler.title">Application Crawler</h2>
     <jhi-alert></jhi-alert>
     <p>
-        <button class="btn btn-primary" ng-disabled="isCrawling" ng-click="vm.crawler()"
+        <button class="btn btn-primary" ng-show="!vm.isCrawling" ng-click="vm.crawler()"
                 has-authority="ROLE_ADMIN">
             <span class="glyphicon glyphicon-search"></span>&nbsp;<span
             translate="crawler.call.button">Call crawler</span>
+        </button>
+        <button class="btn btn-primary" ng-show="vm.isCrawling" ng-click="vm.stopCrawler()"
+                has-authority="ROLE_ADMIN">
+            <span class="glyphicon glyphicon-search"></span>&nbsp;<span
+            translate="crawler.stop.button">Stop crawler</span>
         </button>
     </p>
 

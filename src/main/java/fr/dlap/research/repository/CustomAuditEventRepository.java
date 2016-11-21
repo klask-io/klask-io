@@ -2,7 +2,6 @@ package fr.dlap.research.repository;
 
 import fr.dlap.research.config.audit.AuditEventConverter;
 import fr.dlap.research.domain.PersistentAuditEvent;
-
 import org.springframework.boot.actuate.audit.AuditEvent;
 import org.springframework.boot.actuate.audit.AuditEventRepository;
 import org.springframework.stereotype.Repository;
@@ -47,6 +46,11 @@ public class CustomAuditEventRepository implements AuditEventRepository {
     }
 
     @Override
+    public List<AuditEvent> find(String principal, Date after, String type) {
+        return find(principal, after);
+    }
+
+    @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void add(AuditEvent event) {
         if (!AUTHORIZATION_FAILURE.equals(event.getType()) &&
@@ -60,5 +64,12 @@ public class CustomAuditEventRepository implements AuditEventRepository {
             persistentAuditEvent.setData(auditEventConverter.convertDataToStrings(event.getData()));
             persistenceAuditEventRepository.save(persistentAuditEvent);
         }
+    }
+
+    @Override
+    public List<AuditEvent> find(Date after) {
+        Iterable<PersistentAuditEvent> persistentAuditEvents;
+        persistentAuditEvents = persistenceAuditEventRepository.findByAuditEventDateAfter(LocalDateTime.from(after.toInstant()));
+        return auditEventConverter.convertToAuditEvent(persistentAuditEvents);
     }
 }

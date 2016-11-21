@@ -1,14 +1,15 @@
 package fr.dlap.research.service;
 
+import fr.dlap.research.domain.File;
 import fr.dlap.research.repository.search.FileSearchRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.elasticsearch.ElasticsearchException;
+import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -55,6 +56,9 @@ public class CrawlerService {
 
     private int batchNumber = 100;
 
+    @Inject
+    private ElasticsearchTemplate elasticsearchTemplate;
+
     //TODO à supprimer
     private int numberOfIndexingFiles = 0;
 
@@ -84,7 +88,7 @@ public class CrawlerService {
 
         numberOfIndexingFiles = 0;
 
-        Files.walk(new File(path).toPath())
+        Files.walk(new java.io.File(path).toPath())
             .filter(p -> p.toFile().isFile())
             //.peek(p -> notifyDiscoveredFile(p, "before"))
             .filter(path1 -> doesntContainsExcludeDirectoriesOrFiles(path1))
@@ -266,6 +270,9 @@ public class CrawlerService {
      * clear all the index
      */
     public void clearIndex() {
-        fileSearchRepository.deleteAll();
+        elasticsearchTemplate.deleteIndex(File.class);
+        elasticsearchTemplate.createIndex(File.class);
+        elasticsearchTemplate.putMapping(File.class);
+        elasticsearchTemplate.refresh(File.class);
     }
 }

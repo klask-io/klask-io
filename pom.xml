@@ -68,8 +68,6 @@
         <profile.no-liquibase></profile.no-liquibase>
         <profile.no-swagger></profile.no-swagger>
     </properties>
-
-
     <dependencies>
         <dependency>
             <groupId>io.dropwizard.metrics</groupId>

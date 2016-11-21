@@ -13,7 +13,7 @@ import java.util.Objects;
  * @author Jérémie Harel
  */
 
-@Document(indexName = Constants.INDEX_NAME, shards = 5, replicas = 1, type = Constants.TYPE_NAME)
+@Document(indexName = Constants.INDEX_NAME, shards = 8, replicas = 0, type = Constants.TYPE_NAME)
 @Setting(settingPath = "elasticsearch/settings.json")
 //@Mapping(mappingPath = "elasticsearch/mapping.json")
 public class File extends AbstractAuditingEntity implements Serializable {

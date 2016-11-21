@@ -38,7 +38,14 @@
         var resourcelUrl = "api/crawler";
 
         return $resource(resourcelUrl, {}, {
-            'crawler': {method: 'POST'}
+            'iscrawling': {
+            method: 'GET',
+            transformResponse: function(data, headers) {
+                        return {data:data};
+                    }
+            },
+            'crawler': {method: 'POST'},
+            'stopcrawler': {method: 'DELETE'}
         });
     }
 
