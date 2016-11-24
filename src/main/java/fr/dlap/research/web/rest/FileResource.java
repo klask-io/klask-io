@@ -154,7 +154,7 @@ public class FileResource {
         if (file != null && file.getContent() != null) {
             file.setContent(EncodingUtil.convertToUTF8(file.getContent()));
         }
-        return Optional.ofNullable(new FileDetailDTO(file))
+        return Optional.of(new FileDetailDTO(file))
             .map(result -> new ResponseEntity<>(
                 result,
                 HttpStatus.OK))
@@ -175,7 +175,7 @@ public class FileResource {
         log.debug("REST request to delete File : {}", id);
 	//TODO : fileRepository.delete(id);
         fileSearchRepository.delete(id);
-        return ResponseEntity.ok().headers(HeaderUtil.createEntityDeletionAlert("file", id.toString())).build();
+        return ResponseEntity.ok().headers(HeaderUtil.createEntityDeletionAlert("file", id)).build();
     }
 
     /**

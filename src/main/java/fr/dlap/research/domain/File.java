@@ -169,10 +169,7 @@ public class File extends AbstractAuditingEntity implements Serializable {
             return false;
         }
         File file = (File) o;
-        if (file.id == null || id == null) {
-            return false;
-        }
-        return Objects.equals(id, file.id);
+        return !(file.id == null || id == null) && Objects.equals(id, file.id);
     }
 
     @Override
