@@ -1,0 +1,64 @@
+{
+    "file": {
+        "properties": {
+            "id": {
+                "type": "string",
+                "index": "not_analyzed"
+            },
+            "name": {
+                "store": true,
+                "type": "string",
+                "search_analyzer": "keyword",
+                "analyzer": "keyword"
+            },
+            "extension": {
+                "store": true,
+                "type": "string",
+                "search_analyzer": "keyword",
+                "analyzer": "keyword"
+            },
+            "path": {
+                "store": true,
+                "type": "string",
+                "search_analyzer": "keyword",
+                "analyzer": "keyword"
+            },
+            "project": {
+                "type": "multi_field",
+                "fields": {
+                    "project": {
+                        "store": false,
+                        "type": "string"
+                    },
+                    "unique": {
+                        "type": "string",
+                        "index": "not_analyzed"
+                    }
+                }
+            },
+            "content": {
+                "store": false,
+                "type": "string",
+                "search_analyzer": "codeanalyser",
+                "analyzer": "codeanalyser"
+            },
+            "version": {
+                "type": "multi_field",
+                "fields": {
+                    "version": {
+                        "store": false,
+                        "type": "string"
+                    },
+                    "unique": {
+                        "type": "string",
+                        "index": "not_analyzed"
+                    }
+                }
+            },
+            "size": {
+                "store": false,
+                "type": "long"
+            }
+        }
+    }
+}

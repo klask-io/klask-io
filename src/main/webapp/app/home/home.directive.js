@@ -39,7 +39,7 @@
             },
             link: function(scope, element, attrs, controller, transclude) {
                 scope.$watch('source', function(v) {
-                    element.find("code").html(v);
+                    element.find("code").text(v).html();
 
                     Prism.highlightElement(element.find("code")[0]);
                 });
@@ -56,21 +56,3 @@
 
     }
 })();
-
-(function () {
-    'use strict';
-
-    angular
-        .module('researchApp')
-        .directive('html', htmlPrint);
-
-    function htmlPrint(){
-      return {
-        restrict: 'A',
-        link: function (scope, element, attrs) {
-          element.html(attrs.html);
-        }
-      };
-    }
-})();
-

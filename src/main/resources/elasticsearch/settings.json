@@ -1,0 +1,41 @@
+{
+    "number_of_shards": "5",
+    "number_of_replicas": "1",
+    "analysis": {
+        "analyzer": {
+            "customanalyzer": {
+                "type": "custom",
+                "tokenizer": "customTokenizer",
+                "filter": [
+                    "asciifolding",
+                    "lowercase"
+                ]
+            },
+            "camelanalyzer": {
+                "type": "custom",
+                "tokenizer": "customTokenizer",
+                "filter": [
+                    "asciifolding",
+                    "camelcase",
+                    "lowercase"
+                ]
+            }
+        },
+        "tokenizer": {
+            "customTokenizer": {
+                "type": "pattern",
+                "pattern": "\\W+"
+            }
+        },
+        "filter": {
+            "camelcase": {
+                "type": "pattern_capture",
+                "preserve_original": 1,
+                "patterns": [
+                    "(\\p{Ll}+|\\p{Lu}\\p{Ll}+|\\p{Lu}+)",
+                    "(\\d+)"
+                ]
+            }
+        }
+    }
+}

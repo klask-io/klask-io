@@ -5,14 +5,18 @@ import fr.dlap.research.service.CrawlerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * REST controller for managing File.
@@ -21,8 +25,9 @@ import java.net.URISyntaxException;
 @RequestMapping("/api")
 public class CrawlerResource {
 
+    private static ExecutorService pool = Executors.newFixedThreadPool(1);
+    private static Future<Void> future;
     private final Logger log = LoggerFactory.getLogger(CrawlerResource.class);
-
     @Inject
     private CrawlerService crawlerService;
 
@@ -39,8 +44,63 @@ public class CrawlerResource {
         method = RequestMethod.POST,
         produces = MediaType.APPLICATION_JSON_VALUE)
     @Timed
+    //@Secured(AuthoritiesConstants.ADMIN)
+    @ResponseStatus(HttpStatus.OK)
     public void callCrawler() throws URISyntaxException, IOException {
         log.debug("REST request to crawler");
+        Callable<Void> job = () -> {
+            resetIndex();
+            return null;
+        };
+        future = pool.submit(job);
+
+    }
+
+
+    /**
+     * GET /crawler
+     *
+     * @throws URISyntaxException
+     * @throws IOException
+     */
+    @RequestMapping(value = "/crawler",
+        method = RequestMethod.GET,
+        produces = MediaType.APPLICATION_JSON_VALUE)
+    @Timed
+    @ResponseBody
+    //@Secured(AuthoritiesConstants.ADMIN)
+    public ResponseEntity<Boolean> isCrawling() throws URISyntaxException, IOException {
+        log.debug("REST request to isCrawling");
+        boolean result = future == null ? false : !future.isDone() && !future.isCancelled();
+        return new ResponseEntity<Boolean>(result, HttpStatus.OK);
+    }
+
+
+    /**
+     * Stop the crawler
+     *
+     * @throws URISyntaxException
+     * @throws IOException
+     */
+    @RequestMapping(value = "/crawler",
+        method = RequestMethod.DELETE,
+        produces = MediaType.APPLICATION_JSON_VALUE)
+    @Timed
+    //@Secured(AuthoritiesConstants.ADMIN)
+    @ResponseStatus(HttpStatus.OK)
+    public void stopCrawler() throws URISyntaxException, IOException {
+        log.debug("REST request to stopCrawler");
+        future.cancel(true);
+
+    }
+
+    /**
+     * Thread exécutant le reset de l'index complet
+     *
+     * @throws IOException
+     */
+    @Timed
+    public void resetIndex() throws IOException {
         crawlerService.clearIndex();
         //TODO : ne plus supprimer l'index
         crawlerService.crawler(directoryToScan);

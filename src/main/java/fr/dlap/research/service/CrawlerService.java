@@ -1,14 +1,15 @@
 package fr.dlap.research.service;
 
+import fr.dlap.research.domain.File;
 import fr.dlap.research.repository.search.FileSearchRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.elasticsearch.ElasticsearchException;
+import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.inject.Inject;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -49,16 +50,17 @@ public class CrawlerService {
     @Value("${readableExtension:java,txt,php,xml,properties}")
     private String readableExtension;
 
-
     private Set<String> readableExtensionSet = new HashSet<>();
 
     private Set<fr.dlap.research.domain.File> listeDeFichiers = new HashSet<>();
 
     private int batchNumber = 100;
 
+    @Inject
+    private ElasticsearchTemplate elasticsearchTemplate;
+
     //TODO à supprimer
     private int numberOfIndexingFiles = 0;
-
 
     /**
      * execute the crawler on the path directory
@@ -86,12 +88,14 @@ public class CrawlerService {
 
         numberOfIndexingFiles = 0;
 
-        Files.walk(new File(path).toPath())
+        Files.walk(new java.io.File(path).toPath())
             .filter(p -> p.toFile().isFile())
-            .filter(path1 -> doesntContainsExcludeDirectoriesOrFiles(path1))
-            .forEach(path2 -> this.addFile(path2));
+            //.peek(p -> notifyDiscoveredFile(p, "before"))
+            .filter(this::doesntContainsExcludeDirectoriesOrFiles)
+            //.peek(p -> notifyDiscoveredFile(p, "after"))
+            .forEach(this::addFile);
 
-        indexingBulkFiles(listeDeFichiers);
+        indexingBulkFiles();
 
         if (numberOfIndexingFiles > 0) {
             log.error("{} files with indexing errors", numberOfIndexingFiles);
@@ -99,10 +103,9 @@ public class CrawlerService {
         log.debug("Finish to parse files in {}", path);
     }
 
-
     private String extractExtension(String fileName, int posPoint) {
         if (posPoint > 0) {
-            return fileName.substring(posPoint + 1, fileName.length());
+            return fileName.substring(posPoint + 1, fileName.length()).toLowerCase();
         }
         //the file name doesn't contain a dot or the name is like ".project" so no extension
         return "";
@@ -114,6 +117,12 @@ public class CrawlerService {
         }
         //the file name doesn't contain a dot or if there is a dot, like .project, ".project" is the name
         return fileName;
+    }
+
+    private void notifyDiscoveredFile(Path path, String position) {
+        if (path.getFileName().toString().equals("pom.xml")) {
+            log.debug("add {}, {}", position, path);
+        }
     }
 
     /**
@@ -135,7 +144,7 @@ public class CrawlerService {
             fr.dlap.research.domain.File fichier = constructFile(name, extension, p);
 
             if (listeDeFichiers.size() > batchNumber) {
-                indexingBulkFiles(listeDeFichiers);
+                indexingBulkFiles();
                 listeDeFichiers.clear();
             }
             listeDeFichiers.add(fichier);
@@ -149,9 +158,8 @@ public class CrawlerService {
     /**
      * Index a bulk of files (Constant default : 100)
      *
-     * @param files
      */
-    private void indexingBulkFiles(Set<fr.dlap.research.domain.File> files) {
+    private void indexingBulkFiles() {
         log.trace("indexing bulk files : {}", listeDeFichiers);
         try {
             fileSearchRepository.save(listeDeFichiers);
@@ -161,6 +169,18 @@ public class CrawlerService {
             listeDeFichiers.stream()
                 .filter(f -> ids.contains(f.getId()))
                 .forEach(file -> log.error("Exception while indexing file {}, {}", file.getPath(), e.getFailedDocuments().get(file.getId())));
+        } catch (OutOfMemoryError e) {
+            log.error("OutOfMemory while indexing one file of the following files :");
+            StringBuilder sb = new StringBuilder();
+            listeDeFichiers
+                .forEach(file -> sb.append(file.getPath() + ","));
+            log.error(sb.toString());
+        } catch (Exception e) {
+            log.error("elasticsearch node is not avaible, waiting 10s and continue", e);
+            try {
+                Thread.sleep(10000);
+            } catch (Exception ee) {
+            }
         }
     }
 
@@ -202,11 +222,10 @@ public class CrawlerService {
         return fichier;
     }
 
-
     private void setVersionAndProject(fr.dlap.research.domain.File fichier, String path) {
         String project = null;//par défaut
         String version = "trunk";//par défaut
-        if (path.contains("branches")) {
+        if (path.contains("/branches/")) {
             int positionBranches = path.indexOf("/branches/");
             version = path.substring(positionBranches + 10, path.indexOf("/", positionBranches + 10));
             if (positionBranches > 1) {
@@ -235,7 +254,6 @@ public class CrawlerService {
 
     }
 
-
     /**
      * Test if the Path contains an exclude directory, an exclude file or an file with an exclude extension
      *
@@ -248,11 +266,13 @@ public class CrawlerService {
             extensionsToExcludeSet.stream().noneMatch(token -> extractExtension(fileName, fileName.lastIndexOf(".")).equals(token));
     }
 
-
     /**
      * clear all the index
      */
     public void clearIndex() {
-        fileSearchRepository.deleteAll();
+        elasticsearchTemplate.deleteIndex(File.class);
+        elasticsearchTemplate.createIndex(File.class);
+        elasticsearchTemplate.putMapping(File.class);
+        elasticsearchTemplate.refresh(File.class);
     }
 }

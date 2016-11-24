@@ -2,7 +2,7 @@ version: '2'
 services:
     research-elasticsearch:
         container_name: research-elasticsearch
-        image: elasticsearch:2.2.2
+        image: elasticsearch:2.4
         volumes:
             - /tmp/elasticsearch/:/usr/share/elasticsearch/data/
         ports:

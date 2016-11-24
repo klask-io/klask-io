@@ -1,6 +1,8 @@
 package fr.dlap.research.web.rest.errors;
 
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.http.HttpStatus;
@@ -23,6 +25,8 @@ import java.util.List;
  */
 @ControllerAdvice
 public class ExceptionTranslator {
+
+    private final Logger log = LoggerFactory.getLogger(ExceptionTranslator.class);
 
     @ExceptionHandler(ConcurrencyFailureException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
@@ -92,6 +96,8 @@ public class ExceptionTranslator {
             builder = ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR);
             errorDTO = new ErrorDTO(ErrorConstants.ERR_INTERNAL_SERVER_ERROR, "Internal server error");
         }
+        log.error("Exception in rest call", ex);
+        errorDTO.add("error", "error", ex.getMessage());
         return builder.body(errorDTO);
     }
 }

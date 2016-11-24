@@ -1,6 +1,8 @@
 {
     "crawler": {
         "title": "Configuration de l'indexation",
-        "call.button": "Lancer l'indexation"
+        "call.button": "Lancer l'indexation",
+        "stop.button": "Stopper l'indexation",
+        "progress.title": "Progression de l'indexation"
     }
 }
