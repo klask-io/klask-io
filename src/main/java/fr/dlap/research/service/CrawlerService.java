@@ -91,9 +91,9 @@ public class CrawlerService {
         Files.walk(new java.io.File(path).toPath())
             .filter(p -> p.toFile().isFile())
             //.peek(p -> notifyDiscoveredFile(p, "before"))
-            .filter(path1 -> doesntContainsExcludeDirectoriesOrFiles(path1))
+            .filter(this::doesntContainsExcludeDirectoriesOrFiles)
             //.peek(p -> notifyDiscoveredFile(p, "after"))
-            .forEach(path2 -> this.addFile(path2));
+            .forEach(this::addFile);
 
         indexingBulkFiles();
 
@@ -172,7 +172,7 @@ public class CrawlerService {
         } catch (OutOfMemoryError e) {
             log.error("OutOfMemory while indexing one file of the following files :");
             StringBuilder sb = new StringBuilder();
-            listeDeFichiers.stream()
+            listeDeFichiers
                 .forEach(file -> sb.append(file.getPath() + ","));
             log.error(sb.toString());
         } catch (Exception e) {
