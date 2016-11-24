@@ -155,9 +155,7 @@ public class FileResource {
             file.setContent(EncodingUtil.convertToUTF8(file.getContent()));
         }
         return Optional.of(new FileDetailDTO(file))
-            .map(result -> new ResponseEntity<>(
-                result,
-                HttpStatus.OK))
+            .map(result -> new ResponseEntity<>(result, HttpStatus.OK))
             .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
