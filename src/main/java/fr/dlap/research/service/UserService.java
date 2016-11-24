@@ -16,11 +16,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
-import java.time.LocalDate;
-import java.time.ZonedDateTime;
 import javax.inject.Inject;
-import java.util.*;
+import java.time.ZonedDateTime;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * Service class for managing users.
@@ -187,8 +188,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public User getUserWithAuthorities() {
-        User user = userRepository.findOneByLogin(SecurityUtils.getCurrentUserLogin()).get();
-        user.getAuthorities().size(); // eagerly load the association
+        User user = userRepository.findOneByLogin(SecurityUtils.getCurrentUserLogin()).orElse(null);
+        if (user != null) user.getAuthorities().size(); // eagerly load the association
         return user;
     }
 
