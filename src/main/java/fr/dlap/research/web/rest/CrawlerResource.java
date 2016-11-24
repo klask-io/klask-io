@@ -71,8 +71,8 @@ public class CrawlerResource {
     //@Secured(AuthoritiesConstants.ADMIN)
     public ResponseEntity<Boolean> isCrawling() throws URISyntaxException, IOException {
         log.debug("REST request to isCrawling");
-        boolean result = future == null ? false : !future.isDone() && !future.isCancelled();
-        return new ResponseEntity<Boolean>(result, HttpStatus.OK);
+        boolean result = future != null && !future.isDone() && !future.isCancelled();
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
 

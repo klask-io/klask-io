@@ -64,8 +64,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         log.debug("query : {}", searchQuery.getQuery());
         log.debug("filter: {}", searchQuery.getFilter());
 
-        Page<File> result = elasticsearchTemplate.queryForPage(searchQuery, File.class, new ResultHighlightMapper());
-        return result;
+        return elasticsearchTemplate.queryForPage(searchQuery, File.class, new ResultHighlightMapper());
 
     }
 

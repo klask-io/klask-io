@@ -34,8 +34,7 @@ public class ResultHighlightMapper implements SearchResultMapper {
             String summaryWithHighlight = null;
             HighlightField highlightField = searchHit.getHighlightFields().get("content");
             if (highlightField != null) {
-                summaryWithHighlight = Arrays.asList(highlightField.fragments())
-                    .stream()
+                summaryWithHighlight = Arrays.stream(highlightField.fragments())
                     .map(text -> EncodingUtil.convertToUTF8(text.toString()))
                     .collect(Collectors.joining("...<br>"));
             }
@@ -54,6 +53,6 @@ public class ResultHighlightMapper implements SearchResultMapper {
             );
             result.add(oneFile);
         }
-        return new PageImpl<T>((List<T>) result, pageable, totalHits);
+        return new PageImpl<>((List<T>) result, pageable, totalHits);
     }
 }

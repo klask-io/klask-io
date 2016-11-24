@@ -180,6 +180,7 @@ public class CrawlerService {
             try {
                 Thread.sleep(10000);
             } catch (Exception ee) {
+                log.error("Error while Thread.sleep", e);
             }
         }
     }
@@ -262,7 +263,7 @@ public class CrawlerService {
     private boolean doesntContainsExcludeDirectoriesOrFiles(Path path) {
         String fileName = path.getFileName().toString();
         return directoriesToExcludeSet.stream().noneMatch(token -> path.toString().contains(token)) &&
-            filesToExcludeSet.stream().noneMatch(token -> fileName.equals(token)) &&
+            filesToExcludeSet.stream().noneMatch(fileName::equals) &&
             extensionsToExcludeSet.stream().noneMatch(token -> extractExtension(fileName, fileName.lastIndexOf(".")).equals(token));
     }
 
