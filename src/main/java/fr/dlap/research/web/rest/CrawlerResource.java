@@ -100,7 +100,7 @@ public class CrawlerResource {
      * @throws IOException
      */
     @Timed
-    private void resetIndex() throws IOException {
+    public void resetIndex() throws IOException {
         crawlerService.clearIndex();
         //TODO : ne plus supprimer l'index
         crawlerService.crawler(directoryToScan);
