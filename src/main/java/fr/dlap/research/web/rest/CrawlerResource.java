@@ -52,7 +52,11 @@ public class CrawlerResource {
             resetIndex();
             return null;
         };
-        future = pool.submit(job);
+        if (future != null && !future.isDone() && !future.isCancelled()) {
+            log.warn("The crawler is yet indexing files... No more jobs can be submitted");
+        } else {
+            future = pool.submit(job);
+        }
 
     }
 
@@ -99,7 +103,6 @@ public class CrawlerResource {
      *
      * @throws IOException
      */
-    @Timed
     public void resetIndex() throws IOException {
         crawlerService.clearIndex();
         //TODO : ne plus supprimer l'index

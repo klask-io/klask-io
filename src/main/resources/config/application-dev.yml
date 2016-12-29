@@ -99,4 +99,4 @@ jhipster:
             queueSize: 512
     swagger: # swagger is enabled. It can be disabled by pasing 'no-swagger' profile at run time as well
         enabled: true
-directoryToScan : D:\\temp\\workspace
+directoryToScan : /home/jeremie/Developpement/svn

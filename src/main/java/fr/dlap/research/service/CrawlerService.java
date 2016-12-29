@@ -1,5 +1,6 @@
 package fr.dlap.research.service;
 
+import com.codahale.metrics.annotation.Timed;
 import fr.dlap.research.domain.File;
 import fr.dlap.research.repository.search.FileSearchRepository;
 import org.slf4j.Logger;
@@ -67,6 +68,7 @@ public class CrawlerService {
      *
      * @param path
      */
+    @Timed
     public void crawler(String path) throws IOException {
         log.debug("Start Parsing files in {}", path);
 
