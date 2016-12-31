@@ -83,11 +83,13 @@
 
             function onSuccessVersion(data, headers) {
                 vm.versionsOnRequest = data;
+                vm.page = pagingParams.page;
                 checkIfAllVersionsSelectedAreInSearchResult();
             }
 
             function onSuccessProject(data, headers) {
                 vm.projectsOnRequest = data;
+                vm.page = pagingParams.page;
                 checkIfAllProjectsSelectedAreInSearchResult();
             }
 
