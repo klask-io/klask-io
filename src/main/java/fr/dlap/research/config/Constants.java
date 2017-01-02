@@ -25,6 +25,7 @@ public final class Constants {
 
     public static final String TYPE_NAME = "file";
     public static final int MAX_RESULT_SEARCH_WINDOW = 10000;//parameter 'index.max_result_window' in elasticsearch
+    public static final int TRUNCATED_CONTENT = 200;
 
     private Constants() {
     }

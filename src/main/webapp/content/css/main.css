@@ -358,6 +358,12 @@ ui bootstrap tweaks
     color: grey;
 }
 
+.contentTruncated {
+    color: grey;
+    background-color: #e8e8e8;
+
+}
+
 .rightAlign {
     list-style-type: none;
     text-align:right;
@@ -384,4 +390,8 @@ mark, .mark {
 
 pre > code {
 padding: 3px 4px;
+}
+
+.apercuCode {
+font-family: 'Ubuntu Mono';
 }

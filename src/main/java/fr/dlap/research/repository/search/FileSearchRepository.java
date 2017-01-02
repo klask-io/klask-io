@@ -15,6 +15,9 @@ public interface FileSearchRepository extends ElasticsearchRepository<File, Stri
 
     File findFileByNameAndExtensionAndPath(String name, String extension, String path);
 
+    @Query("{ \"bool\" : { \"must\" : { \"query\" : { \"term\" : { \"path\": \"?0\" } } } } }")
+    File findFirstByPath(String path);
+
     //tentative de réaliser avec une collection de versions (pour plus tard)
     @Query("{\"bool\" : {\"must\" : {\"bool\" : {\"should\" : [ {\"field\" : {\"version.unique\" : \"?\"}}, {\"field\" : {\"version.unique\" : \"?\"}} ]}}}}")
     Page<File> findByVersionUniqueIn(Collection<String> version, Pageable pageable);

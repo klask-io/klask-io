@@ -1,8 +1,3 @@
-- régler le problème du retour navigateur qui ne fonctionne pas
-- utiliser une coloration syntaxique en fonction du contenu (Prism ou SyntaxeHighlighter)
-- lors du retour de recherche, tout le contenu est envoyé en json, requêtes très lourdes,
-il faudrait faire un retour FileDTO qui contient un résumé (à voir coté elasticsearch comment ça marche
-- si non connecté, la recherche de fichiers fonctionne, mais pas l'ouverture d'un document
 - liste de requêtes prédéfinies (exemple sur date de création de fichier en cohérence avec le SVN : alors range "gte": "01/01/2016")
 cela permettrait de récupérer tous les derniers fichiers modifiés sur le SVN
 
@@ -14,9 +9,16 @@ cela permettrait de récupérer tous les derniers fichiers modifiés sur le SVN
 et la restitution du FileResource en rest est converti en UTF-8 (l'html rendu par research est en UTF-8)
 => voir http://stackoverflow.com/questions/774075/character-encoding-detection-algorithm
 
-## Highlight
- - réaliser un custom sanitizer comme ici : https://github.com/BYU-ODH/hummedia-client/blob/master/app/js/custom-sanitize.js (source http://stackoverflow.com/questions/16969248/sanitize-custom-whitelist)
- basé sur l'original ici
+
+changelog 0.2 :
+- Highlight : fourni par ElasticSearch (encode : html)
+- Corrections diverses sur pagination et sélection multiples de projets
+- Corrections sur l'affichage des fragments d'aperçus de fichiers et mise en forme
+- fonctions d'échappement des caractères html angularjs "escapeall" (seulement pour le cas des findAll durant lequel le contenu est renvoyé brut,
+et ce n'est pas un highlight formatté par elasticsearch et le mode highlight encode html)
+
+
+
 
 ## Crawler
  - dans le crawler, si le last_modified n'a pas bougé, alors on ne réindexe pas le fichier en question

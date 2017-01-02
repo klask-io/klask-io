@@ -35,18 +35,18 @@ spring:
             hibernate.generate_statistics: true
 
 ##test sur noeud externe
-#    data:
-#        elasticsearch:
-#            cluster-name:
-#            cluster-nodes: regain:9300
     data:
         elasticsearch:
             cluster-name:
-            cluster-nodes:
-            properties:
-                path:
-                  logs: target/elasticsearch/log
-                  data: target/elasticsearch/data
+            cluster-nodes: localhost:9300
+#    data:
+#        elasticsearch:
+#            cluster-name:
+#            cluster-nodes:
+#            properties:
+#                path:
+#                  logs: target/elasticsearch/log
+#                  data: target/elasticsearch/data
 
     mail:
         host: localhost

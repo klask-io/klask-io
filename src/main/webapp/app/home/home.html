@@ -110,7 +110,8 @@
                                     <th jh-sort-by="version"><span
                                         translate="researchApp.file.version">Version</span> <span
                                         class="glyphicon glyphicon-sort"></span></th>
-                                    <th jh-sort-by="extension"><span translate="researchApp.file.project">Project</span> <span
+                                    <th jh-sort-by="project"><span translate="researchApp.file.project">Project</span>
+                                        <span
                                         class="glyphicon glyphicon-sort"></span></th>
                                     <th jh-sort-by="size"><span translate="researchApp.file.size">Size</span> <span
                                         class="glyphicon glyphicon-sort"></span></th>
@@ -122,14 +123,14 @@
                                         <div>
                                             <div style="padding-bottom:2px">
                                                 <a data-toggle="tooltip" data-placement="left"
-                                                   title="{{file.name}}.{{file.extension}}"
-                                                   ui-sref="home-detail({id:file.id})">{{file.name|
-                                                    characters:40}}.{{file.extension}}</a>
+                                                   title="{{file.name}}"
+                                                   ui-sref="home-detail({id:file.id})">{{file.name|characters:60}}.{{file.extension}}</a>
                                                 <span class="label label-info">{{file.version}}</span>
                                                 <span class="label label-primary">{{file.project}}</span>
                                                 <span class="sizeDoc">{{file.size | formatKoMoGo}}</span>
                                             </div>
-                                            <p class="small" ng-bind-html="file.content | characters:460 | unsafe"></p>
+                                            <p class="small apercuCode"
+                                               ng-bind-html="file.content | characters:500 | escapeall | unsafe"></p>
                                             <em class="pathDoc small">{{file.path}}</em>
                                         </div>
                                     </td>
@@ -150,6 +151,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        <hr>
                         <div class="text-center">
                             <jhi-item-count page="vm.page" total="vm.queryCount"
                                             items-per-page="vm.itemsPerPage"></jhi-item-count>

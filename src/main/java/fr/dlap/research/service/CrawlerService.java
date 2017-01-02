@@ -43,6 +43,11 @@ public class CrawlerService {
 
     private Set<String> filesToExcludeSet = new HashSet<>();
 
+    @Value("${fileToInclude:README}")
+    private String filesToInclude;
+
+    private Set<String> filesToIncludeSet = new HashSet<>();
+
     @Value("${extensionToExclude:md5,sha1}")
     private String extensionToExclude;
 
@@ -79,6 +84,10 @@ public class CrawlerService {
         filesToExcludeSet.clear();
         filesToExcludeSet.addAll(Arrays.asList(filesToExclude.split(",")));
         log.debug("exclude files : {}", filesToExcludeSet);
+
+        filesToIncludeSet.clear();
+        filesToIncludeSet.addAll(Arrays.asList(filesToInclude.split(",")));
+        log.debug("include files : {}", filesToIncludeSet);
 
         extensionsToExcludeSet.clear();
         extensionsToExcludeSet.addAll(Arrays.asList(extensionToExclude.split(",")));
@@ -264,9 +273,15 @@ public class CrawlerService {
      */
     private boolean doesntContainsExcludeDirectoriesOrFiles(Path path) {
         String fileName = path.getFileName().toString();
-        return directoriesToExcludeSet.stream().noneMatch(token -> path.toString().contains(token)) &&
+        return
+            (directoriesToExcludeSet.stream().noneMatch(token -> path.toString().contains(token)) &&
             filesToExcludeSet.stream().noneMatch(fileName::equals) &&
-            extensionsToExcludeSet.stream().noneMatch(token -> extractExtension(fileName, fileName.lastIndexOf(".")).equals(token));
+                !fileName.endsWith("~") &&
+                extensionsToExcludeSet.stream().noneMatch(token -> extractExtension(fileName, fileName.lastIndexOf(".")).equals(token))
+            )
+                || (
+                filesToIncludeSet.stream().anyMatch(fileName::equals)
+            );
     }
 
     /**

@@ -16,5 +16,9 @@ public interface CustomSearchRepository {
 
     Page<File> findWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project);
 
+    Page<File> customSearchWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project);
+
+    Page<File> customfindAll(Pageable pageable, List<String> version, List<String> project);
+
 
 }

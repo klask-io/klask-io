@@ -20,16 +20,13 @@
             "path": {
                 "store": true,
                 "type": "string",
+                "index": "not_analyzed",
                 "search_analyzer": "keyword",
                 "analyzer": "keyword"
             },
             "project": {
-                "type": "multi_field",
+                "type": "string",
                 "fields": {
-                    "project": {
-                        "store": false,
-                        "type": "string"
-                    },
                     "unique": {
                         "type": "string",
                         "index": "not_analyzed"
@@ -39,16 +36,13 @@
             "content": {
                 "store": false,
                 "type": "string",
-                "search_analyzer": "codeanalyser",
-                "analyzer": "codeanalyser"
+                "term_vector": "with_positions_offsets",
+                "search_analyzer": "customanalyzer",
+                "analyzer": "customanalyzer"
             },
             "version": {
-                "type": "multi_field",
+                "type": "string",
                 "fields": {
-                    "version": {
-                        "store": false,
-                        "type": "string"
-                    },
                     "unique": {
                         "type": "string",
                         "index": "not_analyzed"

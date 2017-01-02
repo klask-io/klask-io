@@ -15,7 +15,7 @@ import java.util.Objects;
 
 @Document(indexName = Constants.INDEX_NAME, shards = 8, replicas = 0, type = Constants.TYPE_NAME)
 @Setting(settingPath = "elasticsearch/settings.json")
-//@Mapping(mappingPath = "elasticsearch/mapping.json")
+@Mapping(mappingPath = "elasticsearch/mapping.json")
 public class File extends AbstractAuditingEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -43,7 +43,7 @@ public class File extends AbstractAuditingEntity implements Serializable {
 
     @NotNull
     @Field(type = FieldType.String,
-        index = FieldIndex.analyzed,
+        index = FieldIndex.not_analyzed,
         searchAnalyzer = "keyword",
         analyzer = "keyword",
         store = true
@@ -80,6 +80,10 @@ public class File extends AbstractAuditingEntity implements Serializable {
 
     @Field(type = FieldType.Long)
     private Long size;
+
+
+    private Float score;
+
 
     public File() {
 
@@ -158,6 +162,14 @@ public class File extends AbstractAuditingEntity implements Serializable {
 
     public void setProject(String project) {
         this.project = project;
+    }
+
+    public Float getScore() {
+        return score;
+    }
+
+    public void setScore(Float score) {
+        this.score = score;
     }
 
     @Override

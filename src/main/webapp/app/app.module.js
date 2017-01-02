@@ -57,9 +57,34 @@ angular.module('filters', [])
     })
     .filter('unsafe',['$sce', function ($sce) {
         return function (content) {
-            return $sce.trustAsHtml(content);
+            if (content != null){
+                var aAfficher = content.replace(/&lt;mark&gt;/g,"<mark>")
+                .replace(/&lt;\/mark&gt;/g,"</mark>")
+                .replace(/\n+/g,"<br>");
+                return $sce.trustAsHtml(aAfficher);
+            }
+            else{
+                return null;
+            }
         };
     }])
+    //even if elasticsearch return encoded html (set in CustomSearchRepositoryImpl)
+    //the findAll method could return html tag, so we need to ensure that it's ok in any case
+    .filter('escapeall',['$sce', function ($sce) {
+            return function (content) {
+            if (content != null){
+                return content
+                .replace(/</g,"&lt;")
+                .replace(/>/g,"&gt;")
+                .replace(/\[...\]/g,"<small class=\"contentTruncated\">[...]</small>")
+                ;
+            }
+            else {
+                return null;
+            }
+
+            };
+        }])
     .filter('countDocs', function () {
         return function (tableauClefValeur) {
             if (tableauClefValeur === undefined)

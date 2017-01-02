@@ -6,13 +6,13 @@
     <parent>
         <artifactId>spring-boot-starter-parent</artifactId>
         <groupId>org.springframework.boot</groupId>
-        <version>1.4.1.RELEASE</version>
+        <version>1.4.2.RELEASE</version>
         <relativePath/>
     </parent>
 
     <groupId>fr.dlap.research</groupId>
     <artifactId>research</artifactId>
-    <version>0.1-SNAPSHOT</version>
+    <version>0.2-SNAPSHOT</version>
     <packaging>war</packaging>
     <name>Research</name>
 
