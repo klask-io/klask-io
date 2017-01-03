@@ -2,6 +2,7 @@ package fr.dlap.research.web.rest;
 
 import fr.dlap.research.ResearchApp;
 import fr.dlap.research.domain.File;
+import fr.dlap.research.repository.search.CustomSearchRepository;
 import fr.dlap.research.repository.search.FileSearchRepository;
 import org.junit.Before;
 import org.junit.Test;
@@ -55,6 +56,9 @@ public class FileResourceIntTest {
     private FileSearchRepository fileSearchRepository;
 
     @Inject
+    private CustomSearchRepository customSearchRepository;
+
+    @Inject
     private MappingJackson2HttpMessageConverter jacksonMessageConverter;
 
     @Inject
@@ -69,6 +73,7 @@ public class FileResourceIntTest {
         MockitoAnnotations.initMocks(this);
         FileResource fileResource = new FileResource();
         ReflectionTestUtils.setField(fileResource, "fileSearchRepository", fileSearchRepository);
+        ReflectionTestUtils.setField(fileResource, "customSearchRepository", customSearchRepository);
         this.restFileMockMvc = MockMvcBuilders.standaloneSetup(fileResource)
             .setCustomArgumentResolvers(pageableArgumentResolver)
             .setMessageConverters(jacksonMessageConverter).build();
