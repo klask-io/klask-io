@@ -116,7 +116,7 @@ public class FileResource {
             pageable = new PageRequest(0, pageable.getPageSize());
         }
         Page<File> page;
-        if (extension.contains("empty")) {
+        if (extension != null && extension.contains("empty")) {
             extension.add("");
             extension.remove("empty");
         }
@@ -227,7 +227,7 @@ public class FileResource {
             Queries.constructQuery(query),
             pageable);
         */
-        if (extension.contains("empty")) {
+        if (extension != null && extension.contains("empty")) {
             extension.add("");
             extension.remove("empty");
         }
