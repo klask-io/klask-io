@@ -7,7 +7,7 @@
                 <input type="search" class="form-control ng-pristine ng-untouched ng-valid ng-not-empty"
                        ng-model="queryversion" placeholder="{{ 'researchApp.file.home.version.search' | translate }}"
                        aria-label="filter version"/>
-                <ul class="list-group" ng-init="limitVersion=5;foldVersion=true">
+                <ul class="list-group" ng-init="limitVersion=4;foldVersion=true">
                     <li class="rightAlign"
                         ng-repeat="version in vm.versionsOnRequest | filter:queryversion as filteredVersion ">
                         <h5>
@@ -23,8 +23,8 @@
                         <a href ng-show="foldVersion && filteredVersion.length > limitVersion" class="label label-info"
                            ng-click='limitVersion=100;foldVersion=!foldVersion'>...</a>
                         <a href ng-show="!foldVersion" class="label label-info"
-                           ng-click='limitVersion=5;foldVersion=!foldVersion'><span
-                            class="glyphicon glyphicon-triangle-top"></a>
+                           ng-click='limitVersion=4;foldVersion=!foldVersion'><span
+                            class="glyphicon glyphicon-triangle-top"></span></a>
                     </li>
                 </ul>
             </div>
@@ -34,7 +34,7 @@
                 <input type="search" class="form-control ng-pristine ng-untouched ng-valid ng-not-empty"
                        ng-model="queryproject" placeholder="{{ 'researchApp.file.home.project.search' | translate }}"
                        aria-label="filter project"/>
-                <ul class="list-group" ng-init="limitProject=5;foldProject=true">
+                <ul class="list-group" ng-init="limitProject=4;foldProject=true">
                     <li class="rightAlign"
                         ng-repeat="project in vm.projectsOnRequest | filter:queryproject as filteredProject ">
                         <h5>
@@ -51,7 +51,36 @@
                            class="label label-primary"
                            ng-click='limitProject=100;foldProject=!foldProject'>...</a>
                         <a href ng-show="!foldProject" class="label label-primary"
-                           ng-click='limitProject=5;foldProject=!foldProject'><span
+                           ng-click='limitProject=4;foldProject=!foldProject'><span
+                            class="glyphicon glyphicon-triangle-top"></span></a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="well">
+            <div class="row">
+                <input type="search" class="form-control ng-pristine ng-untouched ng-valid ng-not-empty"
+                       ng-model="queryextension"
+                       placeholder="{{ 'researchApp.file.home.extension.search' | translate }}"
+                       aria-label="filter extension"/>
+                <ul class="list-group" ng-init="limitExtension=4;foldExtension=true">
+                    <li class="rightAlign"
+                        ng-repeat="extension in vm.ExtensionsOnRequest | filter:queryextension as filteredExtension ">
+                        <h5>
+                            <a href ng-if="$index<limitExtension || vm.isExtensionIsActive(extension.name)"
+                               ng-class="vm.isExtensionIsActive(extension.name) ? 'label label-success' : 'label label-primary'"
+                               ng-click="vm.filterByExtension(extension.name)">
+                                {{extension.name}}
+                                <span class="badge">{{extension.docNumber.toLocaleString("fr")}}</span>
+                            </a>
+                        </h5>
+                    </li>
+                    <li class="rightAlign">
+                        <a href ng-show="foldExtension && filteredExtension.length > limitExtension"
+                           class="label label-primary"
+                           ng-click='limitExtension=100;foldExtension=!foldExtension'>...</a>
+                        <a href ng-show="!foldExtension" class="label label-primary"
+                           ng-click='limitExtension=4;foldExtension=!foldExtension'><span
                             class="glyphicon glyphicon-triangle-top"></span></a>
                     </li>
                 </ul>
@@ -151,7 +180,6 @@
                                 </tbody>
                             </table>
                         </div>
-                        <hr>
                         <div class="text-center">
                             <jhi-item-count page="vm.page" total="vm.queryCount"
                                             items-per-page="vm.itemsPerPage"></jhi-item-count>
