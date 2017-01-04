@@ -65,7 +65,7 @@
                        aria-label="filter extension"/>
                 <ul class="list-group" ng-init="limitExtension=4;foldExtension=true">
                     <li class="rightAlign"
-                        ng-repeat="extension in vm.ExtensionsOnRequest | filter:queryextension as filteredExtension ">
+                        ng-repeat="extension in vm.extensionsOnRequest | filter:queryextension as filteredExtension ">
                         <h5>
                             <a href ng-if="$index<limitExtension || vm.isExtensionIsActive(extension.name)"
                                ng-class="vm.isExtensionIsActive(extension.name) ? 'label label-success' : 'label label-primary'"

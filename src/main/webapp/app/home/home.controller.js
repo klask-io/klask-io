@@ -5,7 +5,7 @@
         .module('researchApp')
         .controller('HomeController', HomeController);
 
-    HomeController.$inject = ['$scope', '$state', 'DataUtils', 'File', 'FileSearch', 'VersionSearch', 'ExtensionSearch', 'ExtensionSearch', 'ParseLinks', 'AlertService', 'pagingParams', 'paginationConstants', 'filters'];
+    HomeController.$inject = ['$scope', '$state', 'DataUtils', 'File', 'FileSearch', 'VersionSearch', 'ProjectSearch', 'ExtensionSearch', 'ParseLinks', 'AlertService', 'pagingParams', 'paginationConstants', 'filters'];
 
     function HomeController ($scope, $state, DataUtils, File, FileSearch, VersionSearch, ProjectSearch, ExtensionSearch, ParseLinks, AlertService, pagingParams, paginationConstants, filters) {
         var vm = this;
