@@ -10,7 +10,7 @@
     function stateConfig($stateProvider) {
         $stateProvider.state('home', {
             parent: 'app',
-            url: '/?page&sort&version&project&search',
+            url: '/?page&sort&version&project&extension&search',
             data: {
                 authorities: [],
                 pageTitle: 'researchApp.file.home.title'
@@ -39,6 +39,10 @@
                         value: '',
                         squash: true
                     },
+                    extension: {
+                        value: '',
+                        squash: true
+                    },
                     search: null
                 },
                 resolve: {
@@ -55,6 +59,7 @@
                         return {
                             version:$stateParams.version,
                             project:$stateParams.project,
+                            extension:$stateParams.extension,
                             search: $stateParams.search
                         }
                     }],

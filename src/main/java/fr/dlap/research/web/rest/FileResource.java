@@ -105,6 +105,7 @@ public class FileResource {
     @Timed
     public ResponseEntity<List<File>> getAllFiles(@RequestParam(required = false) List<String> version,
                                                   @RequestParam(required = false) List<String> project,
+                                                  @RequestParam(required = false) List<String> extension,
                                                   Pageable pageable)
         throws URISyntaxException {
         log.debug("REST request to get a page for All Files with filter version {} and project {}", version, project);
@@ -115,9 +116,13 @@ public class FileResource {
             pageable = new PageRequest(0, pageable.getPageSize());
         }
         Page<File> page;
+        if (extension.contains("empty")) {
+            extension.add("");
+            extension.remove("empty");
+        }
 
         //page = fileSearchRepository.findAll(pageable);
-        page = customSearchRepository.customfindAll(pageable, version, project);
+        page = customSearchRepository.customfindAll(pageable, version, project, extension);
         //page = customSearchRepository.findWithHighlightedSummary(pageable,"",version);
         //Page<File> page = customSearchRepository.findWithHighlightedSummary("", pageable);
 
@@ -197,6 +202,7 @@ public class FileResource {
      *
      * @param version the version filter
      * @param project the project filter
+     * @param extension the extension filter
      * @param query the query of the file search
      * @return the result of the search
      */
@@ -206,10 +212,11 @@ public class FileResource {
     @Timed
     public ResponseEntity<List<File>> searchFiles(@RequestParam(required = false) List<String> version,
                                                   @RequestParam(required = false) List<String> project,
+                                                  @RequestParam(required = false) List<String> extension,
                                                   @RequestParam String query,
                                                   Pageable pageable)
         throws URISyntaxException {
-        log.debug("REST request to search for a page of Files for query {}, version filter {}, project filter {}", query, version, project);
+        log.debug("REST request to search for a page of Files for query {}, version filter {}, project filter {}, extension filter {}", query, version, project, extension);
         //par défaut
         //Page<File> page = fileSearchRepository.search(queryStringQuery(query), pageable);
         String default_operator = "AND";
@@ -220,8 +227,12 @@ public class FileResource {
             Queries.constructQuery(query),
             pageable);
         */
+        if (extension.contains("empty")) {
+            extension.add("");
+            extension.remove("empty");
+        }
 
-        Page<File> page = customSearchRepository.customSearchWithHighlightedSummary(pageable, query, version, project);
+        Page<File> page = customSearchRepository.customSearchWithHighlightedSummary(pageable, query, version, project, extension);
         //Page<File> page = customSearchRepository.findWithHighlightedSummary(pageable, query, version, project);
 
         //Page<FileDTO> result = page.map(file -> convertToDTO(file));

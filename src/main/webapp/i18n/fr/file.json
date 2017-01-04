@@ -13,6 +13,9 @@
                 "project": {
                     "search": "filtre projet"
                 },
+                "extension": {
+                    "search": "filtre extension"
+                },
                 "totalFiles": "Total de fichiers"
             },
             "created": "Un nouveau fichier a été créé avec l'identifiant {{ param }}",

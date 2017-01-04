@@ -17,7 +17,9 @@ changelog 0.2 :
 - fonctions d'échappement des caractères html angularjs "escapeall" (seulement pour le cas des findAll durant lequel le contenu est renvoyé brut,
 et ce n'est pas un highlight formatté par elasticsearch et le mode highlight encode html)
 
-
+## Mettre les filtres en exclusions
+exemple, par un ctrl+clic sur un filtre de version, afficher en rouge la version exclue, et lancer la recherche sur toutes les versions sauf celles exclues
+ou alors, par un bouton switch on/off si le filtre agit en inclusion/exclusion
 
 
 ## Crawler

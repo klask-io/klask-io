@@ -15,7 +15,13 @@
                 "store": true,
                 "type": "string",
                 "search_analyzer": "keyword",
-                "analyzer": "keyword"
+                "analyzer": "keyword",
+                "fields": {
+                    "unique": {
+                        "type": "string",
+                        "index": "not_analyzed"
+                    }
+                }
             },
             "path": {
                 "store": true,

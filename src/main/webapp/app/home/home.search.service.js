@@ -53,3 +53,22 @@
         });
     }
 })();
+
+(function () {
+    'use strict';
+
+    angular
+        .module('researchApp')
+        .factory('ExtensionSearch', ExtensionSearch);
+
+    ExtensionSearch.$inject = ['$resource'];
+
+    function ExtensionSearch($resource) {
+        var resourceUrl = 'api/extensions/:id';
+
+        return $resource(resourceUrl, {}, {
+            'query': {method: 'GET', isArray: true},
+            'get': {method: 'GET', isArray: true}
+        });
+    }
+})();

@@ -83,7 +83,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
      * @return
      */
     @Override
-    public Page<File> customSearchWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project) {
+    public Page<File> customSearchWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project, List<String> extension) {
         if (StringUtils.isEmpty(query)) {
             log.error("customSearchWithHighlightedSummary return null in case where query = " + query);
             return null;
@@ -91,7 +91,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         NativeSearchQueryBuilder nativeSearchQueryBuilder = Queries.constructSearchQueryBuilder(query);
         NativeSearchQuery nativeSearchQuery = nativeSearchQueryBuilder.build();
 
-        SearchRequestBuilder searchRequestBuilder = constructRequestBuilder(nativeSearchQuery, pageable, version, project);
+        SearchRequestBuilder searchRequestBuilder = constructRequestBuilder(nativeSearchQuery, pageable, version, project, extension);
         searchRequestBuilder.setFetchSource(null, "content");//dont get the content, we have the highlight !
 
         SearchResponse response = searchRequestBuilder.execute().actionGet();
@@ -112,11 +112,11 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
      * @return
      */
     @Override
-    public Page<File> customfindAll(Pageable pageable, List<String> version, List<String> project) {
+    public Page<File> customfindAll(Pageable pageable, List<String> version, List<String> project, List<String> extension) {
         NativeSearchQueryBuilder nativeSearchQueryBuilder = Queries.constructSearchQueryBuilder("");
         NativeSearchQuery nativeSearchQuery = nativeSearchQueryBuilder.build();
 
-        SearchRequestBuilder searchRequestBuilder = constructRequestBuilder(nativeSearchQuery, pageable, version, project);
+        SearchRequestBuilder searchRequestBuilder = constructRequestBuilder(nativeSearchQuery, pageable, version, project, extension);
         SearchResponse response = searchRequestBuilder.execute().actionGet();
 
         SearchHit[] hits = response.getHits().hits();
@@ -166,12 +166,13 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
      * @param project
      * @return
      */
-    private SearchRequestBuilder constructRequestBuilder(NativeSearchQuery nativeSearchQuery, Pageable pageable, List<String> version, List<String> project) {
+    private SearchRequestBuilder constructRequestBuilder(NativeSearchQuery nativeSearchQuery, Pageable pageable, List<String> version, List<String> project, List<String> extension) {
         //SearchRequestBuilder searchRequestBuilder = Queries.constructSearchRequestBuilder(query, pageable, 3, elasticsearchTemplate.getClient());
 
 
         BoolQueryBuilder ensembleVersion = QueryBuilders.boolQuery();
         BoolQueryBuilder ensembleProjet = QueryBuilders.boolQuery();
+        BoolQueryBuilder ensembleExtension = QueryBuilders.boolQuery();
         BoolQueryBuilder filter = QueryBuilders.boolQuery();
 
         if (version != null && !version.isEmpty()) {
@@ -181,6 +182,10 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         if (project != null && !project.isEmpty()) {
             ensembleProjet = ensembleProjet.should(QueryBuilders.termsQuery("project.unique", project));
             filter = filter.must(ensembleProjet);
+        }
+        if (extension != null && !extension.isEmpty()) {
+            ensembleExtension = ensembleExtension.should(QueryBuilders.termsQuery("extension.unique", extension));
+            filter = filter.must(ensembleExtension);
         }
 
 

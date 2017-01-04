@@ -12,6 +12,9 @@
                 "project": {
                     "search": "filter project"
                 },
+                "extension": {
+                    "search": "filter extension"
+                },
                 "totalFiles": "Total files"
             },
             "created": "A new file is created with identifier {{ param }}",

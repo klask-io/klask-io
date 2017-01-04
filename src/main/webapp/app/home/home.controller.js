@@ -5,9 +5,9 @@
         .module('researchApp')
         .controller('HomeController', HomeController);
 
-    HomeController.$inject = ['$scope', '$state', 'DataUtils', 'File', 'FileSearch', 'VersionSearch', 'ProjectSearch', 'ParseLinks', 'AlertService', 'pagingParams', 'paginationConstants', 'filters'];
+    HomeController.$inject = ['$scope', '$state', 'DataUtils', 'File', 'FileSearch', 'VersionSearch', 'ExtensionSearch', 'ExtensionSearch', 'ParseLinks', 'AlertService', 'pagingParams', 'paginationConstants', 'filters'];
 
-    function HomeController ($scope, $state, DataUtils, File, FileSearch, VersionSearch, ProjectSearch, ParseLinks, AlertService, pagingParams, paginationConstants, filters) {
+    function HomeController ($scope, $state, DataUtils, File, FileSearch, VersionSearch, ProjectSearch, ExtensionSearch, ParseLinks, AlertService, pagingParams, paginationConstants, filters) {
         var vm = this;
         vm.loadPage = loadPage;
         vm.predicate = pagingParams.predicate;
@@ -18,10 +18,13 @@
         vm.search = search;
         vm.versionsSelected = filters.version;
         vm.projectsSelected = filters.project;
+        vm.extensionsSelected = filters.extension;
         vm.filterByVersion = filterByVersion;
         vm.filterByProject = filterByProject;
+        vm.filterByExtension = filterByExtension;
         vm.isVersionIsActive = isVersionIsActive;
         vm.isProjectIsActive = isProjectIsActive;
+        vm.isExtensionIsActive = isExtensionIsActive;
         vm.loadAll = loadAll;
         vm.searchQuery = pagingParams.search;
         vm.currentSearch = pagingParams.search;
@@ -38,6 +41,7 @@
                     size: vm.itemsPerPage,
                     version : vm.versionsSelected,
                     project : vm.projectsSelected,
+                    extension : vm.extensionsSelected,
                     sort: sort()
                 }, onSuccessFile, onError);
                 VersionSearch.query({
@@ -46,16 +50,21 @@
                 ProjectSearch.query({
                     query: pagingParams.search
                 }, onSuccessProject, onError);
+                ExtensionSearch.query({
+                    query: pagingParams.search
+                }, onSuccessExtension, onError);
             } else {
                 File.query({
                     page: pagingParams.page - 1,
                     size: vm.itemsPerPage,
                     version: vm.versionsSelected,
                     project: vm.projectsSelected,
+                    extension: vm.extensionsSelected,
                     sort: sort()
                 }, onSuccessFile, onError);
                 VersionSearch.get(onSuccessVersion, onError);
                 ProjectSearch.get(onSuccessProject, onError);
+                ExtensionSearch.get(onSuccessExtension, onError);
             }
             function sort() {
                 var result = [vm.predicate + ',' + (vm.reverse ? 'asc' : 'desc')];
@@ -93,6 +102,12 @@
                 checkIfAllProjectsSelectedAreInSearchResult();
             }
 
+            function onSuccessExtension(data, headers) {
+                vm.extensionsOnRequest = data;
+                vm.page = pagingParams.page;
+                checkIfAllExtensionsSelectedAreInSearchResult();
+            }
+
             function onError(error) {
                 AlertService.error(error.data.message);
             }
@@ -109,6 +124,7 @@
                 sort: vm.predicate + ',' + (vm.reverse ? 'asc' : 'desc'),
                 version: vm.versionsSelected,
                 project: vm.projectsSelected,
+                extension: vm.extensionsSelected,
                 search: vm.currentSearch
             });
 
@@ -159,6 +175,29 @@
                 vm.transition();
             }
 
+        }
+
+        function checkIfAllExtensionsSelectedAreInSearchResult(){
+            var mapExtensionsOnRequest = vm.extensionsOnRequest.map(function(obj){
+            return obj.name;
+            });
+            //si le tableau de extensions sélectionnées est un tableau
+            //on conserve seulement les valeurs aussi présentes dans le résultat de requête mapExtensionsOnRequest
+            var extensionsFiltered=vm.extensionsSelected;
+            if(vm.extensionsSelected.constructor === Array){
+                extensionsFiltered = vm.extensionsSelected.filter(function(value){
+                    return mapExtensionsOnRequest.indexOf(value) != -1;
+                });
+            }
+            else{
+                if(mapExtensionsOnRequest.indexOf(vm.extensionsSelected) == -1){
+                    extensionsFiltered='';
+                }
+            }
+            if(extensionsFiltered!=vm.extensionsSelected){
+                vm.extensionsSelected = extensionsFiltered;
+                vm.transition();
+            }
         }
 
         function search(searchQuery) {
@@ -223,6 +262,31 @@
             vm.transition();
         }
 
+         function filterByExtension(extension){
+            if(isExtensionIsActive(extension)){
+                if(vm.extensionsSelected.constructor === Array)
+                  vm.extensionsSelected.splice(vm.extensionsSelected.indexOf(extension),1);
+                else
+                  vm.extensionsSelected=''
+            }
+            else {
+                if(vm.extensionsSelected.constructor === Array) {
+                    vm.extensionsSelected.push(extension);
+                }
+                else{
+                    if(vm.extensionsSelected==='')
+                        vm.extensionsSelected = extension;
+                    else
+                        vm.extensionsSelected = [vm.extensionsSelected, extension];
+                }
+            }
+            vm.links = null;
+            vm.page = 1;
+            vm.predicate = '_score';
+            vm.reverse = false;
+            vm.transition();
+        }
+
 
         function clear() {
             vm.links = null;
@@ -250,6 +314,16 @@
             }
             else {
                 return vm.projectsSelected==projectToCheck;
+            }
+        }
+
+        //on ne sait pas à l'avance si vm.extensionsSelected est un tableau ou un string seul
+        function isExtensionIsActive(extensionToCheck){
+            if(vm.extensionsSelected.constructor === Array) {
+                return vm.extensionsSelected.indexOf(extensionToCheck) != -1;
+            }
+            else {
+                return vm.extensionsSelected==extensionToCheck;
             }
         }
     }
