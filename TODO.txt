@@ -9,6 +9,12 @@ cela permettrait de récupérer tous les derniers fichiers modifiés sur le SVN
 et la restitution du FileResource en rest est converti en UTF-8 (l'html rendu par research est en UTF-8)
 => voir http://stackoverflow.com/questions/774075/character-encoding-detection-algorithm
 
+problème du map
+
+en supprimant les 2 lignes dans mapping.json sur path, cela refonctionne, mais difficile à expliquer (un get /file) montre que l'analyzer n'est pas créé dans elasticsearch)
+  "search_analyzer": "keyword",
+  "analyzer": "keyword"
+
 
 changelog 0.2 :
 - Highlight : fourni par ElasticSearch (encode : html)
