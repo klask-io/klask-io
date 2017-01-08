@@ -16,8 +16,10 @@ node {
     }
 
     stage ("npm install") {
+        sh "npm cache clean -f"
         sh "npm install"
         sh "bower install"
+        sh "gulp install"
     }
 
     stage ("clean") {
