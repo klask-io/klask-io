@@ -20,12 +20,13 @@ node {
     }
 
     stage ("clean") {
-        sh "mvn clean"
+        sh "${mvnHome}/bin/mvn clean"
         //sh "./mvnw clean"
     }
 
     stage ("backend tests") {
-        sh "./mvnw test"
+        sh "${mvnHome}/bin/mvn test"
+        //sh "./mvnw test"
     }
 
     stage ("frontend tests") {
@@ -33,6 +34,7 @@ node {
     }
 
     stage ("packaging") {
-        sh "./mvnw package -Pprod -DskipTests"
+        sh "${mvnHome}/bin/mvn package -Pprod -DskipTests"
+        //sh "./mvnw package -Pprod -DskipTests"
     }
 }
