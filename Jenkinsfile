@@ -21,6 +21,7 @@ node {
 
     stage ("clean") {
         sh "${mvnHome}/bin/mvn -N io.takari:maven:wrapper"
+        sh "chmod a+x mvnw"
         sh "./mvnw clean"
     }
 
