@@ -19,6 +19,7 @@ node {
     }
 
     stage ("clean") {
+        sh "mvn -N io.takari:maven:wrapper"
         sh "./mvnw clean"
     }
 
