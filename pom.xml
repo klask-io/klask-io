@@ -857,30 +857,4 @@
             </properties>
         </profile>
     </profiles>
-
-    <!-- DEBUT nécessaire pour l'instant car la version 1.4 de spring-boot est en milestone
-        à supprimer quand il y aura une release -->
-    <repositories>
-        <repository>
-            <id>spring-milestones</id>
-            <name>Spring Milestones</name>
-            <url>https://repo.spring.io/libs-milestone</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>spring-libs-snapshot</id>
-            <name>Spring Snapshot Repository</name>
-            <url>http://repo.spring.io/libs-snapshot</url>
-        </repository>
-    </repositories>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>spring-milestones</id>
-            <url>http://repo.spring.io/milestone</url>
-        </pluginRepository>
-    </pluginRepositories>
-    <!-- FIN nécessaire pour l'instant car la version 1.4 de spring-boot est en milestone
-        à supprimer quand il y aura une release -->
 </project>
