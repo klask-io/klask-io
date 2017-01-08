@@ -18,7 +18,6 @@ node {
     stage ("npm install") {
         sh "npm install"
         sh "bower install"
-        sh "npm install -g bower gulp"
     }
 
     stage ("clean") {
