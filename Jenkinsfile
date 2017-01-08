@@ -17,6 +17,7 @@ node {
 
     stage ("npm install") {
         sh "npm install"
+        sh "bower install"
     }
 
     stage ("clean") {
