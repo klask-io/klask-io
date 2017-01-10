@@ -10,7 +10,6 @@ et la restitution du FileResource en rest est converti en UTF-8 (l'html rendu pa
 => voir http://stackoverflow.com/questions/774075/character-encoding-detection-algorithm
 
 problème du map
-
 en supprimant les 2 lignes dans mapping.json sur path, cela refonctionne, mais difficile à expliquer (un get /file) montre que l'analyzer n'est pas créé dans elasticsearch)
   "search_analyzer": "keyword",
   "analyzer": "keyword"
@@ -29,9 +28,17 @@ ou alors, par un bouton switch on/off si le filtre agit en inclusion/exclusion
 
 corriger le jenkinsfile pour utiliser le mvnw
 
+
+1)fonctionnalitée à inclure
+CronTrigger et utilisation du taskExecutor pour checkoutsvn intégré
+https://docs.spring.io/spring/docs/current/spring-framework-reference/html/scheduling.html
+penser à utiliser plutôt le @Async (à voir aussi pour le crawler)
+
+2)filtre sur date de modif
+
 ## Crawler
  - dans le crawler, si le last_modified n'a pas bougé, alors on ne réindexe pas le fichier en question
- - pouvoir parcourir dans le crawler directement le SVN / Git
+ - pouvoir parcourir dans le crawler directement le SVN / Git (voir point 1)
  - gérer l'accès en JWT à l'api crawler (utiliser le user system ?) voir : https://github.com/Gleetr/auth0-curl/blob/master/curl-auth0
 
 ####IDEE A PENSER####
