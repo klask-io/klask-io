@@ -27,6 +27,7 @@ et ce n'est pas un highlight formatté par elasticsearch et le mode highlight en
 exemple, par un ctrl+clic sur un filtre de version, afficher en rouge la version exclue, et lancer la recherche sur toutes les versions sauf celles exclues
 ou alors, par un bouton switch on/off si le filtre agit en inclusion/exclusion
 
+corriger le jenkinsfile pour utiliser le mvnw
 
 ## Crawler
  - dans le crawler, si le last_modified n'a pas bougé, alors on ne réindexe pas le fichier en question
