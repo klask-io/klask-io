@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.inject.Inject;
 import javax.validation.Valid;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -215,7 +216,7 @@ public class FileResource {
                                                   @RequestParam(required = false) List<String> extension,
                                                   @RequestParam String query,
                                                   Pageable pageable)
-        throws URISyntaxException {
+        throws URISyntaxException, UnsupportedEncodingException {
         log.debug("REST request to search for a page of Files for query {}, version filter {}, project filter {}, extension filter {}", query, version, project, extension);
         //par défaut
         //Page<File> page = fileSearchRepository.search(queryStringQuery(query), pageable);
