@@ -74,7 +74,7 @@ public class CrawlerService {
      * @param path
      */
     @Timed
-    public void crawler(String path) throws IOException {
+    public void crawler(String path) {
         log.debug("Start Parsing files in {}", path);
 
         directoriesToExcludeSet.clear();
@@ -99,14 +99,18 @@ public class CrawlerService {
 
         numberOfIndexingFiles = 0;
 
-        Files.walk(new java.io.File(path).toPath())
-            .filter(p -> p.toFile().isFile())
-            //.peek(p -> notifyDiscoveredFile(p, "before"))
-            .filter(this::doesntContainsExcludeDirectoriesOrFiles)
-            //.peek(p -> notifyDiscoveredFile(p, "after"))
-            .forEach(this::addFile);
+        try {
+            Files.walk(new java.io.File(path).toPath())
+                .filter(p -> p.toFile().isFile())
+                //.peek(p -> notifyDiscoveredFile(p, "before"))
+                .filter(this::doesntContainsExcludeDirectoriesOrFiles)
+                //.peek(p -> notifyDiscoveredFile(p, "after"))
+                .forEach(this::addFile);
+            indexingBulkFiles();
+        } catch (final IOException e) {
+            log.error("Exception in crawler method", e);
+        }
 
-        indexingBulkFiles();
 
         if (numberOfIndexingFiles > 0) {
             log.error("{} files with indexing errors", numberOfIndexingFiles);
