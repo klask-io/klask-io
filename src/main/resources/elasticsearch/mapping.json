@@ -26,7 +26,10 @@
             "path": {
                 "store": true,
                 "type": "string",
-                "index": "not_analyzed"
+                "term_vector": "with_positions_offsets",
+                "search_analyzer": "customanalyzer",
+                "analyzer": "camelanalyzer"
+
             },
             "project": {
                 "type": "string",
@@ -42,7 +45,7 @@
                 "type": "string",
                 "term_vector": "with_positions_offsets",
                 "search_analyzer": "customanalyzer",
-                "analyzer": "customanalyzer"
+                "analyzer": "camelanalyzer"
             },
             "version": {
                 "type": "string",

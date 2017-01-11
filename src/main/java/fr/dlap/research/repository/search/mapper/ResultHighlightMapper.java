@@ -32,17 +32,22 @@ public class ResultHighlightMapper implements SearchResultMapper {
             //System.out.println(response.toString());
 
             String summaryWithHighlight = null;
-            HighlightField highlightField = searchHit.getHighlightFields().get("content");
-            if (highlightField != null) {
-                summaryWithHighlight = Arrays.stream(highlightField.fragments())
+            String pathWithHighlight = null;
+            HighlightField highlightFieldContent = searchHit.getHighlightFields().get("content");
+            HighlightField highlightFieldPath = searchHit.getHighlightFields().get("path");
+            if (highlightFieldContent != null) {
+                summaryWithHighlight = Arrays.stream(highlightFieldContent.fragments())
                     .map(text -> EncodingUtil.convertToUTF8(text.toString()))
                     .collect(Collectors.joining("\n[...]\n"));
+            }
+            if (highlightFieldPath != null && highlightFieldPath.fragments() != null) {
+                pathWithHighlight = EncodingUtil.unEscapeString(highlightFieldPath.fragments()[0].toString());
             }
             File oneFile = new File(
                 (String) searchHit.getSource().get("id"),
                 (String) searchHit.getSource().get("name"),
                 (String) searchHit.getSource().get("extension"),
-                (String) searchHit.getSource().get("path"),
+                pathWithHighlight != null ? pathWithHighlight : (String) searchHit.getSource().get("path"),
                 (String) searchHit.getSource().get("project"),
                 summaryWithHighlight,
                 (String) searchHit.getSource().get("version"),

@@ -395,3 +395,7 @@ padding: 3px 4px;
 .apercuCode {
 font-family: 'Ubuntu Mono', 'Monaco','Consolas','monospace';
 }
+
+.titreDoc {
+padding-bottom: 2px
+}

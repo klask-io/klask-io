@@ -26,59 +26,59 @@ public class File extends AbstractAuditingEntity implements Serializable {
 
     @NotNull
     @Size(max = 255)
-    @Field(type = FieldType.String,
-        index = FieldIndex.analyzed,
-        searchAnalyzer = "keyword",
-        analyzer = "keyword",
-        store = true)
+//    @Field(type = FieldType.String,
+//        index = FieldIndex.analyzed,
+//        searchAnalyzer = "keyword",
+//        analyzer = "keyword",
+//        store = true)
     private String name;
 
     @Size(max = 255)
-    @Field(type = FieldType.String,
-        index = FieldIndex.analyzed,
-        searchAnalyzer = "keyword",
-        analyzer = "keyword",
-        store = true)
+//    @Field(type = FieldType.String,
+//        index = FieldIndex.analyzed,
+//        searchAnalyzer = "keyword",
+//        analyzer = "keyword",
+//        store = true)
     private String extension;
 
     @NotNull
-    @Field(type = FieldType.String,
-        index = FieldIndex.not_analyzed,
-        searchAnalyzer = "keyword",
-        analyzer = "keyword",
-        store = true
-    )
+//    @Field(type = FieldType.String,
+//        index = FieldIndex.not_analyzed,
+//        searchAnalyzer = "keyword",
+//        analyzer = "keyword",
+//        store = true
+//    )
     private String path;
 
     @NotNull
-    @MultiField(
-        mainField = @Field(type = FieldType.String),
-        otherFields = {
-            @InnerField(index = FieldIndex.not_analyzed, suffix = "unique", type = FieldType.String)
-        }
-    )
+//    @MultiField(
+//        mainField = @Field(type = FieldType.String),
+//        otherFields = {
+//            @InnerField(index = FieldIndex.not_analyzed, suffix = "unique", type = FieldType.String)
+//        }
+//    )
     private String project;
 
 
-    @Field(type = FieldType.String,
-        index = FieldIndex.analyzed,
-        searchAnalyzer = "customanalyzer",
-        analyzer = "customanalyzer",
-        store = false)
+    //    @Field(type = FieldType.String,
+//        index = FieldIndex.analyzed,
+//        searchAnalyzer = "customanalyzer",
+//        analyzer = "customanalyzer",
+//        store = false)
     private String content;
 
     //ici le cas de la version est particulier, on souhaite pouvoir réaliser des requêtes du genre version:TRUNK, version:trunk, version:maint.15.*
     // donc case insensitive et wildcard mais on souhaite également faire une requête d'aggrégation qui va compter les
     //occurrences de chaque type de version (faire un nuage de versions) et être case sensitive cette fois
-    @MultiField(
-        mainField = @Field(type = FieldType.String),
-        otherFields = {
-            @InnerField(index = FieldIndex.not_analyzed, suffix = "unique", type = FieldType.String)
-        }
-    )
+//    @MultiField(
+//        mainField = @Field(type = FieldType.String),
+//        otherFields = {
+//            @InnerField(index = FieldIndex.not_analyzed, suffix = "unique", type = FieldType.String)
+//        }
+//    )
     private String version;
 
-    @Field(type = FieldType.Long)
+    //    @Field(type = FieldType.Long)
     private Long size;
 
 

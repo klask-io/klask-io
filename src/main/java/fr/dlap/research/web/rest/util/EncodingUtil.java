@@ -1,5 +1,6 @@
 package fr.dlap.research.web.rest.util;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,5 +16,9 @@ public class EncodingUtil {
 
     public static String convertToUTF8(String stringToConvert) {
         return StringUtils.toEncodedString(stringToConvert.getBytes(), Charset.forName("utf-8"));
+    }
+
+    public static String unEscapeString(String stringToUnEscape) {
+        return StringEscapeUtils.unescapeHtml4(stringToUnEscape);
     }
 }

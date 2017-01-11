@@ -3,9 +3,9 @@ package fr.dlap.research.web.rest.util;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.index.query.MatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.QueryStringQueryBuilder;
 import org.elasticsearch.search.highlight.HighlightBuilder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.query.FetchSourceFilterBuilder;
@@ -104,10 +104,18 @@ public class Queries {
             return QueryBuilders.matchAllQuery();
         }
 
-        return QueryBuilders.multiMatchQuery(query)
-            .operator(MatchQueryBuilder.Operator.AND)
+//        return QueryBuilders.multiMatchQuery(query)
+//            .operator(MatchQueryBuilder.Operator.AND)
+//            .field("name^3")
+//            .field("content").field("path").field("version").field("project")
+//            ;
+
+        return QueryBuilders.queryStringQuery(query)
+            .allowLeadingWildcard(true)
+            .defaultOperator(QueryStringQueryBuilder.Operator.AND)
             .field("name^3")
-            .field("content").field("path").field("version").field("project")
+            .field("content").field("path").field("version").field("project").field("extension")
+
             ;
 
         //QueryBuilders.queryStringQuery(query)
