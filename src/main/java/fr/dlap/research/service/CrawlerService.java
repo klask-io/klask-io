@@ -106,7 +106,11 @@ public class CrawlerService {
                 .filter(this::doesntContainsExcludeDirectoriesOrFiles)
                 //.peek(p -> notifyDiscoveredFile(p, "after"))
                 .forEach(this::addFile);
+
+            //s'il reste des fichiers non indexé dans la file d'attente
+            //on lance une dernière fois l'indexing sur ces fichiers
             indexingBulkFiles();
+
         } catch (final IOException e) {
             log.error("Exception in crawler method", e);
         }
