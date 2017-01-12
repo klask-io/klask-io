@@ -76,7 +76,7 @@ angular.module('filters', [])
                 return content
                 .replace(/</g,"&lt;")
                 .replace(/>/g,"&gt;")
-                .replace(/\[...\]/g,"<small class=\"contentTruncated\">[...]</small>")
+                .replace(/\[\.\.\.\]/g,"<small class=\"contentTruncated\">[...]</small>")
                 ;
             }
             else {
