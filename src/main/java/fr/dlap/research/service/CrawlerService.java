@@ -113,6 +113,8 @@ public class CrawlerService {
 
         } catch (final IOException e) {
             log.error("Exception in crawler method", e);
+        } catch (Throwable t) {
+            log.error("Throwable thrown " + t.getMessage(), t);
         }
 
 
@@ -183,6 +185,7 @@ public class CrawlerService {
         try {
             fileSearchRepository.save(listeDeFichiers);
         } catch (ElasticsearchException e) {
+            log.error("Exception while indexing file -- getting file's list...");
             Set<String> ids = e.getFailedDocuments().keySet();
             numberOfIndexingFiles += ids.size();
             listeDeFichiers.stream()
