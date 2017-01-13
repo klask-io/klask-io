@@ -117,7 +117,7 @@ public class FileResource {
         //verification if we got a request with a big page number wich is greater than the max result search window
         if (pageable.getPageNumber() * pageable.getPageSize() >= Constants.MAX_RESULT_SEARCH_WINDOW) {
             log.warn("getAllFiles : page request too high : {}", pageable.getPageNumber());
-            pageable = new PageRequest(0, pageable.getPageSize());
+            pageable = new PageRequest(0, pageable.getPageSize(), pageable.getSort());
         }
         Page<File> page;
         if (extension != null && extension.contains("empty")) {
