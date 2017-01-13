@@ -18,14 +18,20 @@ public final class Constants {
     public static final String SPRING_PROFILE_NO_SWAGGER = "no-swagger";
     // Spring profile used to disable running liquibase
     public static final String SPRING_PROFILE_NO_LIQUIBASE = "no-liquibase";
-
+    //account system
     public static final String SYSTEM_ACCOUNT = "system";
-
+    //index name in elasticsearch
     public static final String INDEX_NAME = "file";
-
+    //type in elasticsearch
     public static final String TYPE_NAME = "file";
-    public static final int MAX_RESULT_SEARCH_WINDOW = 10000;//parameter 'index.max_result_window' in elasticsearch
+    //parameter 'index.max_result_window' in elasticsearch
+    public static final int MAX_RESULT_SEARCH_WINDOW = 10000;
+    //fragments for results are truncated
     public static final int TRUNCATED_CONTENT = 200;
+    //default page size for results if the frontend doesn't specify
+    public static final int PAGE_SIZE = 10;
+    //max size of a readable file to index 20Mo
+    public static final long MAX_SIZE_FOR_INDEXING_ONE_FILE = 20 * 1024 * 1024;
 
     private Constants() {
     }

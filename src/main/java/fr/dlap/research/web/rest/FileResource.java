@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -109,7 +110,9 @@ public class FileResource {
                                                   @RequestParam(required = false) List<String> extension,
                                                   Pageable pageable)
         throws URISyntaxException {
-        log.debug("REST request to get a page for All Files with filter version {} and project {}", version, project);
+        //check if pageable is ok (has sort, page number, page size) and set to default if necessary
+        pageable = CheckOrUpdatePageable(pageable);
+        log.debug("REST request to get page {} for All Files with filter version {} and project {}", pageable.getPageNumber() + 1, version, project);
 
         //verification if we got a request with a big page number wich is greater than the max result search window
         if (pageable.getPageNumber() * pageable.getPageSize() >= Constants.MAX_RESULT_SEARCH_WINDOW) {
@@ -217,10 +220,14 @@ public class FileResource {
                                                   @RequestParam String query,
                                                   Pageable pageable)
         throws URISyntaxException, UnsupportedEncodingException {
-        log.debug("REST request to search for a page of Files for query {}, version filter {}, project filter {}, extension filter {}", query, version, project, extension);
+        //check if pageable is ok (has sort, page number, page size) and set to default if necessary
+        pageable = CheckOrUpdatePageable(pageable);
+        log.debug("REST request to search for page {} of Files for query {}, version filter {}, project filter {}, extension filter {}", pageable.getPageNumber() + 1, query, version, project, extension);
+
         //par défaut
         //Page<File> page = fileSearchRepository.search(queryStringQuery(query), pageable);
-        String default_operator = "AND";
+        //String default_operator = "AND";
+
 
         //On utilise une classe custom pour construire un querybuilder, car ce querybuilder sera le même utilisé pour
         //filtrer sur les versions
@@ -239,6 +246,26 @@ public class FileResource {
         //Page<FileDTO> result = page.map(file -> convertToDTO(file));
         HttpHeaders headers = PaginationUtil.generateSearchPaginationHttpHeaders(query, page, "/api/_search/files");
         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
+    }
+
+    /**
+     * check if object pageable is well formated.
+     * It should have sort, page number and page size or the method set to default value if necessary
+     *
+     * @param pageable
+     * @return
+     */
+    private Pageable CheckOrUpdatePageable(Pageable pageable) {
+        int pageNo = 0;
+        int pageSize = Constants.PAGE_SIZE;
+        if (pageable != null) {
+            pageNo = pageable.getPageNumber();
+            pageSize = pageable.getPageSize();
+        }
+        if (pageable == null || pageable.getSort() == null) {
+            pageable = new PageRequest(pageNo, pageSize, new Sort("_score"));
+        }
+        return pageable;
     }
 
 }

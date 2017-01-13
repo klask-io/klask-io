@@ -1,6 +1,7 @@
 package fr.dlap.research.service;
 
 import com.codahale.metrics.annotation.Timed;
+import fr.dlap.research.config.Constants;
 import fr.dlap.research.domain.File;
 import fr.dlap.research.repository.search.FileSearchRepository;
 import org.slf4j.Logger;
@@ -60,13 +61,13 @@ public class CrawlerService {
 
     private Set<fr.dlap.research.domain.File> listeDeFichiers = new HashSet<>();
 
-    private int batchNumber = 100;
+    private int batchNumber = 25;
 
     @Inject
     private ElasticsearchTemplate elasticsearchTemplate;
 
     //TODO à supprimer
-    private int numberOfIndexingFiles = 0;
+    private int numberOfFailedDocuments = 0;
 
     /**
      * execute the crawler on the path directory
@@ -97,7 +98,7 @@ public class CrawlerService {
         readableExtensionSet.addAll(Arrays.asList(readableExtension.split(",")));
         log.debug("ascii files with extension : {}", readableExtensionSet);
 
-        numberOfIndexingFiles = 0;
+        numberOfFailedDocuments = 0;
 
         try {
             Files.walk(new java.io.File(path).toPath())
@@ -118,8 +119,8 @@ public class CrawlerService {
         }
 
 
-        if (numberOfIndexingFiles > 0) {
-            log.error("{} files with indexing errors", numberOfIndexingFiles);
+        if (numberOfFailedDocuments > 0) {
+            log.error("{} files with indexing errors", numberOfFailedDocuments);
         }
         log.debug("Finish to parse files in {}", path);
     }
@@ -147,6 +148,15 @@ public class CrawlerService {
     }
 
     /**
+     * check the size of batch index, and index if necessary
+     */
+    private void indexBulkFilesIfNecessary() {
+        if (listeDeFichiers.size() > batchNumber) {
+            indexingBulkFiles();
+            listeDeFichiers.clear();
+        }
+    }
+    /**
      * Parsing one file
      *
      * @param p
@@ -162,16 +172,14 @@ public class CrawlerService {
         log.trace("explode filename : name:{}\textension:{}", name, extension);
 
         try {
-            fr.dlap.research.domain.File fichier = constructFile(name, extension, p);
-
-            if (listeDeFichiers.size() > batchNumber) {
-                indexingBulkFiles();
-                listeDeFichiers.clear();
-            }
-            listeDeFichiers.add(fichier);
+            indexBulkFilesIfNecessary();
+            fr.dlap.research.domain.File document = constructFile(name, extension, p);
+            listeDeFichiers.add(document);
 
         } catch (IOException e) {
             log.error("Exception while reading file {}", p);
+        } catch (Throwable t) {
+            log.error("Throwable thrown while indexing file {} ", p, t);
         }
 
     }
@@ -186,10 +194,10 @@ public class CrawlerService {
             fileSearchRepository.save(listeDeFichiers);
         } catch (ElasticsearchException e) {
             log.error("Exception while indexing file -- getting file's list...");
-            Set<String> ids = e.getFailedDocuments().keySet();
-            numberOfIndexingFiles += ids.size();
+            Set<String> failedDocuments = e.getFailedDocuments().keySet();
+            numberOfFailedDocuments += failedDocuments.size();
             listeDeFichiers.stream()
-                .filter(f -> ids.contains(f.getId()))
+                .filter(f -> failedDocuments.contains(f.getId()))
                 .forEach(file -> log.error("Exception while indexing file {}, {}", file.getPath(), e.getFailedDocuments().get(file.getId())));
         } catch (OutOfMemoryError e) {
             log.error("OutOfMemory while indexing one file of the following files :");
@@ -222,7 +230,7 @@ public class CrawlerService {
         long size = attrs.size();
 
         String content = null;
-        if (!readableExtensionSet.contains(extension)) {
+        if (!readableExtensionSet.contains(extension) || size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE) {
             log.trace("parsing only name on file : {}", path);
         } else {
             content = readContent(path);

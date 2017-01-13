@@ -21,7 +21,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
@@ -169,6 +171,10 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
     private SearchRequestBuilder constructRequestBuilder(NativeSearchQuery nativeSearchQuery, Pageable pageable, List<String> version, List<String> project, List<String> extension) {
         //SearchRequestBuilder searchRequestBuilder = Queries.constructSearchRequestBuilder(query, pageable, 3, elasticsearchTemplate.getClient());
 
+        //par défaut, renvoi la première page, si rien n'est spécifié
+        if (pageable == null || pageable.getSort() == null) {
+            pageable = new PageRequest(0, Constants.PAGE_SIZE, new Sort("_score"));
+        }
 
         BoolQueryBuilder ensembleVersion = QueryBuilders.boolQuery();
         BoolQueryBuilder ensembleProjet = QueryBuilders.boolQuery();
