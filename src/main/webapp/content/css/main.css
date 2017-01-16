@@ -399,3 +399,7 @@ font-family: 'Ubuntu Mono', 'Monaco','Consolas','monospace';
 .titreDoc {
 padding-bottom: 2px
 }
+
+.list-group {
+    margin-bottom: 0px;
+}
