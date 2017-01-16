@@ -26,6 +26,8 @@
     <logger name="org.springframework.data.elasticsearch.core.ElasticsearchTemplate" level="DEBUG"/>
     <logger name="fr.dlap.research.repository.search.CustomSearchRepositoryImpl" level="DEBUG"/>
     <logger name="fr.dlap.research.web.rest.FileResource" level="DEBUG"/>
+    <logger name="fr.dlap.research.web.rest.CrawlerResource" level="DEBUG"/>
+    <logger name="fr.dlap.research.service.CrawlerService" level="DEBUG"/>
     <logger name="javax.activation" level="WARN"/>
     <logger name="javax.mail" level="WARN"/>
     <logger name="javax.xml.bind" level="WARN"/>
