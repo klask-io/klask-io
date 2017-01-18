@@ -154,7 +154,10 @@ public class FileResource {
         if (file != null && file.getContent() != null) {
             file.setContent(EncodingUtil.convertToUTF8(file.getContent()));
         }
-        return Optional.ofNullable(new FileDetailDTO(file))
+
+        FileDetailDTO fileDetail = (file == null) ? null : new FileDetailDTO(file);
+
+        return Optional.ofNullable(fileDetail)
             .map(result -> new ResponseEntity<>(result, HttpStatus.OK))
             .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
@@ -178,7 +181,10 @@ public class FileResource {
         if (file != null && file.getContent() != null) {
             file.setContent(EncodingUtil.convertToUTF8(file.getContent()));
         }
-        return Optional.of(new FileDetailDTO(file))
+
+        FileDetailDTO fileDetail = (file == null) ? null : new FileDetailDTO(file);
+
+        return Optional.ofNullable(fileDetail)
             .map(result -> new ResponseEntity<>(result, HttpStatus.OK))
             .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
