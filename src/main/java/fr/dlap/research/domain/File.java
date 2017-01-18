@@ -54,7 +54,7 @@ public class File extends AbstractAuditingEntity implements Serializable {
 //    @MultiField(
 //        mainField = @Field(type = FieldType.String),
 //        otherFields = {
-//            @InnerField(index = FieldIndex.not_analyzed, suffix = "unique", type = FieldType.String)
+//            @InnerField(index = FieldIndex.not_analyzed, suffix = "raw", type = FieldType.String)
 //        }
 //    )
     private String project;
@@ -73,7 +73,7 @@ public class File extends AbstractAuditingEntity implements Serializable {
 //    @MultiField(
 //        mainField = @Field(type = FieldType.String),
 //        otherFields = {
-//            @InnerField(index = FieldIndex.not_analyzed, suffix = "unique", type = FieldType.String)
+//            @InnerField(index = FieldIndex.not_analyzed, suffix = "raw", type = FieldType.String)
 //        }
 //    )
     private String version;

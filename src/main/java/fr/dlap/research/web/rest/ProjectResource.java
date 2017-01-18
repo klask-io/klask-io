@@ -45,7 +45,7 @@ public class ProjectResource {
     public ResponseEntity<List<ProjectDTO>> searchprojects(@RequestParam(required = false) String query)
         throws URISyntaxException {
         log.debug("REST request to search projects for query {}", query);
-        Map<String, Long> projects = customSearchRepository.aggregateByFieldUnique("project", query);
+        Map<String, Long> projects = customSearchRepository.aggregateByRawField("project", query);
         List<ProjectDTO> listProjectDTO = new LinkedList<>();
         projects.forEach((key, value) -> listProjectDTO.add(new ProjectDTO(key, value)));
         return new ResponseEntity<>(listProjectDTO, HttpStatus.OK);

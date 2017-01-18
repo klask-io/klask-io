@@ -45,7 +45,7 @@ public class VersionResource {
     public ResponseEntity<List<VersionDTO>> searchversions(@RequestParam(required = false) String query)
         throws URISyntaxException {
         log.debug("REST request to search versions for query {}", query);
-        Map<String, Long> versions = customSearchRepository.aggregateByFieldUnique("version", query);
+        Map<String, Long> versions = customSearchRepository.aggregateByRawField("version", query);
         List<VersionDTO> listVersionDTO = new LinkedList<>();
         versions.forEach((key, value) -> listVersionDTO.add(new VersionDTO(key, value)));
         return new ResponseEntity<>(listVersionDTO, HttpStatus.OK);

@@ -12,7 +12,7 @@ import java.util.Map;
  */
 public interface CustomSearchRepository {
 
-    Map<String, Long> aggregateByFieldUnique(String field, String filtre);
+    Map<String, Long> aggregateByRawField(String field, String filtre);
 
     Page<File> findWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project);
 

@@ -201,7 +201,6 @@ public class FileResource {
     @Timed
     public ResponseEntity<Void> deleteFile(@PathVariable String id) {
         log.debug("REST request to delete File : {}", id);
-	//TODO : fileRepository.delete(id);
         fileSearchRepository.delete(id);
         return ResponseEntity.ok().headers(HeaderUtil.createEntityDeletionAlert("file", id)).build();
     }

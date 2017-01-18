@@ -129,12 +129,10 @@
                                 <tr jh-sort="vm.predicate" ascending="vm.reverse" callback="vm.transition()">
                                     <th jh-sort-by="name"><span translate="researchApp.file.name">Name</span> <span
                                         class="glyphicon glyphicon-sort"></span></th>
-                                    <!--<th jh-sort-by="extension"><span translate="researchApp.file.extension">Extension</span> <span
-                                        class="glyphicon glyphicon-sort"></span></th>-->
-                                    <th jh-sort-by="path"><span translate="researchApp.file.path">Path</span> <span
+                                    <th jh-sort-by="extension"><span
+                                        translate="researchApp.file.extension">Extension</span> <span
                                         class="glyphicon glyphicon-sort"></span></th>
-                                    <th jh-sort-by="content"><span
-                                        translate="researchApp.file.content">Content</span> <span
+                                    <th jh-sort-by="path"><span translate="researchApp.file.path">Path</span> <span
                                         class="glyphicon glyphicon-sort"></span></th>
                                     <th jh-sort-by="version"><span
                                         translate="researchApp.file.version">Version</span> <span
@@ -163,19 +161,6 @@
                                             <em class="pathDoc small" ng-bind-html="file.path | unsafe"></em>
                                         </div>
                                     </td>
-                                    <!-- mode tableau deprecated -->
-                                    <!--<td><a data-toggle="tooltip" data-placement="left"
-                                           title="{{file.name}}.{{file.extension}}"
-                                           ui-sref="home-detail({id:file.id})">{{file.name|
-                                        characters:25}}.{{file.extension}}</a></td>
-                                    &lt;!&ndash;<td>{{file.extension}}</td>&ndash;&gt;
-                                    <td data-toggle="tooltip" data-placement="left"
-                                        title="{{file.path}}">{{file.path | characters:40}}
-                                    </td>
-                                    <td>{{file.content | characters:300}}</td>
-                                    <td>{{file.version}}</td>
-                                    <td>{{file.project}}</td>
-                                    <td>{{file.size | formatKoMoGo}}</td>-->
                                 </tr>
                                 </tbody>
                             </table>

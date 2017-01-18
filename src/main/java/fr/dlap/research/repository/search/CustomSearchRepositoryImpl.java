@@ -21,9 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
@@ -58,10 +56,10 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         BoolQueryBuilder ensembleProjet = QueryBuilders.boolQuery();
 
         if (version != null && !version.isEmpty()) {
-            ensembleVersion = ensembleVersion.should(QueryBuilders.termsQuery("version.unique", version));
+            ensembleVersion = ensembleVersion.should(QueryBuilders.termsQuery("version.raw", version));
         }
         if (project != null && !project.isEmpty()) {
-            ensembleProjet = ensembleProjet.should(QueryBuilders.termsQuery("project.unique", project));
+            ensembleProjet = ensembleProjet.should(QueryBuilders.termsQuery("project.raw", project));
         }
 
         nativeQuery = nativeQuery.withFilter(QueryBuilders.boolQuery().must(ensembleVersion).must(ensembleProjet));
@@ -96,7 +94,9 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         SearchRequestBuilder searchRequestBuilder = constructRequestBuilder(nativeSearchQuery, pageable, version, project, extension);
         searchRequestBuilder.setFetchSource(null, "content");//dont get the content, we have the highlight !
 
+        log.trace("==> Request  ES ==> \n{}", searchRequestBuilder);
         SearchResponse response = searchRequestBuilder.execute().actionGet();
+        log.trace("<== Response ES <== \n{}", response);
 
         SearchHit[] hits = response.getHits().hits();
         ResultHighlightMapper mapper = new ResultHighlightMapper();
@@ -131,10 +131,10 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
 
 
     @Override
-    public Map<String, Long> aggregateByFieldUnique(String field, String filtre) {
+    public Map<String, Long> aggregateByRawField(String field, String filtre) {
 
         TermsBuilder aggregation = AggregationBuilders.terms("top_" + field)
-            .field(field + ".unique")
+            .field(field + ".raw")
             .size(0)// le résultat n'est pas complet si on ne précise pas la taille, 0 : infini
             // (voir : https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-terms-aggregation.html#_size)
             .order(Terms.Order.aggregation("_count", false));
@@ -171,26 +171,21 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
     private SearchRequestBuilder constructRequestBuilder(NativeSearchQuery nativeSearchQuery, Pageable pageable, List<String> version, List<String> project, List<String> extension) {
         //SearchRequestBuilder searchRequestBuilder = Queries.constructSearchRequestBuilder(query, pageable, 3, elasticsearchTemplate.getClient());
 
-        //par défaut, renvoi la première page, si rien n'est spécifié
-        if (pageable == null || pageable.getSort() == null) {
-            pageable = new PageRequest(0, Constants.PAGE_SIZE, new Sort("_score"));
-        }
-
         BoolQueryBuilder ensembleVersion = QueryBuilders.boolQuery();
         BoolQueryBuilder ensembleProjet = QueryBuilders.boolQuery();
         BoolQueryBuilder ensembleExtension = QueryBuilders.boolQuery();
         BoolQueryBuilder filter = QueryBuilders.boolQuery();
 
         if (version != null && !version.isEmpty()) {
-            ensembleVersion = ensembleVersion.should(QueryBuilders.termsQuery("version.unique", version));
+            ensembleVersion = ensembleVersion.should(QueryBuilders.termsQuery("version.raw", version));
             filter = filter.must(ensembleVersion);
         }
         if (project != null && !project.isEmpty()) {
-            ensembleProjet = ensembleProjet.should(QueryBuilders.termsQuery("project.unique", project));
+            ensembleProjet = ensembleProjet.should(QueryBuilders.termsQuery("project.raw", project));
             filter = filter.must(ensembleProjet);
         }
         if (extension != null && !extension.isEmpty()) {
-            ensembleExtension = ensembleExtension.should(QueryBuilders.termsQuery("extension.unique", extension));
+            ensembleExtension = ensembleExtension.should(QueryBuilders.termsQuery("extension.raw", extension));
             filter = filter.must(ensembleExtension);
         }
 
@@ -204,21 +199,46 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
             .setHighlighterNumOfFragments(3)
             .setHighlighterPreTags("<mark>")
             .setHighlighterPostTags("</mark>")
-            .addHighlightedField("content")
+            .addHighlightedField("content")//on souhaite la coloration Highligh sur le contenu et le path à l'affichage
             .addHighlightedField("path")
             .setHighlighterBoundaryChars(new char[]{'\n'})
             .setHighlighterBoundaryMaxScan(200)
             .setHighlighterType("fvh")
             .setTrackScores(true)
-            .setFrom(pageable.getOffset())
-            .setSize(pageable.getPageSize())
             .setPostFilter(filter);
 
-        pageable.getSort().forEach(
-            order -> searchRequestBuilder.addSort(order.getProperty(),
-                SortOrder.valueOf(order.getDirection().name()))
-        );
+        //add the sort order to searchRequestBuilder
+        addPagingAndSortingToSearchRequest(pageable, searchRequestBuilder);
+
+
         return searchRequestBuilder;
+    }
+
+    /**
+     * add the sort order to the request searchRequestBuilder
+     * if the frontend send sort with "path : desc". It should be converted to "path.raw" : {"order" : "desc" }
+     * https://www.elastic.co/guide/en/elasticsearch/guide/current/multi-fields.html#multi-fields
+     *
+     * @param pageable
+     * @param searchRequestBuilder
+     */
+    private void addPagingAndSortingToSearchRequest(Pageable pageable, SearchRequestBuilder searchRequestBuilder) {
+        //par défaut, renvoi la première page trié sur le _score ou le _doc, si rien n'est spécifié
+        //effectue le tri
+        if (pageable != null) {
+
+            searchRequestBuilder
+                .setFrom(pageable.getOffset())
+                .setSize(pageable.getPageSize());
+
+            if (pageable.getSort() != null) {
+                pageable.getSort().forEach(
+                    order -> searchRequestBuilder.addSort(
+                        Constants.ORDER_FIELD_MAPPING.get(order.getProperty()),
+                        SortOrder.valueOf(order.getDirection().name()))
+                );
+            }
+        }
     }
 
 

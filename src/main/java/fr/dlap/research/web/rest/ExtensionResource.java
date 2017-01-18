@@ -46,7 +46,7 @@ public class ExtensionResource {
     public ResponseEntity<List<ExtensionDTO>> searchextensions(@RequestParam(required = false) String query)
         throws URISyntaxException {
         log.debug("REST request to search extensions for query {}", query);
-        Map<String, Long> extensions = customSearchRepository.aggregateByFieldUnique("extension", query);
+        Map<String, Long> extensions = customSearchRepository.aggregateByRawField("extension", query);
         if (extensions.containsKey("")) {
             extensions.put("empty", extensions.get(""));
             extensions.remove("");
