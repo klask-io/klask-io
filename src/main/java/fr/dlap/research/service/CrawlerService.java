@@ -2,11 +2,11 @@ package fr.dlap.research.service;
 
 import com.codahale.metrics.annotation.Timed;
 import fr.dlap.research.config.Constants;
+import fr.dlap.research.config.ResearchProperties;
 import fr.dlap.research.domain.File;
 import fr.dlap.research.repository.search.FileSearchRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.elasticsearch.ElasticsearchException;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.ZoneId;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -34,34 +33,15 @@ public class CrawlerService {
     @Inject
     private FileSearchRepository fileSearchRepository;
 
-    @Value("${dirToExclude:.svn}")
-    private String directoriesToExclude;
+    @Inject
+    private ResearchProperties researchProperties;
 
     private Set<String> directoriesToExcludeSet = new HashSet<>();
-
-    @Value("${fileToExclude:.project}")
-    private String filesToExclude;
-
     private Set<String> filesToExcludeSet = new HashSet<>();
-
-    @Value("${fileToInclude:README}")
-    private String filesToInclude;
-
     private Set<String> filesToIncludeSet = new HashSet<>();
-
-    @Value("${extensionToExclude:md5,sha1}")
-    private String extensionToExclude;
-
     private Set<String> extensionsToExcludeSet = new HashSet<>();
-
-    @Value("${readableExtension:java,txt,php,xml,properties}")
-    private String readableExtension;
-
     private Set<String> readableExtensionSet = new HashSet<>();
-
     private Set<fr.dlap.research.domain.File> listeDeFichiers = new HashSet<>();
-
-    private int batchNumber = 25;
 
     @Inject
     private ElasticsearchTemplate elasticsearchTemplate;
@@ -79,23 +59,23 @@ public class CrawlerService {
         log.debug("Start Parsing files in {}", path);
 
         directoriesToExcludeSet.clear();
-        directoriesToExcludeSet.addAll(Arrays.asList(directoriesToExclude.split(",")));
+        directoriesToExcludeSet.addAll(researchProperties.getCrawler().getDirectoriesToExclude());
         log.debug("exclude directories {}", directoriesToExcludeSet);
 
         filesToExcludeSet.clear();
-        filesToExcludeSet.addAll(Arrays.asList(filesToExclude.split(",")));
+        filesToExcludeSet.addAll(researchProperties.getCrawler().getFilesToExclude());
         log.debug("exclude files : {}", filesToExcludeSet);
 
         filesToIncludeSet.clear();
-        filesToIncludeSet.addAll(Arrays.asList(filesToInclude.split(",")));
+        filesToIncludeSet.addAll(researchProperties.getCrawler().getFilesToInclude());
         log.debug("include files : {}", filesToIncludeSet);
 
         extensionsToExcludeSet.clear();
-        extensionsToExcludeSet.addAll(Arrays.asList(extensionToExclude.split(",")));
+        extensionsToExcludeSet.addAll(researchProperties.getCrawler().getExtensionsToExclude());
         log.debug("exclude extensions : {}", extensionsToExcludeSet);
 
         readableExtensionSet.clear();
-        readableExtensionSet.addAll(Arrays.asList(readableExtension.split(",")));
+        readableExtensionSet.addAll(researchProperties.getCrawler().getExtensionsToRead());
         log.debug("ascii files with extension : {}", readableExtensionSet);
 
         numberOfFailedDocuments = 0;
@@ -151,7 +131,7 @@ public class CrawlerService {
      * check the size of batch index, and index if necessary
      */
     private void indexBulkFilesIfNecessary() {
-        if (listeDeFichiers.size() > batchNumber) {
+        if (listeDeFichiers.size() > researchProperties.getCrawler().getBatchSize()) {
             indexingBulkFiles();
             listeDeFichiers.clear();
         }

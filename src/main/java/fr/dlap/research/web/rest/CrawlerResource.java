@@ -1,10 +1,10 @@
 package fr.dlap.research.web.rest;
 
 import com.codahale.metrics.annotation.Timed;
+import fr.dlap.research.config.ResearchProperties;
 import fr.dlap.research.service.CrawlerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,11 +28,13 @@ public class CrawlerResource {
     private static ExecutorService pool = Executors.newFixedThreadPool(1);
     private static Future<Void> future;
     private final Logger log = LoggerFactory.getLogger(CrawlerResource.class);
+
     @Inject
     private CrawlerService crawlerService;
 
-    @Value("${directoryToScan:.}")
-    private String directoryToScan;
+    @Inject
+    private ResearchProperties researchProperties;
+
 
     /**
      * POST  /crawler : Call the crawler
@@ -106,7 +108,7 @@ public class CrawlerResource {
     public void resetIndex() throws IOException {
         crawlerService.clearIndex();
         //TODO : ne plus supprimer l'index
-        crawlerService.crawler(directoryToScan);
+        crawlerService.crawler(researchProperties.getCrawler().getDirectoriesToScan());
     }
 
 

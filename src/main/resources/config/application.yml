@@ -73,8 +73,22 @@ jhipster:
     ribbon:
         # comma seperated list of profiles to show a ribbon on the GUI
         displayOnActiveProfiles: dev
-dirToExclude : .svn,.git
-fileToExclude : .project,.classpath,swagger-ui.js,angular.min.js.map,bootstrap.css.map,bootstrap.css.map,angular.min.js.map,jquery.min.map,angular.min.js
-extensionToExclude : sha1,md5
-readableExtension : java,properties,txt,xml,js,jsp,html,htm,php,asm,md,json,sh,bat,sql,yml,pom,scala,dtd,c,cpp,h,pc,as,mxml,xsl,xslt,tld,asp,jrxml,conf,desc,gs,less,scss,css,ini
-directoryToScan : /svn
+
+# ===================================================================
+# Research app specific properties
+# ===================================================================
+research:
+    crawler:
+        directoriesToScan: /svn
+        batchSize: 25
+        directoriesToExclude:
+            - .svn
+            - .git
+        extensionsToExclude:
+            - sha1
+            - md5
+        filesToInclude:
+            - README
+        filesToExclude: .project,.classpath,swagger-ui.js,angular.min.js.map,bootstrap.css.map,bootstrap.css.map,angular.min.js.map,jquery.min.map,angular.min.js
+        extensionsToRead: java,properties,txt,xml,js,jsp,html,htm,php,asm,md,json,sh,bat,sql,yml,pom,scala,dtd,c,cpp,h,pc,as,mxml,xsl,xslt,tld,asp,jrxml,conf,desc,gs,less,scss,css,ini
+
