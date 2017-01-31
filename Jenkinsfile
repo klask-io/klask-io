@@ -40,4 +40,9 @@ node {
         sh "${mvnHome}/bin/mvn package -Pprod -DskipTests"
         //sh "./mvnw package -Pprod -DskipTests"
     }
+
+    stage ("docker") {
+        sh "cp target/*.war /war"
+        sh "cp src/main/docker/Dockerfile /war"
+    }
 }
