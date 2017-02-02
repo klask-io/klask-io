@@ -1,7 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <configuration scan="true">
-    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+
+    <!-- these two properties must be declared before the include base.xml -->
+    <!-- https://github.com/spring-projects/spring-boot/issues/5124 -->
+    <!--<property name="LOG_TEMP" value="./logs"/>-->
+    <!--<property name="LOG_FILE" value="${LOG_TEMP}/research.log"/>-->
+
+
+    <!--<include resource="org/springframework/boot/logging/logback/base.xml"/>-->
+    <!-- par défaut cette inclusion créé toujours un spring.log dans un répertoire temp, je préfère contrôler où vont les fichiers-->
+    <!-- on redéfinit donc plutôt l'inclusion du default.xml et non le base.xml-->
+    <!-- https://docs.spring.io/spring-boot/docs/current/reference/html/howto-logging.html#howto-configure-logback-for-logging-fileonly -->
+    <!-- github springboot : https://github.com/spring-projects/spring-boot/tree/master/spring-boot/src/main/resources/org/springframework/boot/logging/logback -->
+
+
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <property name="LOG_PATH" value="${LOG_PATH:-${LOG_TEMP:-./logs}}"/>
+    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH}/research.log}"/>
+    <property name="FILE_LOG_PATTERN"
+              value="-%d{yyyy-MM-dd HH:mm:ss.SSS} ${LOG_LEVEL_PATTERN:-%5p} ${PID:- } -- %15.15X{context.info:-  LOCALHOST  } [%15.15t] %-40.40logger{39} : %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}"/>
+    <!-- redefinition of appender FILE for production-->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+        </encoder>
+        <file>${LOG_FILE}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/research.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>5</maxHistory>
+            <totalSizeCap>50MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
 
 <!-- The FILE and ASYNC appenders are here as examples for a production configuration -->
 <!--
@@ -25,6 +57,7 @@
     <logger name="fr.dlap.research" level="#logback.loglevel#"/>
     <logger name="org.springframework.data.elasticsearch.core.ElasticsearchTemplate" level="DEBUG"/>
     <logger name="fr.dlap.research.repository.search.CustomSearchRepositoryImpl" level="DEBUG"/>
+    <!--<logger name="fr.dlap.research.repository.search.CustomSearchRepositoryImpl" level="TRACE"/>-->
     <logger name="fr.dlap.research.web.rest.FileResource" level="DEBUG"/>
     <logger name="fr.dlap.research.web.rest.CrawlerResource" level="DEBUG"/>
     <logger name="fr.dlap.research.service.CrawlerService" level="DEBUG"/>
@@ -60,6 +93,7 @@
 
     <root level="#logback.loglevel#">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
     </root>
 
 </configuration>

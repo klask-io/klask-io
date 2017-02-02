@@ -90,5 +90,5 @@ research:
         filesToInclude:
             - README
         filesToExclude: .project,.classpath,swagger-ui.js,angular.min.js.map,bootstrap.css.map,bootstrap.css.map,angular.min.js.map,jquery.min.map,angular.min.js
-        extensionsToRead: java,properties,txt,xml,js,jsp,html,htm,php,asm,md,json,sh,bat,sql,yml,pom,scala,dtd,c,cpp,h,pc,as,mxml,xsl,xslt,tld,asp,jrxml,conf,desc,gs,less,scss,css,ini
+        extensionsToRead: java,properties,txt,xml,js,jsp,html,htm,php,asm,md,json,sh,bat,sql,yml,yaml,pom,scala,dtd,c,cpp,h,pc,as,mxml,xsl,xslt,tld,asp,jrxml,conf,desc,gs,less,scss,css,ini
 
