@@ -4,6 +4,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.servlet.InstrumentedFilter;
 import com.codahale.metrics.servlets.MetricsServlet;
 import fr.dlap.research.web.filter.CachingHttpHeadersFilter;
+import fr.dlap.research.web.filter.ContextHeaderFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,7 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
         }
         EnumSet<DispatcherType> disps = EnumSet.of(DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.ASYNC);
         initMetrics(servletContext, disps);
+        initContextHeader(servletContext, disps);
         if (env.acceptsProfiles(Constants.SPRING_PROFILE_PRODUCTION)) {
             initCachingHttpHeadersFilter(servletContext, disps);
         }
@@ -57,6 +59,21 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
             initH2Console(servletContext);
         }
         log.info("Web application fully configured");
+    }
+
+    /**
+     * Initialize the ContextHeaderFilter
+     *
+     * @param servletContext
+     * @param disps
+     */
+    private void initContextHeader(ServletContext servletContext, EnumSet<DispatcherType> disps) {
+        log.debug("Registering Context Header Filter");
+        FilterRegistration.Dynamic contextHeaderFilter = servletContext.addFilter("contextHeaderFilter",
+            new ContextHeaderFilter(jHipsterProperties));
+
+        contextHeaderFilter.addMappingForUrlPatterns(disps, true, "/*");
+        contextHeaderFilter.setAsyncSupported(true);
     }
 
     /**

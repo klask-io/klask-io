@@ -6,6 +6,8 @@ package fr.dlap.research.web.rest.mapper;
 public class FileMapper {
 
     public static String getMappingContentType(String extension) {
+        if (extension == null)
+            return "markdown";
         switch (extension) {
             case "java":
             case "scala":
