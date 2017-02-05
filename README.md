@@ -1,6 +1,11 @@
-# ![klask.io](src/main/webapp/content/images/logo-klask.png)
+# ![klask.io](https://raw.githubusercontent.com/klask-io/klask-io/master/src/main/webapp/content/images/logo-klask.png)
 
-master [![Build Status](https://travis-ci.org/klask-io/klask-io.svg?branch=master)](https://travis-ci.org/klask-io/klask-io) develop [![Build Status](https://travis-ci.org/klask-io/klask-io.svg?branch=develop)](https://travis-ci.org/klask-io/klask-io)
+|   | Build  | Coberture  |   |   |
+|---|---|---|---|---|
+| master  | master  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/master.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io) | bidule  |   |   |   |
+| develop  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/develop.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  |   |   |   |
+|   |   |   |   |   |
+
 
 This application was generated using JHipster, you can find documentation and help at [https://jhipster.github.io](https://jhipster.github.io).
 #### TODO
