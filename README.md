@@ -16,12 +16,30 @@ __klask.io__ is an open source search engine for source code. This application w
 http://app.klask.io/
 
 ### How to run it ?
-You can run an instance easily by pulling the docker image. 
+You can run an instance easily by pulling the docker image and execute by following :
 
-    docker-compose -f elasticsearch.yml up -d
-    docker-compose -f postgresql.yml up -d
-    
-    java -jar target/*.war --spring.profiles.active=prod
+    docker run klask/klask.io
+
+#### docker-compose
+an example of a docker-compose.yml :
+
+```Dockerfile
+version: '2'
+services:
+  klask-app:
+    image: klask/klask.io:latest
+    ports:
+      - 8080:8080
+    volumes:
+      - /mnt/svn:/repo
+      - ./data:/klask-data
+      - ./application-docker.yml:/application-docker.yml
+```
+
+`/mnt/svn` is the path to my repositories
+`./data` is the location where elasticsearch files and database were saved.
+The optional file `application-docker.yml` can overrides all properties defined in [application.yml](klask-io/src/main/resources/config/application.yml) and [application-docker.yml](klask-io/src/main/resources/config/application-docker.yml) 
+
 
 ## Development
 Before you can build this project, you must install and configure the following dependencies on your machine:

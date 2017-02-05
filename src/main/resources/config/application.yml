@@ -79,7 +79,7 @@ jhipster:
 # ===================================================================
 research:
     crawler:
-        directoriesToScan: /svn
+        directoriesToScan: /repo
         batchSize: 25
         directoriesToExclude:
             - .svn
