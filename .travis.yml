@@ -1,6 +1,12 @@
 language: node_js
 node_js:
   - "4.4.3"
+jdk:
+  - oraclejdk8
+addons:
+  apt:
+    packages:
+      - oracle-java8-installer
 sudo: false
 before_install:
   - npm install -g bower
