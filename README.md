@@ -36,9 +36,9 @@ services:
       - ./application-docker.yml:/application-docker.yml
 ```
 
-`/mnt/svn` is the path to my repositories
-`./data` is the location where elasticsearch files and database were saved.
-The optional file `application-docker.yml` can overrides all properties defined in [application.yml](klask-io/src/main/resources/config/application.yml) and [application-docker.yml](klask-io/src/main/resources/config/application-docker.yml) 
+`/mnt/svn` is the path to my repositories  
+`./data` is the location where elasticsearch files and database were saved.  
+The optional file `application-docker.yml` can overrides all properties defined in [application.yml](/src/main/resources/config/application.yml) and [application-docker.yml](/src/main/resources/config/application-docker.yml)   
 
 
 ## Development
