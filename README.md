@@ -6,7 +6,6 @@
 | develop  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/develop.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/develop.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=develop)  |   |   |
 
 
-
 This application was generated using JHipster, you can find documentation and help at [https://jhipster.github.io](https://jhipster.github.io).
 #### TODO
 - inclure un moteur de recherche intégré à la page, avec le raccourci clavier r

@@ -1,6 +1,7 @@
 language: node_js
 node_js:
   - "4.4.3"
+
 sudo: false
 jdk:
   - oraclejdk8
@@ -19,7 +20,6 @@ install:
 before_script:
   - bower install
   - gulp build
-
 script:
   - ./mvnw test -B
 
