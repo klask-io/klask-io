@@ -1,4 +1,4 @@
-FROM tomcat:8.0.36-jre8-alpine
+FROM openjdk:8
 
 ENV JHIPSTER_SLEEP 0
 
