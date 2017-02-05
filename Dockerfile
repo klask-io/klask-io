@@ -11,6 +11,7 @@ RUN echo '{ "allow_root": true }' > /root/.bowerrc && \
     ls -l /code/ && \
     ./mvnw clean package -Pprod -DskipTests && \
     mv /code/target/*.war /app.war && \
+    mv /code/src/main/resources/config/application-docker.yml /application.yml && \
     rm -Rf /code /root/.npm/ /tmp && \
     rm -Rf /root/.m2/ && \
     ls -la /root/
