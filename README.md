@@ -10,10 +10,8 @@
 
 
 This application was generated using JHipster, you can find documentation and help at [https://jhipster.github.io](https://jhipster.github.io).
-#### TODO
-- inclure un moteur de recherche intégré à la page, avec le raccourci clavier r
-## Development
 
+## Development
 Before you can build this project, you must install and configure the following dependencies on your machine:
 
 1. [Node.js][]: We use Node to run a development web server and build the project.

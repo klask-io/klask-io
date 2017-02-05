@@ -34,6 +34,8 @@ CronTrigger et utilisation du taskExecutor pour checkoutsvn intégré
 https://docs.spring.io/spring/docs/current/spring-framework-reference/html/scheduling.html
 penser à utiliser plutôt le @Async (à voir aussi pour le crawler)
 
+- inclure un moteur de recherche intégré à la page qui s'enregistre dans le navigateur, avec un raccourci clavier (k ?)
+
 2)filtre sur date de modif
 
 ## Crawler
