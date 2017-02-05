@@ -9,8 +9,19 @@
 [![Docker Stars](https://img.shields.io/docker/stars/klask/klask.io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/) [![Docker pulls](https://img.shields.io/docker/pulls/klask/klask.io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/) [![Docker build](https://img.shields.io/docker/automated/klask/klask.io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/builds/)
 
 
+## What is klask.io ?
+__klask.io__ is an open source search engine for source code. This application was generated using [JHipster](https://jhipster.github.io).
 
-This application was generated using JHipster, you can find documentation and help at [https://jhipster.github.io](https://jhipster.github.io).
+### Live demo
+http://app.klask.io/
+
+### How to run it ?
+You can run an instance easily by pulling the docker image. 
+
+    docker-compose -f elasticsearch.yml up -d
+    docker-compose -f postgresql.yml up -d
+    
+    java -jar target/*.war --spring.profiles.active=prod
 
 ## Development
 Before you can build this project, you must install and configure the following dependencies on your machine:
