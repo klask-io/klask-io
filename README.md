@@ -1,6 +1,10 @@
-# ![klask.io](src/main/webapp/content/images/logo-klask.png)
+# ![klask.io](https://raw.githubusercontent.com/klask-io/klask-io/master/src/main/webapp/content/images/logo-klask.png)
 
-master [![Build Status](https://travis-ci.org/klask-io/klask-io.svg?branch=master)](https://travis-ci.org/klask-io/klask-io) develop [![Build Status](https://travis-ci.org/klask-io/klask-io.svg?branch=develop)](https://travis-ci.org/klask-io/klask-io)
+| Branch  | Build  | Coverage  | Docker star  | Docker pull  |
+|---|---|---|---|---|
+| master  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/master.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/master.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=master) | [![Docker Stars](https://img.shields.io/docker/stars/klask/klask-io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/)  | [![Docker Stars](https://img.shields.io/docker/pulls/klask/klask-io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/)  |   |   |
+| develop  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/develop.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/develop.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=develop)  |   |   |
+
 
 This application was generated using JHipster, you can find documentation and help at [https://jhipster.github.io](https://jhipster.github.io).
 #### TODO
