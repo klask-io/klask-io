@@ -10,6 +10,8 @@ install:
 before_script:
   - bower install
   - gulp build
+script:
+  - ./mvnw test -B
 notifications:
   webhooks:
     on_success: change  # options: [always|never|change] default: always
