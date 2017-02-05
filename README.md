@@ -6,7 +6,7 @@
 | develop  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/develop.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/develop.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=develop) |
 
 #### Docker
-[![Docker Stars](https://img.shields.io/docker/stars/klask/klask-io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/) [![Docker pulls](https://img.shields.io/docker/pulls/klask/klask-io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/) [![Docker build](https://img.shields.io/docker/automated/klask/klask.io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/builds/)
+[![Docker Stars](https://img.shields.io/docker/stars/klask/klask.io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/) [![Docker pulls](https://img.shields.io/docker/pulls/klask/klask.io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/) [![Docker build](https://img.shields.io/docker/automated/klask/klask.io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/builds/)
 
 
 This application was generated using JHipster, you can find documentation and help at [https://jhipster.github.io](https://jhipster.github.io).
