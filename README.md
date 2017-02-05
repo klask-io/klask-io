@@ -1,6 +1,6 @@
 # research
 
-[![Build Status](https://jenkins.dlap.fr/job/research/badge/icon)](https://jenkins.dlap.fr/job/research/)
+[![Build Status](https://travis-ci.org/klask-io/klask-io.svg?branch=master)](https://travis-ci.org/klask-io/klask-io) [![Build Status](https://travis-ci.org/klask-io/klask-io.svg?branch=develop)](https://travis-ci.org/klask-io/klask-io)
 
 This application was generated using JHipster, you can find documentation and help at [https://jhipster.github.io](https://jhipster.github.io).
 #### TODO
