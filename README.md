@@ -1,16 +1,18 @@
 # ![klask.io](https://raw.githubusercontent.com/klask-io/klask-io/master/src/main/webapp/content/images/logo-klask.png)
 
-| Branch  | Build  | Coverage  | Docker star  | Docker pull  |
-|---|---|---|---|---|
-| master  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/master.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/master.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=master) | [![Docker Stars](https://img.shields.io/docker/stars/klask/klask-io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/)  | [![Docker Stars](https://img.shields.io/docker/pulls/klask/klask-io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/)  |   |   |
-| develop  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/develop.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/develop.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=develop)  |   |   |
+| Branch  | Build  | Coverage  |
+|---|---|---|
+| master  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/master.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/master.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=master) |
+| develop  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/develop.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/develop.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=develop) |
+
+#### Docker
+[![Docker Stars](https://img.shields.io/docker/stars/klask/klask.io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/) [![Docker pulls](https://img.shields.io/docker/pulls/klask/klask.io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/) [![Docker build](https://img.shields.io/docker/automated/klask/klask.io.svg?style=flat-square)](https://hub.docker.com/r/klask/klask.io/builds/)
+
 
 
 This application was generated using JHipster, you can find documentation and help at [https://jhipster.github.io](https://jhipster.github.io).
-#### TODO
-- inclure un moteur de recherche intégré à la page, avec le raccourci clavier r
-## Development
 
+## Development
 Before you can build this project, you must install and configure the following dependencies on your machine:
 
 1. [Node.js][]: We use Node to run a development web server and build the project.
