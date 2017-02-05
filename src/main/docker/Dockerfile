@@ -2,8 +2,15 @@ FROM java:openjdk-8-jre-alpine
 
 ENV JHIPSTER_SLEEP 0
 
-# add directly the war
-ADD *.war /app.war
+# add source
+ADD . /code/
+# package the application and delete all lib
+RUN echo '{ "allow_root": true }' > /root/.bowerrc && \
+    cd /code/ && \
+    ./mvnw clean package -Pprod -DskipTests && \
+    mv /code/target/*.war /app.war && \
+    rm -Rf /code /root/.npm/ /tmp && \
+    rm -Rf /root/.m2/
 
 RUN sh -c 'touch /app.war'
 VOLUME /tmp
