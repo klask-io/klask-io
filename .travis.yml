@@ -1,12 +1,10 @@
 language: node_js
 node_js:
   - "4.4.3"
-jdk:
-  - oraclejdk8
 addons:
   apt:
     packages:
-      - oracle-java8-installer
+      - oracle-java8-set-default
 
 sudo: false
 before_install:
@@ -18,7 +16,6 @@ before_script:
   - bower install
   - gulp build
 script:
-  - jdk_switcher use oraclejdk8
   - ./mvnw test -B
 notifications:
   webhooks:
