@@ -1,4 +1,5 @@
 FROM openjdk:8
+MAINTAINER Jérémie H.
 
 ENV JHIPSTER_SLEEP 0
 
