@@ -6,7 +6,7 @@ addons:
     packages:
       - oracle-java8-set-default
 
-sudo: false
+sudo: required
 before_install:
   - npm install -g bower
   - npm install -g gulp
