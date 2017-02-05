@@ -25,4 +25,5 @@ notifications:
     on_start: false     # default: false
 cache:
   directories:
-    - '$HOME/.m2/repository'
+    - $HOME/.m2
+    - node_modules
