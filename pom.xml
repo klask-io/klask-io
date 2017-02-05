@@ -655,6 +655,11 @@
                     </resources>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.eluder.coveralls</groupId>
+                <artifactId>coveralls-maven-plugin</artifactId>
+                <version>4.3.0</version>
+            </plugin>
             <!-- jhipster-needle-maven-add-plugin -->
         </plugins>
         <pluginManagement>
@@ -691,12 +696,8 @@
                                 <pluginExecution>
                                     <pluginExecutionFilter>
                                         <groupId>com.github.eirslett</groupId>
-                                        <artifactId>
-                                            frontend-maven-plugin
-                                        </artifactId>
-                                        <versionRange>
-                                            ${frontend-maven-plugin.version}
-                                        </versionRange>
+                                        <artifactId>frontend-maven-plugin</artifactId>
+                                        <versionRange>${frontend-maven-plugin.version}</versionRange>
                                         <goals>
                                             <goal>install-node-and-npm</goal>
                                             <goal>npm</goal>
