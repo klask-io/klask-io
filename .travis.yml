@@ -7,7 +7,7 @@ jdk:
 addons:
   apt:
     packages:
-      - oraclejdk8
+      - oracle-java8-installer
 before_install:
   - npm install -g bower
   - npm install -g gulp
