@@ -7,9 +7,8 @@ addons:
   apt:
     packages:
       - oracle-java8-installer
-      - oracle-java8-set-default
 
-sudo: required
+sudo: false
 before_install:
   - npm install -g bower
   - npm install -g gulp
@@ -19,6 +18,7 @@ before_script:
   - bower install
   - gulp build
 script:
+  - jdk_switcher use oraclejdk8
   - ./mvnw test -B
 notifications:
   webhooks:
