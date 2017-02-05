@@ -1,7 +1,6 @@
 # ===================================================================
-# Spring Boot configuration for the "dev" profile.
-#
-# This configuration overrides the application.yml file.
+# Spring Boot configuration for the "prod" profile. (in docker context)
+# This file is renamed application.yml in the docker image
 # ===================================================================
 
 # ===================================================================
@@ -14,11 +13,11 @@
 spring:
     devtools:
         restart:
-            enabled: true
+            enabled: false
         livereload:
-            enabled: false # we use gulp + BrowserSync for livereload
+            enabled: false
     datasource:
-        url: jdbc:h2:mem:research;DB_CLOSE_DELAY=-1
+        url: jdbc:h2:/klask-data/h2:research;DB_CLOSE_DELAY=-1
         name:
         username: research
         password:
@@ -28,55 +27,53 @@ spring:
     jpa:
         database-platform: fr.dlap.research.domain.util.FixedH2Dialect
         database: H2
-        show_sql: true
+        show_sql: false
         properties:
             hibernate.cache.use_second_level_cache: false
             hibernate.cache.use_query_cache: false
-            hibernate.generate_statistics: true
-
-##test sur noeud externe
-#    data:
-#        elasticsearch:
-#            cluster-name:
-#            cluster-nodes: localhost:9300
+            hibernate.generate_statistics: false
     data:
         elasticsearch:
             cluster-name:
             cluster-nodes:
             properties:
                 path:
-                  logs: target/elasticsearch/log
-                  data: target/elasticsearch/data
-
+                  logs: /klask-data/elasticsearch/log
+                  data: /klask-data/elasticsearch/data
     mail:
         host: localhost
         port: 25
         username:
         password:
-    messages:
-        cache-seconds: 1
     thymeleaf:
-        cache: false
+        cache: true
 
 liquibase:
-    contexts: dev
+    contexts: prod
 
 server:
     port: 8080
+    compression:
+        enabled: true
+        mime-types: text/html,text/xml,text/plain,text/css, application/javascript, application/json
+        min-response-size: 1024
 
 # ===================================================================
 # JHipster specific properties
 # ===================================================================
 
 jhipster:
+    http:
+        cache: # Used by the CachingHttpHeadersFilter
+            timeToLiveInDays: 1461
     security:
         authentication:
             jwt:
-                secret: my-secret-token-to-change-in-production
+                secret: 398819d83c9d6aed94587a994a04fa3ec3722b8d
                 # Token is valid 24 hours
                 tokenValidityInSeconds: 86400
     mail: # specific JHipster mail property, for standard properties see MailProperties
-        from: research@localhost
+        from: klask@localhost
     metrics: # DropWizard Metrics configuration, used by MetricsConfiguration
         jmx.enabled: true
         spark:
@@ -97,9 +94,5 @@ jhipster:
             host: localhost
             port: 5000
             queueSize: 512
-    swagger: # swagger is enabled. It can be disabled by pasing 'no-swagger' profile at run time as well
-        enabled: true
-
-research:
-    crawler:
-        directoriesToScan: /svn
+    swagger: # swagger is disabled. It can be disabled by pasing 'no-swagger' profile at run time as well
+        enabled: false
