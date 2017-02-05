@@ -25,7 +25,7 @@ script:
 
 after_success:
     # Submit code coverage information to Coveralls
-    - ./mvnw clean test coveralls:report
+    - ./mvnw coveralls:report
 
 notifications:
   webhooks:
