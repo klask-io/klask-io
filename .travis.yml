@@ -25,7 +25,7 @@ script:
 
 after_success:
     # Submit code coverage information to Coveralls
-    - mvn clean test jacoco:report coveralls:report
+    - ./mvnw clean test jacoco:report coveralls:report
 
 notifications:
   webhooks:
