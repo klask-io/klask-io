@@ -11,7 +11,8 @@ RUN echo '{ "allow_root": true }' > /root/.bowerrc && \
     ./mvnw clean package -Pprod -DskipTests && \
     mv /code/target/*.war /app.war && \
     rm -Rf /code /root/.npm/ /tmp && \
-    rm -Rf /root/.m2/
+    rm -Rf /root/.m2/ && \
+    ls -la /root/
 
 RUN sh -c 'touch /app.war'
 VOLUME /tmp
