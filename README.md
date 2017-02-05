@@ -1,6 +1,6 @@
-# research
+# ![klask.io](src/main/webapp/content/images/logo-klask.png)
 
-[![Build Status](https://travis-ci.org/klask-io/klask-io.svg?branch=master)](https://travis-ci.org/klask-io/klask-io) [![Build Status](https://travis-ci.org/klask-io/klask-io.svg?branch=develop)](https://travis-ci.org/klask-io/klask-io)
+master [![Build Status](https://travis-ci.org/klask-io/klask-io.svg?branch=master)](https://travis-ci.org/klask-io/klask-io) develop [![Build Status](https://travis-ci.org/klask-io/klask-io.svg?branch=develop)](https://travis-ci.org/klask-io/klask-io)
 
 This application was generated using JHipster, you can find documentation and help at [https://jhipster.github.io](https://jhipster.github.io).
 #### TODO
@@ -34,7 +34,7 @@ Add the `-h` flag on any command to see how you can use it. For example, `bower 
 
 ## Building for production
 
-To optimize the research client for production, run:
+To optimize the klask.io client for production, run:
 
     ./mvnw -Pprod clean package
 
@@ -70,9 +70,9 @@ Utiliser les fichiers docker-compose dans src/main/docker
 
 To setup this project in Jenkins, use the following configuration:
 
-* Project name: `research`
+* Project name: `klask.io`
 * Source Code Management
-    * Git Repository: `git@github.com:xxxx/research.git`
+    * Git Repository: `https://github.com/klask-io/klask-io.git`
     * Branches to build: `*/master`
     * Additional Behaviours: `Wipe out repository & force clone`
 * Build Triggers
