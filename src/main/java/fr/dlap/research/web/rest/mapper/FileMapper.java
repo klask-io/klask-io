@@ -17,6 +17,10 @@ public class FileMapper {
                 return "markdown";
             case "as":
                 return "actionscript";
+            case "py":
+                return "python";
+            case "go":
+                return "go";
             case "xml":
             case "pom":
             case "html":
