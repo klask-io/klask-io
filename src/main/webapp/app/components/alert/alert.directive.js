@@ -11,7 +11,7 @@
     };
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .component('jhiAlert', jhiAlert);
 
     jhiAlertController.$inject = ['$scope', 'AlertService'];

@@ -5,7 +5,7 @@
     <!-- these two properties must be declared before the include base.xml -->
     <!-- https://github.com/spring-projects/spring-boot/issues/5124 -->
     <!--<property name="LOG_TEMP" value="./logs"/>-->
-    <!--<property name="LOG_FILE" value="${LOG_TEMP}/research.log"/>-->
+    <!--<property name="LOG_FILE" value="${LOG_TEMP}/klask.log"/>-->
 
 
     <!--<include resource="org/springframework/boot/logging/logback/base.xml"/>-->
@@ -19,7 +19,7 @@
     <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
 
     <property name="LOG_PATH" value="${LOG_PATH:-${LOG_TEMP:-./logs}}"/>
-    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH}/research.log}"/>
+    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH}/klask.log}"/>
     <property name="FILE_LOG_PATTERN"
               value="-%d{yyyy-MM-dd HH:mm:ss.SSS} ${LOG_LEVEL_PATTERN:-%5p} ${PID:- } -- %15.15X{context.info:-  LOCALHOST  } [%15.15t] %-40.40logger{39} : %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}"/>
     <!-- redefinition of appender FILE for production-->
@@ -29,7 +29,7 @@
         </encoder>
         <file>${LOG_FILE}</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/research.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/klask.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>5</maxHistory>
             <totalSizeCap>50MB</totalSizeCap>
         </rollingPolicy>
@@ -54,13 +54,13 @@
     </appender>
 -->
 
-    <logger name="fr.dlap.research" level="#logback.loglevel#"/>
+    <logger name="io.klask" level="#logback.loglevel#"/>
     <logger name="org.springframework.data.elasticsearch.core.ElasticsearchTemplate" level="DEBUG"/>
-    <logger name="fr.dlap.research.repository.search.CustomSearchRepositoryImpl" level="DEBUG"/>
-    <!--<logger name="fr.dlap.research.repository.search.CustomSearchRepositoryImpl" level="TRACE"/>-->
-    <logger name="fr.dlap.research.web.rest.FileResource" level="DEBUG"/>
-    <logger name="fr.dlap.research.web.rest.CrawlerResource" level="DEBUG"/>
-    <logger name="fr.dlap.research.service.CrawlerService" level="DEBUG"/>
+    <logger name="io.klask.repository.search.CustomSearchRepositoryImpl" level="DEBUG"/>
+    <!--<logger name="CustomSearchRepositoryImpl" level="TRACE"/>-->
+    <logger name="io.klask.web.rest.FileResource" level="DEBUG"/>
+    <logger name="io.klask.web.rest.CrawlerResource" level="DEBUG"/>
+    <logger name="io.klask.service.CrawlerService" level="DEBUG"/>
     <logger name="javax.activation" level="WARN"/>
     <logger name="javax.mail" level="WARN"/>
     <logger name="javax.xml.bind" level="WARN"/>

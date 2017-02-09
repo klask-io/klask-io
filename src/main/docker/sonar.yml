@@ -1,7 +1,7 @@
 version: '2'
 services:
-    research-sonar:
-        container_name: research-sonar
+    klask-sonar:
+        container_name: klask-sonar
         image: sonarqube:5.5-alpine
         ports:
             - 9000:9000

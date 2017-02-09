@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .controller('FileDetailController', FileDetailController);
 
     FileDetailController.$inject = ['$scope', '$rootScope', '$stateParams', 'DataUtils', 'entity', 'File'];
@@ -14,7 +14,7 @@
         vm.byteSize = DataUtils.byteSize;
         vm.openFile = DataUtils.openFile;
 
-        var unsubscribe = $rootScope.$on('researchApp:fileUpdate', function(event, result) {
+        var unsubscribe = $rootScope.$on('klaskApp:fileUpdate', function(event, result) {
             vm.file = result;
         });
         $scope.$on('$destroy', unsubscribe);

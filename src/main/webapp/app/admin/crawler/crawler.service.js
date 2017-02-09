@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .factory('CrawlerService', CrawlerService);
 
     CrawlerService.$inject = ['$rootScope', '$http'];
@@ -29,7 +29,7 @@
 (function () {
     'use strict';
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .factory('CrawlerService', CrawlerService);
 
     CrawlerService.$inject = ['$resource'];

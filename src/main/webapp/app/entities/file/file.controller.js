@@ -2,14 +2,14 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .controller('FileController', FileController);
 
     FileController.$inject = ['$scope', '$state', 'DataUtils', 'File', 'FileSearch', 'ParseLinks', 'AlertService', 'pagingParams', 'paginationConstants'];
 
     function FileController($scope, $state, DataUtils, File, FileSearch, ParseLinks, AlertService, pagingParams, paginationConstants) {
         var vm = this;
-        
+
         vm.loadPage = loadPage;
         vm.predicate = pagingParams.predicate;
         vm.reverse = pagingParams.ascending;

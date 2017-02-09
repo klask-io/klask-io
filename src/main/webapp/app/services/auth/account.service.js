@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .factory('Account', Account);
 
     Account.$inject = ['$resource'];

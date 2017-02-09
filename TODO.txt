@@ -6,7 +6,7 @@ cela permettrait de récupérer tous les derniers fichiers modifiés sur le SVN
 
 - coloration syntaxique en fonction du fichier (voir http://prismjs.com/plugins/file-highlight/) ou autoload avec highlight.js
 - ajouter une détection automatique du charset (actuellement l'indexation dans le CrawlerService est fait en iso-8859-1
-et la restitution du FileResource en rest est converti en UTF-8 (l'html rendu par research est en UTF-8)
+et la restitution du FileResource en rest est converti en UTF-8 (l'html rendu par klask est en UTF-8)
 => voir http://stackoverflow.com/questions/774075/character-encoding-detection-algorithm
 
 problème du map
@@ -49,7 +49,7 @@ cela permettra d'éviter d'écrire directement dans le champ de recherche pour l
 
 
 ###### intégration continue
- - dans jenkins configurer la tâche "research-release" pour réaliser une image docker (à containeriser)
+ - dans jenkins configurer la tâche "klask-release" pour réaliser une image docker (à containeriser)
  - faire un maven release
- - faire un gitpublisher sur la tâche "research-release" pour réaliser un tag Git avec la version releasée
+ - faire un gitpublisher sur la tâche "klask-release" pour réaliser un tag Git avec la version releasée
  - publier les versions releasées dans un nexus

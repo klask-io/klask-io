@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .config(stateConfig);
 
     stateConfig.$inject = ['$stateProvider'];
@@ -14,7 +14,7 @@
                 url: '/file?page&sort&search',
                 data: {
                     authorities: ['ROLE_USER'],
-                    pageTitle: 'researchApp.file.home.title'
+                    pageTitle: 'klaskApp.file.home.title'
                 },
                 views: {
                     'content@': {
@@ -57,7 +57,7 @@
                 url: '/file/{id}',
                 data: {
                     authorities: ['ROLE_USER'],
-                    pageTitle: 'researchApp.file.detail.title'
+                    pageTitle: 'klaskApp.file.detail.title'
                 },
                 views: {
                     'content@': {

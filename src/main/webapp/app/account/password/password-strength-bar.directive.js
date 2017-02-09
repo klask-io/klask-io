@@ -3,7 +3,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .directive('passwordStrengthBar', passwordStrengthBar);
 
     function passwordStrengthBar () {

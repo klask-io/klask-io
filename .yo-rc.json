@@ -1,9 +1,9 @@
 {
   "generator-jhipster": {
     "jhipsterVersion": "3.4.2",
-    "baseName": "research",
-    "packageName": "fr.dlap.research",
-    "packageFolder": "fr/dlap/research",
+      "baseName": "klask",
+      "packageName": "io.klask",
+      "packageFolder": "io/klask",
     "serverPort": "8080",
     "authenticationType": "jwt",
     "hibernateCache": "no",

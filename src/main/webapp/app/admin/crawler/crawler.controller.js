@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .controller('CrawlerController', CrawlerController);
 
     CrawlerController.$inject = ['$scope','CrawlerService', 'AlertService'];

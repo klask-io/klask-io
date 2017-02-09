@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .constant('paginationConstants', {
             'itemsPerPage': 10
         });
