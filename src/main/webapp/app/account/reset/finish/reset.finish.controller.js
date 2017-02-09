@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .controller('ResetFinishController', ResetFinishController);
 
     ResetFinishController.$inject = ['$stateParams', '$timeout', 'Auth', 'LoginService'];

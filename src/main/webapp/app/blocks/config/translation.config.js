@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .config(translationConfig);
 
     translationConfig.$inject = ['$translateProvider', 'tmhDynamicLocaleProvider'];

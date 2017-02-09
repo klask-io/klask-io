@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp', [
+        .module('klaskApp', [
             'ngStorage',
             'tmh.dynamicLocale',
             'pascalprecht.translate',

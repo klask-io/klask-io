@@ -19,7 +19,7 @@ management:
 
 spring:
     application:
-        name: research
+        name: klask
     profiles:
         # The commented value for `active` can be replaced with valid spring profiles to load.
         # Otherwise, it will be filled in by maven when building the WAR file
@@ -59,10 +59,10 @@ jhipster:
         #allow-credentials: true
         #max-age: 1800
     mail:
-        from: research@localhost
+        from: klask@localhost
     swagger:
-        title: research API
-        description: research API documentation
+        title: klask API
+        description: klask API documentation
         version: 0.1.0
         termsOfServiceUrl:
         contactName:
@@ -75,9 +75,9 @@ jhipster:
         displayOnActiveProfiles: dev
 
 # ===================================================================
-# Research app specific properties
+# Klask app specific properties
 # ===================================================================
-research:
+klask:
     crawler:
         directoriesToScan: /repo
         batchSize: 25

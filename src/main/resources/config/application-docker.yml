@@ -17,15 +17,15 @@ spring:
         livereload:
             enabled: false
     datasource:
-        url: jdbc:h2:/klask-data/h2:research;DB_CLOSE_DELAY=-1
+        url: jdbc:h2:/klask-data/h2:klask;DB_CLOSE_DELAY=-1
         name:
-        username: research
+        username: klask
         password:
     h2:
         console:
             enabled: false
     jpa:
-        database-platform: fr.dlap.research.domain.util.FixedH2Dialect
+        database-platform: io.klask.domain.util.FixedH2Dialect
         database: H2
         show_sql: false
         properties:
@@ -84,7 +84,7 @@ jhipster:
             enabled: false
             host: localhost
             port: 2003
-            prefix: research
+            prefix: klask
         logs: # Reports Dropwizard metrics in the logs
             enabled: false
             reportFrequency: 60 # in seconds

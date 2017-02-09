@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .controller('AuditsController', AuditsController);
 
     AuditsController.$inject = ['$filter', 'AuditsService', 'ParseLinks'];

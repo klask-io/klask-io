@@ -1,12 +1,12 @@
 <div class="container well">
-    <h2 translate="researchApp.file.home.title">Files</h2>
+    <h2 translate="klaskApp.file.home.title">Files</h2>
     <jhi-alert></jhi-alert>
     <div class="container-fluid">
         <div class="row">
             <div class="col-xs-4 no-padding-left">
                 <button class="btn btn-primary" ui-sref="file.new" >
                     <span class="glyphicon glyphicon-plus"></span>
-                    <span class="hidden-xs"  translate="researchApp.file.home.createLabel">
+                    <span class="hidden-xs" translate="klaskApp.file.home.createLabel">
                         Create new File
                     </span>
                 </button>
@@ -14,7 +14,8 @@
             <div class="col-xs-8 no-padding-right">
                 <form name="searchForm" class="form-inline">
                     <div class="input-group pull-right" >
-                        <input type="text" class="form-control" ng-model="vm.searchQuery" id="searchQuery" placeholder="{{ 'researchApp.file.home.search' | translate }}">
+                        <input type="text" class="form-control" ng-model="vm.searchQuery" id="searchQuery"
+                               placeholder="{{ 'klaskApp.file.home.search' | translate }}">
                         <span  class="input-group-btn width-min" >
                             <button class="btn btn-info" ng-click="vm.search(vm.searchQuery)">
                                 <span class="glyphicon glyphicon-search"></span>
@@ -36,11 +37,16 @@
             <thead>
                 <tr jh-sort="vm.predicate" ascending="vm.reverse" callback="vm.transition()">
                     <th jh-sort-by="id"><span translate="global.field.id">ID</span> <span class="glyphicon glyphicon-sort"></span></th>
-                    <th jh-sort-by="name"><span translate="researchApp.file.name">Name</span> <span class="glyphicon glyphicon-sort"></span></th>
-                    <th jh-sort-by="extension"><span translate="researchApp.file.extension">Extension</span> <span class="glyphicon glyphicon-sort"></span></th>
-                    <th jh-sort-by="path"><span translate="researchApp.file.path">Path</span> <span class="glyphicon glyphicon-sort"></span></th>
-                    <th jh-sort-by="content"><span translate="researchApp.file.content">Content</span> <span class="glyphicon glyphicon-sort"></span></th>
-                    <th jh-sort-by="version"><span translate="researchApp.file.version">Version</span> <span class="glyphicon glyphicon-sort"></span></th>
+                    <th jh-sort-by="name"><span translate="klaskApp.file.name">Name</span> <span
+                        class="glyphicon glyphicon-sort"></span></th>
+                    <th jh-sort-by="extension"><span translate="klaskApp.file.extension">Extension</span> <span
+                        class="glyphicon glyphicon-sort"></span></th>
+                    <th jh-sort-by="path"><span translate="klaskApp.file.path">Path</span> <span
+                        class="glyphicon glyphicon-sort"></span></th>
+                    <th jh-sort-by="content"><span translate="klaskApp.file.content">Content</span> <span
+                        class="glyphicon glyphicon-sort"></span></th>
+                    <th jh-sort-by="version"><span translate="klaskApp.file.version">Version</span> <span
+                        class="glyphicon glyphicon-sort"></span></th>
                     <th></th>
                 </tr>
             </thead>

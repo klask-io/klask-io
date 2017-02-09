@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .factory('stateHandler', stateHandler);
 
     stateHandler.$inject = ['$rootScope', '$state', '$sessionStorage', '$translate', 'JhiLanguageService', 'translationHandler', '$window',
@@ -32,12 +32,12 @@
                     Auth.authorize();
                 }
 
-                
+
                 // Update the language
                 JhiLanguageService.getCurrent().then(function (language) {
                     $translate.use(language);
                 });
-                
+
             });
 
             var stateChangeSuccess = $rootScope.$on('$stateChangeSuccess',  function(event, toState, toParams, fromState, fromParams) {

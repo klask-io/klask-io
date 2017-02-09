@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .factory('FileSearch', FileSearch);
 
     FileSearch.$inject = ['$resource'];
@@ -20,7 +20,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .factory('VersionSearch', VersionSearch);
 
     VersionSearch.$inject = ['$resource'];
@@ -39,7 +39,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .factory('ProjectSearch', ProjectSearch);
 
     ProjectSearch.$inject = ['$resource'];
@@ -58,7 +58,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .factory('ExtensionSearch', ExtensionSearch);
 
     ExtensionSearch.$inject = ['$resource'];

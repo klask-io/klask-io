@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .directive('maxbytes', maxbytes);
 
     function maxbytes () {

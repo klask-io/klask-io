@@ -15,6 +15,6 @@
     };
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .component('jhiItemCount', jhiItemCount);
 })();

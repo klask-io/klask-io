@@ -1,22 +1,22 @@
 version: '2'
 services:
-    research-app:
-        image: researchengine/research
+    klask-app:
+        image: klask/klask.io
         external_links:
-            - research-postgresql:postgresql
-            - research-elasticsearch:elasticsearch
+            - klask-postgresql:postgresql
+            - klask-elasticsearch:elasticsearch
         environment:
             - SPRING_PROFILES_ACTIVE=prod
-            - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/research
+            - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/klask
             - JHIPSTER_SLEEP=10 # gives time for the database to boot before the application
             - SPRING_DATA_ELASTICSEARCH_CLUSTER_NODES=elasticsearch:9300
         ports:
             - 8080:8080
-    research-postgresql:
+    klask-postgresql:
         extends:
             file: postgresql.yml
-            service: research-postgresql
-    research-elasticsearch:
+            service: klask-postgresql
+    klask-elasticsearch:
         extends:
             file: elasticsearch.yml
-            service: research-elasticsearch
+            service: klask-elasticsearch

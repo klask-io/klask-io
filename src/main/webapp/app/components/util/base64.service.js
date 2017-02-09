@@ -3,7 +3,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .factory('Base64', Base64);
 
     function Base64 () {
