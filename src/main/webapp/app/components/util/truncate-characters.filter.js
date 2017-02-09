@@ -2,9 +2,9 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .filter('characters', characters);
-        
+
     function characters () {
         return charactersFilter;
 

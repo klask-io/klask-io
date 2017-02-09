@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .controller('FileDeleteController', FileDeleteController);
 
     FileDeleteController.$inject = ['$uibModalInstance', 'entity', 'File'];

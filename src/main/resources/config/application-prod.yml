@@ -18,12 +18,12 @@ spring:
         livereload:
             enabled: false
     datasource:
-        url: jdbc:postgresql://localhost:5432/research
+        url: jdbc:postgresql://localhost:5432/klask
         name:
-        username: research
+        username: klask
         password:
     jpa:
-        database-platform: fr.dlap.research.domain.util.FixedPostgreSQL82Dialect
+        database-platform: io.klask.domain.util.FixedPostgreSQL82Dialect
         database: POSTGRESQL
         show_sql: false
         properties:
@@ -67,7 +67,7 @@ jhipster:
                 # Token is valid 24 hours
                 tokenValidityInSeconds: 86400
     mail: # specific JHipster mail property, for standard properties see MailProperties
-        from: research@localhost
+        from: klask@localhost
     metrics: # DropWizard Metrics configuration, used by MetricsConfiguration
         jmx.enabled: true
         spark:
@@ -78,7 +78,7 @@ jhipster:
             enabled: false
             host: localhost
             port: 2003
-            prefix: research
+            prefix: klask
         logs: # Reports Dropwizard metrics in the logs
             enabled: false
             reportFrequency: 60 # in seconds

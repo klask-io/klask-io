@@ -1,6 +1,6 @@
 {
     "global": {
-        "title": "Research",
+        "title": "Klask",
         "browsehappy": "You are using an <strong>outdated</strong> browser. Please <a href=\"http://browsehappy.com/?locale=en\">upgrade your browser</a> to improve your experience.",
         "menu": {
             "home": "Home",
@@ -121,5 +121,5 @@
         "emailexists": "E-mail is already in use!",
         "idexists": "A new {{ entityName }} cannot already have an ID"
     },
-    "footer": "Research (2016)"
+    "footer": "Klask (2016)"
 }

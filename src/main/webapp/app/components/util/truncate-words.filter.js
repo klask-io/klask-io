@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .filter('words', words);
 
     function words() {
@@ -21,7 +21,7 @@
                     input = inputWords.slice(0, words).join(' ') + '...';
                 }
             }
-            
+
             return input;
         }
     }

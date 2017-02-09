@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .controller('FileDialogController', FileDialogController);
 
     FileDialogController.$inject = ['$timeout', '$scope', '$stateParams', '$uibModalInstance', 'DataUtils', 'entity', 'File'];
@@ -34,7 +34,7 @@
         }
 
         function onSaveSuccess (result) {
-            $scope.$emit('researchApp:fileUpdate', result);
+            $scope.$emit('klaskApp:fileUpdate', result);
             $uibModalInstance.close(result);
             vm.isSaving = false;
         }

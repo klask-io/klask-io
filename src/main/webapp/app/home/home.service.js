@@ -1,7 +1,7 @@
 (function () {
     'use strict';
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .factory('File', File);
 
     File.$inject = ['$resource'];

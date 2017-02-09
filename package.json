@@ -1,7 +1,7 @@
 {
-  "name": "research",
+  "name": "klask",
   "version": "0.0.0",
-  "description": "Description for research",
+  "description": "Description for klask",
   "private": true,
   "cacheDirectories": [
     "node_modules",

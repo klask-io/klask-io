@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .directive('nagPrism', highlighter);
 
     function highlighter() {
@@ -27,7 +27,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .directive('nagPrism', highlight);
 
     function highlight(){

@@ -10,11 +10,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>fr.dlap.research</groupId>
-    <artifactId>research</artifactId>
+    <groupId>io.klask</groupId>
+    <artifactId>klask</artifactId>
     <version>0.2-SNAPSHOT</version>
     <packaging>war</packaging>
-    <name>Research</name>
+    <name>klask</name>
 
     <prerequisites>
         <maven>3.0.0</maven>
@@ -292,6 +292,14 @@
                 </exclusion>
             </exclusions>-->
         </dependency>
+        <!-- évite d'avoir une stacktrace java.lang.ClassNotFoundException: com.sun.jna.Native-->
+        <!-- https://github.com/elastic/elasticsearch/issues/13245 -->
+        <!--<dependency>-->
+        <!--<groupId>net.java.dev.jna</groupId>-->
+        <!--<artifactId>jna</artifactId>-->
+        <!--<version>4.2.2</version>-->
+        <!--<scope>compile</scope>-->
+        <!--</dependency>-->
         <!--<dependency>
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-elasticsearch</artifactId>
@@ -306,7 +314,7 @@
         <dependency>
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch</artifactId>
-            <version>2.3.3</version>
+            <version>2.4.4</version>
         </dependency>-->
 
         <!-- https://mvnrepository.com/artifact/net.java.dev.jna/jna -->
@@ -604,9 +612,9 @@
                     <driver></driver>
                     <url></url>
                     <defaultSchemaName></defaultSchemaName>
-                    <username>research</username>
+                    <username>klask</username>
                     <password></password>
-                    <referenceUrl>hibernate:spring:fr.dlap.research.domain?dialect=&amp;hibernate.ejb.naming_strategy=org.springframework.boot.orm.jpa.hibernate.SpringNamingStrategy</referenceUrl>
+                    <referenceUrl>hibernate:spring:io.klask.domain?dialect=&amp;hibernate.ejb.naming_strategy=org.springframework.boot.orm.jpa.hibernate.SpringNamingStrategy</referenceUrl>
                     <verbose>true</verbose>
                     <logging>debug</logging>
                 </configuration>
@@ -644,7 +652,7 @@
                 <artifactId>docker-maven-plugin</artifactId>
                 <version>0.4.5</version>
                 <configuration>
-                    <imageName>research</imageName>
+                    <imageName>klask</imageName>
                     <dockerDirectory>src/main/docker</dockerDirectory>
                     <resources>
                         <resource>

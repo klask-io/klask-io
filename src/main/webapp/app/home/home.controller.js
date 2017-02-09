@@ -2,7 +2,7 @@
     'use strict';
 
     angular
-        .module('researchApp')
+        .module('klaskApp')
         .controller('HomeController', HomeController);
 
     HomeController.$inject = ['$scope', '$state', 'DataUtils', 'File', 'FileSearch', 'VersionSearch', 'ProjectSearch', 'ExtensionSearch', 'ParseLinks', 'AlertService', 'pagingParams', 'paginationConstants', 'filters'];
