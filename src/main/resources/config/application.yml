@@ -13,6 +13,11 @@
 
 management:
     context-path: /management
+    #TODO : issue with spring-boot 1.5.1
+    #see https://github.com/spring-projects/spring-boot/issues/8255
+    security:
+        enabled: false
+    ###############################################################
     health:
         mail:
             enabled: false # When using the MailService, configure an SMTP server and set this to true
