@@ -11,7 +11,31 @@ import java.util.concurrent.Future;
 public class GitCrawler implements ICrawler {
 
     @Override
-    public Future<CrawlerResult> executeBulkIndex() {
+    public void setResult(Future<CrawlerResult> result) {
+
+    }
+
+    @Override
+    public CrawlerResult start() {
         return null;
+    }
+
+    @Override
+    public Future<CrawlerResult> getResult() {
+        return null;
+    }
+
+    @Override
+    public void stop() {}
+
+    @Override
+    public boolean isCrawling(){return false;}
+
+    @Override
+    public long getIndexedFiles(){return -1L;}
+
+    @Override
+    public long getTotalFiles() {
+        return -1L;
     }
 }

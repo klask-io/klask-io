@@ -6,7 +6,7 @@
     <parent>
         <artifactId>spring-boot-starter-parent</artifactId>
         <groupId>org.springframework.boot</groupId>
-        <version>1.4.1.RELEASE</version>
+        <version>1.5.1.RELEASE</version>
         <relativePath/>
     </parent>
 
@@ -322,7 +322,6 @@
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna</artifactId>
             <version>4.2.2</version>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
