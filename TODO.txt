@@ -28,6 +28,9 @@ ou alors, par un bouton switch on/off si le filtre agit en inclusion/exclusion
 
 corriger le jenkinsfile pour utiliser le mvnw
 
+gestion des fichiers sans extension, comme "Makefile"
+
+gestion des fichiers typescript .ts (prim à mettre à jour)
 
 1)fonctionnalitée à inclure
 CronTrigger et utilisation du taskExecutor pour checkoutsvn intégré
