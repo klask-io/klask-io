@@ -2,6 +2,7 @@ package io.klask.crawler.impl;
 
 import io.klask.crawler.CrawlerResult;
 import io.klask.crawler.ICrawler;
+import org.springframework.scheduling.annotation.Async;
 
 import java.util.concurrent.Future;
 
@@ -11,7 +12,31 @@ import java.util.concurrent.Future;
 public class SVNCrawler implements ICrawler {
 
     @Override
-    public Future<CrawlerResult> executeBulkIndex() {
+    public void setResult(Future<CrawlerResult> result) {
+
+    }
+
+    @Override
+    public CrawlerResult start() {
         return null;
+    }
+
+    @Override
+    public Future<CrawlerResult> getResult() {
+        return null;
+    }
+
+    @Override
+    public void stop() {}
+
+    @Override
+    public boolean isCrawling(){return false;}
+
+    @Override
+    public long getIndexedFiles(){return -1L;}
+
+    @Override
+    public long getTotalFiles() {
+        return -1;
     }
 }

@@ -27,7 +27,7 @@ public class KlaskProperties {
 
     public static class CrawlerProperties {
 
-        private String directoriesToScan = ".";
+        private List<String> directoriesToScan = new ArrayList<>();//Arrays.asList(".");
 
         private List<String> directoriesToExclude = new ArrayList<>();//Arrays.asList(".svn");
 
@@ -41,11 +41,11 @@ public class KlaskProperties {
 
         private int batchSize = 25;
 
-        public String getDirectoriesToScan() {
+        public List<String> getDirectoriesToScan() {
             return directoriesToScan;
         }
 
-        public void setDirectoriesToScan(String directoriesToScan) {
+        public void setDirectoriesToScan(List<String> directoriesToScan) {
             this.directoriesToScan = directoriesToScan;
         }
 
