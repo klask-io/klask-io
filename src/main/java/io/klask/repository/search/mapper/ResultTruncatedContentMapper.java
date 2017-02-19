@@ -4,10 +4,10 @@ import io.klask.config.Constants;
 import io.klask.domain.File;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.search.SearchHit;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchResultMapper;
+import org.springframework.data.elasticsearch.core.aggregation.AggregatedPage;
+import org.springframework.data.elasticsearch.core.aggregation.impl.AggregatedPageImpl;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +18,7 @@ import java.util.List;
 public class ResultTruncatedContentMapper implements SearchResultMapper {
 
     @Override
-    public <T> Page<T> mapResults(SearchResponse response, Class<T> clazz, Pageable pageable) {
+    public <T> AggregatedPage<T> mapResults(SearchResponse response, Class<T> clazz, Pageable pageable) {
         List<File> result = new ArrayList<>();
         long totalHits = response.getHits().getTotalHits();
         for (SearchHit searchHit : response.getHits()) {
@@ -42,6 +42,6 @@ public class ResultTruncatedContentMapper implements SearchResultMapper {
             );
             result.add(oneFile);
         }
-        return new PageImpl<>((List<T>) result, pageable, totalHits);
+        return new AggregatedPageImpl<>((List<T>) result, pageable, totalHits, response.getAggregations());
     }
 }
