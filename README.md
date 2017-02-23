@@ -1,4 +1,4 @@
-# ![klask.io](https://raw.githubusercontent.com/klask-io/klask-io/master/src/main/webapp/content/images/logo-klask.png)
+# [![klask.io](https://raw.githubusercontent.com/klask-io/klask-io/master/src/main/webapp/content/images/logo-klask.png)](https://github.com/klask-io/klask-io)
 
 | Branch  | Build  | Coverage  |
 |---|---|---|
