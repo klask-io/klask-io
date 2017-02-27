@@ -17,7 +17,7 @@ spring:
         livereload:
             enabled: false
     datasource:
-        url: jdbc:h2:./klask-data/h2:klask;DB_CLOSE_DELAY=-1
+        url: jdbc:h2:/klask-data/h2:klask;DB_CLOSE_DELAY=-1
         name:
         username: klask
         password:
