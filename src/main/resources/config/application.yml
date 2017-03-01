@@ -13,6 +13,11 @@
 
 management:
     context-path: /management
+    #TODO : issue with spring-boot 1.5.1
+    #see https://github.com/spring-projects/spring-boot/issues/8255
+    security:
+        enabled: false
+    ###############################################################
     health:
         mail:
             enabled: false # When using the MailService, configure an SMTP server and set this to true
@@ -84,11 +89,10 @@ klask:
         directoriesToExclude:
             - .svn
             - .git
+            - node_modules
         extensionsToExclude:
             - sha1
             - md5
-        filesToInclude:
-            - README
         filesToExclude: .project,.classpath,swagger-ui.js,angular.min.js.map,bootstrap.css.map,bootstrap.css.map,angular.min.js.map,jquery.min.map,angular.min.js
         extensionsToRead: java,properties,txt,xml,js,jsp,html,htm,php,asm,md,json,sh,bat,sql,yml,yaml,pom,scala,dtd,c,cpp,h,pc,as,mxml,xsl,xslt,tld,asp,jrxml,conf,desc,gs,less,scss,css,ini,groovy,gradle,policy,py,go
 
