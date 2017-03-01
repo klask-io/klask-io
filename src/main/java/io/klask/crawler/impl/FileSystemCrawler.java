@@ -8,6 +8,8 @@ import io.klask.crawler.ICrawler;
 import io.klask.crawler.filesystem.FileSystemVisitorCrawler;
 import io.klask.domain.File;
 import io.klask.repository.search.FileSearchRepository;
+import org.bouncycastle.jcajce.provider.digest.SHA256;
+import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.elasticsearch.ElasticsearchException;
@@ -23,9 +25,7 @@ import java.time.ZoneId;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
 
 /**
  * Created by jeremie on 11/01/17.
@@ -33,15 +33,11 @@ import java.util.stream.Collectors;
 public class FileSystemCrawler implements ICrawler {
 
     private final Logger log = LoggerFactory.getLogger(FileSystemCrawler.class);
-
-    private FileSearchRepository fileSearchRepository;
-
-    private KlaskProperties klaskProperties;
-
-    private String before;
-
-    private String root;
     Path rootPath;
+    private FileSearchRepository fileSearchRepository;
+    private KlaskProperties klaskProperties;
+    private String before;
+    private String root;
     private boolean crawling=false;
     private long totalFiles=0L;
 
@@ -111,7 +107,7 @@ public class FileSystemCrawler implements ICrawler {
         numberOfFailedDocuments = 0;
 
         try {
-
+            //this walk is just for counting docs
             long docsCount = Files.walk(this.rootPath)
                 //.peek(p -> displayfiltered(p, "before"))
                 .filter(dir -> !this.excludeDirectories(dir))
@@ -122,6 +118,7 @@ public class FileSystemCrawler implements ICrawler {
 
             log.debug("{} files to index", docsCount);
 
+            //this time, walk is indexing each files which match patterns in visitor
             Files.walkFileTree(this.rootPath,
                 EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, visitor);
 
@@ -203,13 +200,13 @@ public class FileSystemCrawler implements ICrawler {
         String fileName = p.getFileName().toString();
         int posPoint = fileName.lastIndexOf(".");
         String extension = extractExtension(fileName, posPoint);
-        String name = extractName(fileName, posPoint);
 
-        log.trace("explode filename : name:{}\textension:{}", name, extension);
+
+        log.trace("explode filename : name:{}\textension:{}", fileName, extension);
 
         try {
             indexBulkFilesIfNecessary();
-            File document = constructFile(name, extension, p);
+            File document = constructFile(fileName, extension, p);
             listeDeFichiers.add(document);
 
         } catch (IOException e) {
@@ -273,8 +270,12 @@ public class FileSystemCrawler implements ICrawler {
             content = readContent(path);
         }
 
+        //sha3 on the file's path. It should be the same, even after a full reindex
+        SHA256.Digest md = new SHA256.Digest();
+        md.update(path.toString().getBytes("UTF-8"));
+
         File fichier = new File(
-            UUID.randomUUID().toString(),
+            Hex.toHexString(md.digest()),
             name,
             extension,
             path.toString(),
