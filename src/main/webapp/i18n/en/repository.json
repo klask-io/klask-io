@@ -1,0 +1,25 @@
+{
+    "klaskApp": {
+        "repository": {
+            "home": {
+                "title": "Repositories",
+                "createLabel": "Create a new Repository",
+                "createOrEditLabel": "Create or edit a Repository",
+                "search": "Search for Repository"
+            },
+            "created": "A new Repository is created with identifier {{ param }}",
+            "updated": "A Repository is updated with identifier {{ param }}",
+            "deleted": "A Repository is deleted with identifier {{ param }}",
+            "delete": {
+                "question": "Are you sure you want to delete Repository {{ id }}?"
+            },
+            "detail": {
+                "title": "Repository"
+            },
+            "path": "Path",
+            "username": "Username",
+            "password": "Password",
+            "type": "Type"
+        }
+    }
+}

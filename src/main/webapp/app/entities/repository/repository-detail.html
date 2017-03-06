@@ -1,0 +1,29 @@
+<div>
+    <h2><span translate="klaskApp.repository.detail.title">Repository</span> {{vm.repository.id}}</h2>
+    <hr>
+    <jhi-alert-error></jhi-alert-error>
+    <dl class="dl-horizontal jh-entity-details">
+        <dt><span translate="klaskApp.repository.path">Path</span></dt>
+        <dd>
+            <span>{{vm.repository.path}}</span>
+        </dd>
+        <dt><span translate="klaskApp.repository.username">Username</span></dt>
+        <dd>
+            <span>{{vm.repository.username}}</span>
+        </dd>
+        <dt><span translate="klaskApp.repository.password">Password</span></dt>
+        <dd>
+            <span>{{vm.repository.password}}</span>
+        </dd>
+        <dt><span translate="klaskApp.repository.type">Type</span></dt>
+        <dd>
+            <span translate="{{'klaskApp.RepositoryType.' + vm.repository.type}}">{{vm.repository.type}}</span>
+        </dd>
+    </dl>
+
+    <button type="submit"
+            onclick="window.history.back()"
+            class="btn btn-info">
+        <span class="glyphicon glyphicon-arrow-left"></span>&nbsp;<span translate="entity.action.back"> Back</span>
+    </button>
+</div>

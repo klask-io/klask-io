@@ -1,0 +1,33 @@
+{
+    "relationships": [],
+    "fields": [
+        {
+            "fieldName": "path",
+            "fieldType": "String",
+            "fieldValidateRules": [
+                "required"
+            ]
+        },
+        {
+            "fieldName": "username",
+            "fieldType": "String"
+        },
+        {
+            "fieldName": "password",
+            "fieldType": "String"
+        },
+        {
+            "fieldName": "type",
+            "fieldType": "RepositoryType",
+            "fieldValues": "SVN,FILE_SYSTEM,GIT",
+            "fieldValidateRules": [
+                "required"
+            ]
+        }
+    ],
+    "changelogDate": "20170305155225",
+    "dto": "no",
+    "service": "serviceClass",
+    "entityTableName": "repository",
+    "pagination": "pagination"
+}

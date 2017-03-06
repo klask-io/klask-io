@@ -2,6 +2,7 @@ package io.klask.crawler.impl;
 
 import io.klask.crawler.CrawlerResult;
 import io.klask.crawler.ICrawler;
+import io.klask.domain.Repository;
 
 import java.util.concurrent.Future;
 
@@ -10,9 +11,7 @@ import java.util.concurrent.Future;
  */
 public class GitCrawler implements ICrawler {
 
-    @Override
-    public void setResult(Future<CrawlerResult> result) {
-
+    public GitCrawler(Repository repo) {
     }
 
     @Override
@@ -23,6 +22,11 @@ public class GitCrawler implements ICrawler {
     @Override
     public Future<CrawlerResult> getResult() {
         return null;
+    }
+
+    @Override
+    public void setResult(Future<CrawlerResult> result) {
+
     }
 
     @Override

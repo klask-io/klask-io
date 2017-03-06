@@ -33,7 +33,7 @@ import java.util.concurrent.Future;
 public class FileSystemCrawler implements ICrawler {
 
     private final Logger log = LoggerFactory.getLogger(FileSystemCrawler.class);
-    Path rootPath;
+    private Path rootPath;
     private FileSearchRepository fileSearchRepository;
     private KlaskProperties klaskProperties;
     private String before;
