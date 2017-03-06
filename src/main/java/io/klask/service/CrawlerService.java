@@ -69,7 +69,7 @@ public class CrawlerService {
                     aCrawler = new GitCrawler(repo);
                     break;
                 case SVN:
-                    aCrawler = new SVNCrawler(repo);
+                    aCrawler = new SVNCrawler(repo, klaskProperties, fileSearchRepository, elasticsearchTemplate);
                     break;
                 case FILE_SYSTEM:
                 default:
