@@ -29,10 +29,11 @@ public class SVNVisitorCrawler implements ISVNEditor {
     File currentFile = new File();
     private Stack<String> myDirectoriesStack = new Stack<>();
     private Map myDirProps = new HashMap();
-    private Map myFileProps = new HashMap();
+//    private Map myFileProps = new HashMap();
     private boolean skip=false;
     private boolean currentFileReadable = false;
     private boolean currentFileExcluded = false;
+    private long currentSize=-1;
     private SVNDeltaProcessor myDeltaProcessor = new SVNDeltaProcessor();
     private SVNCrawler svnCrawler;
 
@@ -63,7 +64,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
     @Override
     public void addFile(String path, String copyFromPath, long copyFromRevision) throws SVNException {
         if(skip)return;
-        log.debug("addFile {}", path);
+        log.trace("addFile {}", path);
         outputStream.reset();
         currentFileReadable = this.svnCrawler.isReadableExtension(path);
         currentFileExcluded = this.svnCrawler.isFileInExclusion(path);
@@ -90,8 +91,9 @@ public class SVNVisitorCrawler implements ISVNEditor {
         }
         if (currentFileReadable) {
             currentFile.setContent(new String(outputStream.toByteArray(), Charset.forName("iso-8859-1")));
-            currentFile.setSize((long) outputStream.size());//TODO fix the int => long problem
+
         }
+        currentFile.setSize(currentSize);//TODO fix the int => long problem
         currentFile.setProject(currentProject);
         currentFile.setVersion(currentBranch);
         this.svnCrawler.addFile(currentFile);
@@ -126,6 +128,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
     public OutputStream textDeltaChunk(String path, SVNDiffWindow diffWindow) throws SVNException {
         //log.trace("textDeltaChunk {}:{}",path,diffWindow);
         if(skip)return null;
+        currentSize = diffWindow.getTargetViewLength();
         if (currentFileExcluded || !currentFileReadable) {
             return SVNFileUtil.DUMMY_OUT;
         }
@@ -189,13 +192,13 @@ public class SVNVisitorCrawler implements ISVNEditor {
 //        }
         if(skip)return;
 
-        String currentDirPath = myDirectoriesStack.peek();
-        Map props = (Map) myDirProps.get(currentDirPath);
-        if (props == null) {
-            props = new HashMap();
-            myDirProps.put(currentDirPath, props);
-        }
-        props.put(name, value);
+//        String currentDirPath = myDirectoriesStack.peek();
+//        Map props = (Map) myDirProps.get(currentDirPath);
+//        if (props == null) {
+//            props = new HashMap();
+//            myDirProps.put(currentDirPath, props);
+//        }
+//        props.put(name, value);
     }
 
     @Override
@@ -205,29 +208,29 @@ public class SVNVisitorCrawler implements ISVNEditor {
 //        if (!SVNProperty.isRegularProperty(propertyName)) {
 //            return;
 //        }
-        if(skip) return;
+        if(skip || currentFile == null) return;
 
-        if(SVNProperty.isSVNKitProperty(propertyName)){
-            log.trace("sha1 {}", propertyName);
+        switch(propertyName){
+            case "svn:entry:last-author":
+                currentFile.setLastAuthor(propertyValue.getString());
+                break;
+            case "svn:mime-type":
+                currentFileReadable = SVNProperty.isTextMimeType(propertyValue.getString());
+                break;
+            case "svn:entry:committed-date":
+                currentFile.setLastDate(propertyValue.getString());
+                break;
+            case "svn:entry:committed-rev":
+                break;
         }
-        if("svn:entry:last-author".equals(propertyName) && currentFile!=null){
-            currentFile.setLastAuthor(propertyValue.getString());
-        }
-        //svn:entry:committed-rev
-        //svn:mime-type
 
-        if ("svn:entry:committed-date".equals(propertyName) && currentFile != null) {
-            currentFile.setLastDate(propertyValue.getString());
-        }
-
-
-        String absolutePath = "/" + path;
-        Map props = (Map) myFileProps.get(absolutePath);
-        if (props == null) {
-            props = new HashMap();
-            myFileProps.put(absolutePath, props);
-        }
-        props.put(propertyName, propertyValue);
+//        String absolutePath = "/" + path;
+//        Map props = (Map) myFileProps.get(absolutePath);
+//        if (props == null) {
+//            props = new HashMap();
+//            myFileProps.put(absolutePath, props);
+//        }
+//        props.put(propertyName, propertyValue);
     }
 
     @Override
@@ -265,7 +268,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
         return myDirProps;
     }
 
-    public Map getFilesToProps() {
-        return myFileProps;
-    }
+//    public Map getFilesToProps() {
+//        return myFileProps;
+//    }
 }
