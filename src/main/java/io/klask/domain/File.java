@@ -2,6 +2,8 @@ package io.klask.domain;
 
 import io.klask.config.Constants;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.elasticsearch.annotations.*;
 
 import javax.validation.constraints.NotNull;
@@ -16,7 +18,7 @@ import java.util.Objects;
 @Document(indexName = Constants.INDEX_NAME, shards = 8, replicas = 0, type = Constants.TYPE_NAME)
 @Setting(settingPath = "elasticsearch/settings.json")
 @Mapping(mappingPath = "elasticsearch/mapping.json")
-public class File extends AbstractAuditingEntity implements Serializable {
+public class File implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -77,6 +79,12 @@ public class File extends AbstractAuditingEntity implements Serializable {
 //        }
 //    )
     private String version;
+
+    @LastModifiedBy
+    private String lastAuthor;
+
+    @LastModifiedDate
+    private String lastDate;
 
     //    @Field(type = FieldType.Long)
     private Long size;
@@ -170,6 +178,22 @@ public class File extends AbstractAuditingEntity implements Serializable {
 
     public void setScore(Float score) {
         this.score = score;
+    }
+
+    public String getLastAuthor() {
+        return lastAuthor;
+    }
+
+    public void setLastAuthor(String lastAuthor) {
+        this.lastAuthor = lastAuthor;
+    }
+
+    public String getLastDate() {
+        return lastDate;
+    }
+
+    public void setLastDate(String lastDate) {
+        this.lastDate = lastDate;
     }
 
     @Override

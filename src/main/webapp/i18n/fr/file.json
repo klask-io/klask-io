@@ -34,7 +34,8 @@
             "content": "Contenu",
             "version": "Version",
             "project": "Projet",
-            "size": "Taille"
+            "size": "Taille",
+            "date": "Date"
         }
     }
 }

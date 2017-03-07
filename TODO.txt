@@ -30,6 +30,27 @@ corriger le jenkinsfile pour utiliser le mvnw
 
 gestion des fichiers typescript .ts (prism à mettre à jour)
 
+** gestion des alias elasticsearch
+https://www.elastic.co/guide/en/elasticsearch/reference/current/api-conventions.html
+http://www.w3ii.com/fr/elasticsearch/elasticsearch_api_conventions.html
+
+
+*********** page d'aide ************
+les wildcards et joker (* / ?)
+les champs à utiliser lastDate, lastAuthor, name, path, version, project, size
+les dates :
+    lastDate:<2010-01-01 AND lastDate:>2005-01-01
+    ou mieux
+    lastDate:[2012-01-01 2016-01-01]
+    en filtrant avec l'heure précise : lastDate:[2016-01-01T00:00:00 2016-01-04T10:00:00]
+mais encore :
+lastDate:now-1h
+lastDate:now-15d
+
+
+************************************
+
+
 1)fonctionnalitée à inclure
 CronTrigger et utilisation du taskExecutor pour checkoutsvn intégré
 https://docs.spring.io/spring/docs/current/spring-framework-reference/html/scheduling.html

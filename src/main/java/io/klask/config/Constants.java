@@ -49,6 +49,7 @@ public final class Constants {
         ORDER_FIELD_MAPPING.put("extension", "extension.raw");
         ORDER_FIELD_MAPPING.put("path", "path.raw");
         ORDER_FIELD_MAPPING.put("project", "project.raw");
+        ORDER_FIELD_MAPPING.put("lastDate", "lastDate");
 
     }
 

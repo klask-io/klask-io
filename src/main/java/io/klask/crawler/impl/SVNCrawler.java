@@ -24,11 +24,11 @@ import org.tmatesoft.svn.core.wc.SVNWCUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.Future;
 
 /**
@@ -62,6 +62,11 @@ public class SVNCrawler implements ICrawler {
     //last revision on SVN
     private long lastRevision;
 
+    private Set<String> directoriesToExcludeSet = new HashSet<>();
+    private Set<String> filesToExcludeSet = new HashSet<>();
+    private Set<String> extensionsToExcludeSet = new HashSet<>();
+    private Set<String> readableExtensionSet = new HashSet<>();
+
     /**
      * Constructor
      *
@@ -72,6 +77,10 @@ public class SVNCrawler implements ICrawler {
         this.klaskProperties = klaskProperties;
         this.fileSearchRepository = fileSearchRepository;
         this.elasticsearchTemplate = elasticsearchTemplate;
+    }
+
+    public static String extractName(String path) {
+        return path.substring(path.lastIndexOf('/') + 1);
     }
 
     @Override
@@ -181,6 +190,22 @@ public class SVNCrawler implements ICrawler {
      * initialize the SVN repository with the protocols beginning in the URL
      */
     private void initialize() throws SVNException {
+        directoriesToExcludeSet.clear();
+        directoriesToExcludeSet.addAll(klaskProperties.getCrawler().getDirectoriesToExclude());
+        log.debug("exclude directories {}", directoriesToExcludeSet);
+
+        filesToExcludeSet.clear();
+        filesToExcludeSet.addAll(klaskProperties.getCrawler().getFilesToExclude());
+        log.debug("exclude files : {}", filesToExcludeSet);
+
+        extensionsToExcludeSet.clear();
+        extensionsToExcludeSet.addAll(klaskProperties.getCrawler().getExtensionsToExclude());
+        log.debug("exclude extensions : {}", extensionsToExcludeSet);
+
+        readableExtensionSet.clear();
+        readableExtensionSet.addAll(klaskProperties.getCrawler().getExtensionsToRead());
+        log.debug("ascii files with extension : {}", readableExtensionSet);
+
         //Set up connection protocols support:
         if (this.svnRepository == null && this.repository != null && this.repository.getPath() != null) {
             //http:// and https://
@@ -305,7 +330,6 @@ public class SVNCrawler implements ICrawler {
         return new String(outputStream.toByteArray(), Charset.forName("iso-8859-1"));
     }
 
-
     private String extractExtension(String fileName, int posPoint) {
         if (posPoint > 0) {
             return fileName.substring(posPoint + 1, fileName.length()).toLowerCase();
@@ -313,7 +337,6 @@ public class SVNCrawler implements ICrawler {
         //the file name doesn't contain a dot or the name is like ".project" so no extension
         return "";
     }
-
 
     /**
      * check the size of batch index, and index if necessary
@@ -324,7 +347,6 @@ public class SVNCrawler implements ICrawler {
             listeDeFichiers.clear();
         }
     }
-
 
     /**
      * Index a bulk of files (Constant default : 100)
@@ -354,6 +376,52 @@ public class SVNCrawler implements ICrawler {
             } catch (Exception ee) {
                 log.error("Error while Thread.sleep", e);
             }
+        }
+    }
+
+    public Repository getRepository() {
+        return repository;
+    }
+
+    public void setRepository(Repository repository) {
+        this.repository = repository;
+    }
+
+    /**
+     * the dir parameter need to be a directory
+     * return true if the directory is in exclusion list
+     * used by {@code SVNVisitorCrawler}
+     *
+     * @param path
+     * @return
+     */
+    public boolean isDirectoryInExclusion(String path) {
+        return directoriesToExcludeSet.contains(extractName(path));
+    }
+
+    /**
+     * the parameter need to be a file, not a directory. It's used in {@code SVNVisitorCrawler}
+     *
+     * @param path
+     * @return
+     */
+    public boolean isFileInExclusion(String path) {
+        String fileName = extractName(path);
+        return
+            filesToExcludeSet.contains(fileName) || fileName.endsWith("~") ||
+                extensionsToExcludeSet.contains(extractExtension(fileName, fileName.lastIndexOf(".")));
+    }
+
+    public boolean isReadableExtension(String path) {
+        String fileName = extractName(path);
+        String extension = extractExtension(fileName, fileName.lastIndexOf("."));
+        if ((!readableExtensionSet.contains(extension) && !"".equals(extension))
+            //|| size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE
+            ) {
+            log.trace("parsing only name on file : {}", path);
+            return false;
+        } else {
+            return true;
         }
     }
 }

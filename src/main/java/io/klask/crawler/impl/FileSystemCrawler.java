@@ -21,7 +21,6 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.time.ZoneId;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
@@ -285,8 +284,8 @@ public class FileSystemCrawler implements ICrawler {
             size
         );
         setVersionAndProject(fichier, path.toString());
-        fichier.setCreatedDate(attrs.creationTime().toInstant().atZone(ZoneId.systemDefault()));
-        fichier.setLastModifiedDate(attrs.lastModifiedTime().toInstant().atZone(ZoneId.systemDefault()));
+        //fichier.setCreatedDate(attrs.creationTime().toInstant().atZone(ZoneId.systemDefault()));
+        //fichier.setLastModifiedDate(attrs.lastModifiedTime().toInstant().atZone(ZoneId.systemDefault()));
 
         return fichier;
     }
