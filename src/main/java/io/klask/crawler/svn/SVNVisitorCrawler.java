@@ -1,5 +1,6 @@
 package io.klask.crawler.svn;
 
+import io.klask.config.Constants;
 import io.klask.crawler.impl.SVNCrawler;
 import io.klask.domain.File;
 import org.slf4j.Logger;
@@ -81,7 +82,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
         return null;
     }
 
-    //in the closeFile, the md5Checksum give the MD5 check sum
+    //in the closeFile, the param md5Checksum give the MD5 check sum
     @Override
     public void closeFile(String path, String md5Checksum) throws SVNException {
         //log.debug("closeFile {}:{}",path,md5Checksum);
@@ -129,6 +130,9 @@ public class SVNVisitorCrawler implements ISVNEditor {
         //log.trace("textDeltaChunk {}:{}",path,diffWindow);
         if(skip)return null;
         currentSize = diffWindow.getTargetViewLength();
+        if (currentSize > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE) {
+            currentFileReadable = false;
+        }
         if (currentFileExcluded || !currentFileReadable) {
             return SVNFileUtil.DUMMY_OUT;
         }
@@ -222,6 +226,11 @@ public class SVNVisitorCrawler implements ISVNEditor {
                 break;
             case "svn:entry:committed-rev":
                 break;
+            case "svn:entry:uuid":
+                //on en fait rien
+                break;
+            default:
+                log.debug("new property {}={}", propertyName, propertyValue.getString());
         }
 
 //        String absolutePath = "/" + path;

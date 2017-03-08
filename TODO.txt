@@ -44,8 +44,9 @@ les dates :
     lastDate:[2012-01-01 2016-01-01]
     en filtrant avec l'heure précise : lastDate:[2016-01-01T00:00:00 2016-01-04T10:00:00]
 mais encore :
-lastDate:now-1h
-lastDate:now-15d
+lastDate:[now-12h now]
+lastDate:[now-12h *]
+
 
 
 ************************************

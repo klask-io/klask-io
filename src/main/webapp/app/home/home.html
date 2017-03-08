@@ -159,7 +159,7 @@
                                                 <div class="italicRight">
                                                     <p class="label label-default">{{file.lastAuthor}}</p>
                                                     <p data-toggle="tooltip" data-placement="left"
-                                                       title="{{file.lastDate}}">
+                                                       title="{{file.lastDate|date:'medium':timezone}}">
                                                         {{file.lastDate|date:format:timezone}}</p>
                                                 </div>
                                             </div>
