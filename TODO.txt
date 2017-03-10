@@ -35,6 +35,11 @@ https://www.elastic.co/guide/en/elasticsearch/reference/current/api-conventions.
 http://www.w3ii.com/fr/elasticsearch/elasticsearch_api_conventions.html
 
 
+SVN :
+utilisation du paramètre : -Dsvnkit.http.spoolDirectory=./spooldirectory
+permet de réaliser un checkout temporaire et éviter les soucis de E175002: REPORT request failed on '/svn/!svn/vcc/default'
+
+
 *********** page d'aide ************
 les wildcards et joker (* / ?)
 les champs à utiliser lastDate, lastAuthor, name, path, version, project, size

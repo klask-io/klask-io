@@ -15,6 +15,7 @@ import org.springframework.data.elasticsearch.ElasticsearchException;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.tmatesoft.svn.core.*;
 import org.tmatesoft.svn.core.internal.io.dav.DAVRepositoryFactory;
+import org.tmatesoft.svn.core.internal.io.dav.http.DefaultHTTPConnectionFactory;
 import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
 import org.tmatesoft.svn.core.io.ISVNReporter;
 import org.tmatesoft.svn.core.io.ISVNReporterBaton;
@@ -92,7 +93,10 @@ public class SVNCrawler implements ICrawler {
 
             //TODO tester le cas où un fichier est déplacé dans l'arborescence (suppression + ajout ?)
 
-            this.originRevision = 206361;
+            //this.originRevision = 206361;
+            //this.lastRevision = this.svnRepository.getLatestRevision();
+
+            this.originRevision = 0;
             this.lastRevision = this.svnRepository.getLatestRevision();
 
             boolean startEmpty = (originRevision == 0);
@@ -166,6 +170,7 @@ public class SVNCrawler implements ICrawler {
 //            if (nodeKind == SVNNodeKind.DIR) {
 //                readInDepthSVN("");
 //            }
+            log.info("Finish parsing files in {} (r{})", this.repository.getPath(), lastRevision);
 
         } catch (final SVNException e) {
             log.error("Exception in SVN crawler", e);
@@ -277,9 +282,13 @@ public class SVNCrawler implements ICrawler {
 
         //Set up connection protocols support:
         if (this.svnRepository == null && this.repository != null && this.repository.getPath() != null) {
+
+
+
             //http:// and https://
             if (this.repository.getPath().toLowerCase().startsWith("http")) {
                 DAVRepositoryFactory.setup();
+                //DAVRepositoryFactory.setup(new DefaultHTTPConnectionFactory(null,true,null));
             }
             //svn://, svn+xxx:// (svn+ssh:// in particular)
             if (this.repository.getPath().toLowerCase().startsWith("file")) {
@@ -288,7 +297,7 @@ public class SVNCrawler implements ICrawler {
             //file:///
             if (this.repository.getPath().toLowerCase().startsWith("svn")) {
                 DAVRepositoryFactory.setup();
-                //TODO : ça ne marche, mais ça devrait
+                //TODO : ça ne marche pas, mais ça devrait
                 //SVNRepositoryFactoryImpl.setup();
             }
             svnRepository = SVNRepositoryFactory.create(SVNURL.parseURIDecoded(this.repository.getPath()));
@@ -447,6 +456,7 @@ public class SVNCrawler implements ICrawler {
             listeDeFichiers
                 .forEach(file -> sb.append(file.getPath() + ","));
             log.error(sb.toString());
+            listeDeFichiers.clear();
         } catch (Exception e) {
             log.error("elasticsearch node is not avaible, waiting 10s and continue", e);
             try {
