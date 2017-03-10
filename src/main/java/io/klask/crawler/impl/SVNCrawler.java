@@ -24,11 +24,9 @@ import org.tmatesoft.svn.core.wc.SVNWCUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Future;
 
 /**
@@ -61,6 +59,7 @@ public class SVNCrawler implements ICrawler {
 
     //last revision on SVN
     private long lastRevision;
+    private long originRevision;
 
     private Set<String> directoriesToExcludeSet = new HashSet<>();
     private Set<String> filesToExcludeSet = new HashSet<>();
@@ -87,24 +86,38 @@ public class SVNCrawler implements ICrawler {
     public CrawlerResult start() {
         try {
             this.crawling = true;
-            log.debug("Start Parsing files in {}", this.repository.getPath());
             this.initialize();
+//            this.originRevision=0;//TODO change me in initialize method
+//            this.lastRevision=206361;//TODO change me in initialize method
 
-            final SVNNodeKind nodeKind = this.svnRepository.checkPath("", -1);
+            //TODO tester le cas où un fichier est déplacé dans l'arborescence (suppression + ajout ?)
+
+            this.originRevision = 206361;
+            this.lastRevision = this.svnRepository.getLatestRevision();
+
+            boolean startEmpty = (originRevision == 0);
+            //final SVNNodeKind nodeKind = this.svnRepository.checkPath("", -1);
 
             //get the current HEAD revision
-            long lastRevision = this.svnRepository.getLatestRevision();
-            this.lastRevision = lastRevision;
+            //long lastRevision = this.svnRepository.getLatestRevision();
+            long lastRevision = this.lastRevision;
+            long originRevision = this.originRevision;
+
+            log.info("Start parsing files in {} (r{})", this.repository.getPath(), lastRevision);
 
             //with this reporter we just say to the repository server - please, send us the entire tree,
             //we do not have any local data
             ISVNReporterBaton reporter = new ISVNReporterBaton() {
                 public void report(ISVNReporter reporter) throws SVNException {
+                    try {
+                        reporter.setPath("", null, originRevision == 0 ? lastRevision : originRevision, SVNDepth.INFINITY,
+                            startEmpty/*we are empty, take us all like in checkout*/);
 
-                    reporter.setPath("", null, lastRevision, SVNDepth.INFINITY,
-                        true/*we are empty, take us all like in checkout*/);
-
-                    reporter.finishReport();
+                        reporter.finishReport();
+                    } catch (SVNException e) {
+                        log.error("SVN reporter failed", e);
+                        reporter.abortReport();
+                    }
 
                 }
             };
@@ -114,7 +127,11 @@ public class SVNCrawler implements ICrawler {
             //run an update-like request which never receives any real file deltas
             this.svnRepository.update(lastRevision, null, true, reporter, editor);
 
+            addUpdatedFiles(editor.getUpdatedFiles());
+
             indexingBulkFiles();
+
+            deleteFiles(editor.getDeletedFiles());
 
 //            //now iterate over file and directory properties and print them out to the console
 //            Map dirProps = editor.getDirsToProps();
@@ -157,6 +174,58 @@ public class SVNCrawler implements ICrawler {
         }
 
         return null;
+    }
+
+    private void deleteFiles(Map<String, Long> deletedFiles) {
+        log.trace("delete bulk files : {}", deletedFiles);
+        try {
+            for (Map.Entry<String, Long> entry : deletedFiles.entrySet()) {
+                fileSearchRepository.delete(convertSHA256(entry.getKey()));
+            }
+        } catch (ElasticsearchException e) {
+            log.error("Exception while delete file -- getting file's list...");
+            Set<String> failedDocuments = e.getFailedDocuments().keySet();
+            numberOfFailedDocuments += failedDocuments.size();
+            listeDeFichiers.stream()
+                .filter(f -> failedDocuments.contains(f.getId()))
+                .forEach(file -> log.error("Exception while delete file {}, {}", file.getPath(), e.getFailedDocuments().get(file.getId())));
+        } catch (OutOfMemoryError e) {
+            log.error("OutOfMemory while delete one file of the following files :");
+            StringBuilder sb = new StringBuilder();
+            listeDeFichiers
+                .forEach(file -> sb.append(file.getPath() + ","));
+            log.error(sb.toString());
+        } catch (Exception e) {
+            log.error("elasticsearch node is not avaible, waiting 10s and continue", e);
+            try {
+                Thread.sleep(10000);
+            } catch (Exception ee) {
+                log.error("Error while Thread.sleep", e);
+            }
+        }
+    }
+
+    private void addUpdatedFiles(Map<String, Long> filesWithRevision) throws SVNException {
+        log.debug("addUpdatedFiles {}", filesWithRevision);
+        if (this.abortAsked) {
+            return;
+        }
+        if (filesWithRevision != null) {
+            for (Map.Entry<String, Long> entry : filesWithRevision.entrySet()) {
+                log.trace("add file {}", entry.getKey());
+                SVNProperties fileProperties = new SVNProperties();
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                svnRepository.getFile(entry.getKey(), this.lastRevision, fileProperties, baos);
+                File currentFile = createFile(entry.getKey());
+                currentFile.setVersion("TODO");
+                currentFile.setProject("TODO");
+                currentFile.setLastAuthor(fileProperties.getStringValue("svn:entry:last-author"));
+                currentFile.setLastDate(fileProperties.getStringValue("svn:entry:committed-date"));
+                currentFile.setSize((long) baos.size());
+                currentFile.setContent(new String(baos.toByteArray(), Charset.forName("iso-8859-1")));
+                addFile(currentFile);
+            }
+        }
     }
 
     private void readInDepthSVN(String path) throws SVNException {
@@ -297,12 +366,8 @@ public class SVNCrawler implements ICrawler {
             //String content = readContent(baos);
 
             path = this.repository.getPath()+"/"+path;
-            //sha3 on the file's path. It should be the same, even after a full reindex
-            SHA256.Digest md = new SHA256.Digest();
-            md.update(path.toString().getBytes("UTF-8"));
-
             result = new File(
-                Hex.toHexString(md.digest()),
+                convertSHA256(path),
                 fileName,
                 extension,
                 path,
@@ -318,6 +383,19 @@ public class SVNCrawler implements ICrawler {
         return result;
 
 
+    }
+
+    /**
+     * sha256 on the file's path. It should be the same, even after a full reindex
+     *
+     * @param path
+     * @return
+     * @throws UnsupportedEncodingException
+     */
+    private String convertSHA256(String path) throws UnsupportedEncodingException {
+        SHA256.Digest md = new SHA256.Digest();
+        md.update(path.toString().getBytes("UTF-8"));
+        return Hex.toHexString(md.digest());
     }
 
     /**

@@ -2,12 +2,9 @@ package io.klask.web.rest;
 
 import com.codahale.metrics.annotation.Timed;
 import io.klask.config.KlaskProperties;
-import io.klask.crawler.ICrawler;
-import io.klask.crawler.impl.FileSystemCrawler;
 import io.klask.service.CrawlerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,9 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.*;
 
 /**
  * REST controller for managing File.
@@ -98,7 +92,7 @@ public class CrawlerResource {
      * @throws IOException
      */
     public void resetIndex() throws IOException {
-        crawlerService.clearIndex();
+        //crawlerService.clearIndex();
         //TODO : ne plus supprimer l'index
         crawlerService.resetAllRepo();
         crawlerService.crawlerAllRepo();

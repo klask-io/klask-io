@@ -56,6 +56,9 @@
 
     <logger name="io.klask" level="#logback.loglevel#"/>
     <logger name="org.springframework.data.elasticsearch.core.ElasticsearchTemplate" level="DEBUG"/>
+    <logger name="io.klask.crawler.svn.SVNVisitorCrawler" level="TRACE"/>
+    <logger name="io.klask.crawler.impl.SVNCrawler" level="TRACE"/>
+
     <logger name="io.klask.repository.search.CustomSearchRepositoryImpl" level="DEBUG"/>
     <!--<logger name="CustomSearchRepositoryImpl" level="TRACE"/>-->
     <logger name="io.klask.web.rest.FileResource" level="DEBUG"/>

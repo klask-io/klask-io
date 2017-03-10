@@ -37,6 +37,8 @@ public class SVNVisitorCrawler implements ISVNEditor {
     private long currentSize=-1;
     private SVNDeltaProcessor myDeltaProcessor = new SVNDeltaProcessor();
     private SVNCrawler svnCrawler;
+    private Map<String, Long> updatedFiles = new HashMap<>();
+    private Map<String, Long> deletedFiles = new HashMap<>();
 
     //if crawler get 'trunk', 'tags' or 'branches' the currentProject is the directory just above
     private String currentProject = null;
@@ -49,23 +51,31 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public void abortEdit() throws SVNException {
-        //log.trace("abortEdit");
+        log.trace("abortEdit");
     }
 
     @Override
     public void absentDir(String path) throws SVNException {
-        //log.trace("absentDir {}", path);
+        log.trace("absentDir {}", path);
     }
 
     @Override
     public void absentFile(String path) throws SVNException {
-        //log.trace("absentFile {}", path);
+        log.trace("absentFile {}", path);
+    }
+
+    @Override
+    public void openFile(String path, long revision) throws SVNException {
+        if (skip) return;
+        log.trace("openFile {}:{}", path, revision);
+        updatedFiles.put(path, revision);
+        currentFileExcluded = true;//will be added out of this
     }
 
     @Override
     public void addFile(String path, String copyFromPath, long copyFromRevision) throws SVNException {
         if(skip)return;
-        log.trace("addFile {}", path);
+        log.trace("addFile {}, copyFromPath={}, copyFromRevision={}", path, copyFromPath, copyFromRevision);
         outputStream.reset();
         currentFileReadable = this.svnCrawler.isReadableExtension(path);
         currentFileExcluded = this.svnCrawler.isFileInExclusion(path);
@@ -78,14 +88,14 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public SVNCommitInfo closeEdit() throws SVNException {
-        //log.debug("closeEdit");
+        log.trace("closeEdit");
         return null;
     }
 
     //in the closeFile, the param md5Checksum give the MD5 check sum
     @Override
     public void closeFile(String path, String md5Checksum) throws SVNException {
-        //log.debug("closeFile {}:{}",path,md5Checksum);
+        log.trace("closeFile {}:{}", path, md5Checksum);
         if(skip)return;
         if (currentFileExcluded) {
             return;
@@ -103,22 +113,20 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public void deleteEntry(String path, long revision) throws SVNException {
-        //log.debug("deleteEntry {} : {}", path, revision);
+        log.trace("deleteEntry {} : {}", path, revision);
+        deletedFiles.put(this.svnCrawler.getRepository().getPath() + "/" + path, revision);
     }
 
-    @Override
-    public void openFile(String path, long revision) throws SVNException {
-        ////log.debug("openFile {}:{}",path,revision);
-    }
+
 
     @Override
     public void targetRevision(long revision) throws SVNException {
-        //log.debug("targetRevision {}", revision);
+        log.trace("targetRevision {}", revision);
     }
 
     @Override
     public void applyTextDelta(String path, String baseChecksum) throws SVNException {
-        //log.trace("applyTextDelta {} ck {}", path, baseChecksum);
+        log.trace("applyTextDelta {} ck {}", path, baseChecksum);
         if(skip)return;
         if (!currentFileExcluded && currentFileReadable) {
             myDeltaProcessor.applyTextDelta(null, outputStream, false);
@@ -127,7 +135,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public OutputStream textDeltaChunk(String path, SVNDiffWindow diffWindow) throws SVNException {
-        //log.trace("textDeltaChunk {}:{}",path,diffWindow);
+        log.trace("textDeltaChunk {}:{}", path, diffWindow);
         if(skip)return null;
         currentSize = diffWindow.getTargetViewLength();
         if (currentSize > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE) {
@@ -156,7 +164,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public void textDeltaEnd(String path) throws SVNException {
-        //log.trace("textDeltaEnd {}", path);
+        log.trace("textDeltaEnd {}", path);
         if(skip)return;
         if (!currentFileExcluded && currentFileReadable) {
             myDeltaProcessor.textDeltaEnd();
@@ -165,7 +173,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public void addDir(String path, String copyFromPath, long copyFromRevision) throws SVNException {
-        //log.trace("addDir {}", path);
+        log.trace("addDir {}, copyFromPath={}, copyFromRevision={}", path, copyFromPath, copyFromRevision);
         if (path != null) {
             if (path.endsWith("tags")) {
                 skip = true;
@@ -221,6 +229,9 @@ public class SVNVisitorCrawler implements ISVNEditor {
             case "svn:mime-type":
                 currentFileReadable = SVNProperty.isTextMimeType(propertyValue.getString());
                 break;
+            case "svn:executable":
+                currentFileReadable = false;
+                break;
             case "svn:entry:committed-date":
                 currentFile.setLastDate(propertyValue.getString());
                 break;
@@ -230,7 +241,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
                 //on en fait rien
                 break;
             default:
-                log.debug("new property {}={}", propertyName, propertyValue.getString());
+                log.trace("new property {}={}", propertyName, propertyValue.getString());
         }
 
 //        String absolutePath = "/" + path;
@@ -244,8 +255,8 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public void closeDir() throws SVNException {
-        //log.trace("closeDir");
         String last = myDirectoriesStack.pop();
+        log.trace("closeDir {}", last);
         if (last != null) {
             if (last.endsWith("tags")) {
                 skip = false;
@@ -261,14 +272,31 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public void openDir(String path, long revision) throws SVNException {
-        //log.trace("openDir {} : {}",path,revision);
+        log.trace("openDir {} : {}", path, revision);
         String absoluteDirPath = "/" + path;
+        if (path != null) {
+            if (path.endsWith("tags")) {
+                skip = true;
+            }
+            if (currentProject == null && (path.endsWith("trunk") || path.endsWith("branches"))) {
+                String lastDir = myDirectoriesStack.peek();
+                this.currentProject = lastDir.substring(lastDir.lastIndexOf('/') + 1);
+            }
+
+            if (myDirectoriesStack.peek().endsWith("branches")) {
+                currentBranch = path.substring(path.lastIndexOf('/') + 1);
+            }
+            if (myDirectoriesStack.peek().endsWith("trunk")) {
+                currentBranch = "trunk";
+            }
+
+        }
         myDirectoriesStack.push(absoluteDirPath);
     }
 
     @Override
     public void openRoot(long revision) throws SVNException {
-        //log.trace("openRoot : {}",revision);
+        log.trace("openRoot : {}", revision);
         String absoluteDirPath = this.svnCrawler.getRepository().getPath();
         myDirectoriesStack.push(absoluteDirPath);
     }
@@ -280,4 +308,13 @@ public class SVNVisitorCrawler implements ISVNEditor {
 //    public Map getFilesToProps() {
 //        return myFileProps;
 //    }
+
+
+    public Map<String, Long> getUpdatedFiles() {
+        return updatedFiles;
+    }
+
+    public Map<String, Long> getDeletedFiles() {
+        return deletedFiles;
+    }
 }
