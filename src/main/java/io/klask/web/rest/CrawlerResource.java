@@ -92,7 +92,9 @@ public class CrawlerResource {
      * @throws IOException
      */
     public void resetIndex() throws IOException {
-        crawlerService.clearIndex();
+
+        crawlerService.createIndexes();
+        //crawlerService.clearIndex();
         //TODO : ne plus supprimer l'index
         crawlerService.resetAllRepo();
         crawlerService.crawlerAllRepo();

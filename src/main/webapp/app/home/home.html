@@ -167,7 +167,8 @@
                                             <p class="small apercuCode"
                                                ng-bind-html="file.content | characters:500 | escapeall | unsafe"></p>
                                             <em class="pathDoc small" ng-bind-html="file.path | unsafe"></em>
-                                            <em class="pathDoc italicRight">{{file.size | formatKoMoGo}}</em>
+                                            <em class="pathDoc italicRight">{{file.size | formatKoMoGo |
+                                                translate}}</em>
                                         </div>
                                     </td>
                                 </tr>

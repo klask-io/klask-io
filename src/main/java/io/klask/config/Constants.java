@@ -38,6 +38,7 @@ public final class Constants {
     public static final long MAX_SIZE_FOR_INDEXING_ONE_FILE = 20 * 1024 * 1024;
     // Map of fields which give the raw field to sort (https://www.elastic.co/guide/en/elasticsearch/guide/current/multi-fields.html)
     public static final Map<String, String> ORDER_FIELD_MAPPING = new HashMap<>();
+    public static final String ALIAS = "klask_files";
 
     static {
         ORDER_FIELD_MAPPING.put("id", "id");

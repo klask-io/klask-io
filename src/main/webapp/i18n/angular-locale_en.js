@@ -134,6 +134,16 @@ $provide.value("$locale", {
         "posPre": "\u00a4",
         "posSuf": ""
       }
+    ],
+    "BINARY_PREFIX": [
+        "B",
+        "KiB",
+        "MiB",
+        "GiB",
+        "TiB",
+        "PiB",
+        "EiB",
+        "ZiB",
     ]
   },
   "id": "en",

@@ -13,9 +13,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.elasticsearch.ElasticsearchException;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
+import org.springframework.data.elasticsearch.core.query.IndexQuery;
+import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder;
 import org.tmatesoft.svn.core.*;
 import org.tmatesoft.svn.core.internal.io.dav.DAVRepositoryFactory;
-import org.tmatesoft.svn.core.internal.io.dav.http.DefaultHTTPConnectionFactory;
 import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
 import org.tmatesoft.svn.core.io.ISVNReporter;
 import org.tmatesoft.svn.core.io.ISVNReporterBaton;
@@ -442,7 +443,18 @@ public class SVNCrawler implements ICrawler {
     private void indexingBulkFiles() {
         log.trace("indexing bulk files : {}", listeDeFichiers);
         try {
-            fileSearchRepository.save(listeDeFichiers);
+            //fileSearchRepository.save(listeDeFichiers);
+            List<IndexQuery> queriesList = new ArrayList<>(listeDeFichiers.size());
+            for (File file : listeDeFichiers) {
+                IndexQuery query = new IndexQueryBuilder()
+                    .withIndexName("file" + repository.getId())
+                    .withObject(file)
+                    .withType(repository.getType().name())
+                    .build();
+                queriesList.add(query);
+            }
+            elasticsearchTemplate.bulkIndex(queriesList);
+
         } catch (ElasticsearchException e) {
             log.error("Exception while indexing file -- getting file's list...");
             Set<String> failedDocuments = e.getFailedDocuments().keySet();

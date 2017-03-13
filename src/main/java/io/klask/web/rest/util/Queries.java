@@ -24,7 +24,6 @@ public class Queries {
             .withQuery(
                 queryBuilder(query)
             )
-
             .build().getQuery();
     }
 

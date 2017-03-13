@@ -2,6 +2,7 @@ package io.klask.repository.search;
 
 import io.klask.config.Constants;
 import io.klask.domain.File;
+import io.klask.domain.enumeration.RepositoryType;
 import io.klask.repository.search.mapper.ResultHighlightMapper;
 import io.klask.repository.search.mapper.ResultTruncatedContentMapper;
 import io.klask.web.rest.util.Queries;
@@ -25,7 +26,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
-import org.springframework.data.elasticsearch.core.query.SearchQuery;
 
 import javax.inject.Inject;
 import java.util.Comparator;
@@ -45,32 +45,33 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
     @Inject
     private ElasticsearchTemplate elasticsearchTemplate;
 
-    @Override
-    public Page<File> findWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project) {
-        //QueryBuilder searchQuery = Queries.constructQuery(query);
-        //return elasticsearchTemplate.queryForPage(new NativeSearchQuery(searchQuery), File.class, new ResultHighlightMapper());
-
-        NativeSearchQueryBuilder nativeQuery = Queries.constructQueryWithHighlight(query, pageable, 3);
-
-        BoolQueryBuilder ensembleVersion = QueryBuilders.boolQuery();
-        BoolQueryBuilder ensembleProjet = QueryBuilders.boolQuery();
-
-        if (version != null && !version.isEmpty()) {
-            ensembleVersion = ensembleVersion.should(QueryBuilders.termsQuery("version.raw", version));
-        }
-        if (project != null && !project.isEmpty()) {
-            ensembleProjet = ensembleProjet.should(QueryBuilders.termsQuery("project.raw", project));
-        }
-
-        nativeQuery = nativeQuery.withFilter(QueryBuilders.boolQuery().must(ensembleVersion).must(ensembleProjet));
-        log.debug("query : {}", nativeQuery.toString());
-        SearchQuery searchQuery = nativeQuery.build();
-        log.debug("query : {}", searchQuery.getQuery());
-        log.debug("filter: {}", searchQuery.getFilter());
-        return elasticsearchTemplate.queryForPage(searchQuery, File.class, new ResultHighlightMapper());
-
-//        SearchResponse searchResponse = searchRequestBuilder.execute().actionGet();
-    }
+//    @Override
+//    public Page<File> findWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project) {
+//        //QueryBuilder searchQuery = Queries.constructQuery(query);
+//        //return elasticsearchTemplate.queryForPage(new NativeSearchQuery(searchQuery), File.class, new ResultHighlightMapper());
+//
+//        NativeSearchQueryBuilder nativeQuery = Queries.constructQueryWithHighlight(query, pageable, 3);
+//
+//        BoolQueryBuilder ensembleVersion = QueryBuilders.boolQuery();
+//        BoolQueryBuilder ensembleProjet = QueryBuilders.boolQuery();
+//
+//        if (version != null && !version.isEmpty()) {
+//            ensembleVersion = ensembleVersion.should(QueryBuilders.termsQuery("version.raw", version));
+//        }
+//        if (project != null && !project.isEmpty()) {
+//            ensembleProjet = ensembleProjet.should(QueryBuilders.termsQuery("project.raw", project));
+//        }
+//
+//        nativeQuery = nativeQuery.withFilter(QueryBuilders.boolQuery().must(ensembleVersion).must(ensembleProjet));
+//        log.debug("query : {}", nativeQuery.toString());
+//        SearchQuery searchQuery = nativeQuery.build();
+//        log.debug("query : {}", searchQuery.getQuery());
+//        log.debug("filter: {}", searchQuery.getFilter());
+//        //return elasticsearchTemplate.queryForPage(searchQuery, File.class, new ResultHighlightMapper());
+//        return elasticsearchTemplate.queryForPage(searchQuery, File.class, new ResultHighlightMapper());
+//
+////        SearchResponse searchResponse = searchRequestBuilder.execute().actionGet();
+//    }
 
 
     /**
@@ -191,8 +192,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
 
 
 //        if (StringUtils.isNotEmpty(query)) {
-        SearchRequestBuilder searchRequestBuilder = elasticsearchTemplate.getClient().prepareSearch(Constants.INDEX_NAME)
-            .setTypes(Constants.TYPE_NAME)
+        SearchRequestBuilder searchRequestBuilder = this.templateResponse()
             .setQuery(nativeSearchQuery.getQuery())
             .setHighlighterEncoder("html")//permet d'échapper tous les caractères html pour une sortie correcte sur le frontend
             .setHighlighterFragmentSize(100)
@@ -252,19 +252,24 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
     private SearchResponse createResponse(String query, TermsBuilder aggregation) {
         SearchResponse response;
         if (StringUtils.isNotEmpty(query)) {
-            response = elasticsearchTemplate.getClient().prepareSearch(Constants.INDEX_NAME)
-                .setTypes(Constants.TYPE_NAME)
+            response = this.templateResponse()
                 //ici nous utilisons la même querybuilder que dans la recherche principale pour obtenir justement
                 //le même filtrage sur les versions courantes
                 .setQuery(Queries.constructQuery(query))
                 .addAggregation(aggregation)
                 .execute().actionGet();
         } else {
-            response = elasticsearchTemplate.getClient().prepareSearch(Constants.INDEX_NAME)
-                .setTypes(Constants.TYPE_NAME)
+            response = this.templateResponse()
                 .addAggregation(aggregation)
                 .execute().actionGet();
         }
         return response;
+    }
+
+
+    private SearchRequestBuilder templateResponse() {
+        return elasticsearchTemplate.getClient().prepareSearch(Constants.ALIAS)
+            //.setIndices(Constants.ALIAS)//using alias to query
+            .setTypes(RepositoryType.getAllTypes());//SVN, GIT, FILE_SYSTEM
     }
 }

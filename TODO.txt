@@ -51,9 +51,6 @@ les dates :
 mais encore :
 lastDate:[now-12h now]
 lastDate:[now-12h *]
-
-
-
 ************************************
 
 

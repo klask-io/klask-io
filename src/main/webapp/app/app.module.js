@@ -36,25 +36,22 @@
 
 
 angular.module('filters', [])
-    .filter('formatKoMoGo', function () {
+    .filter('formatKoMoGo', ['$locale', function ($locale) {
         return function (size) {
             if (isNaN(size))
                 size = 0;
-            if (size < 1024)
-                return size + ' o';
-            size /= 1024;
-            if (size < 1024)
-                return size.toFixed(2) + ' Kio';
-            size /= 1024;
-            if (size < 1024)
-                return size.toFixed(2) + ' Mio';
-            size /= 1024;
-            if (size < 1024)
-                return size.toFixed(2) + ' Gio';
-            size /= 1024;
-            return size.toFixed(2) + ' Tio';
+            for(var iter=0; iter < 8; iter++){
+                if (size < 1024){
+                    var formatSize = (iter===0 ? size : size.toFixed(2))+'';
+                    return formatSize.replace('\.', $locale.NUMBER_FORMATS.DECIMAL_SEP)
+                    + ' '+$locale.NUMBER_FORMATS.BINARY_PREFIX[iter];
+                }
+                else
+                    size/=1024;
+            }
+            return size.toFixed(2) + ' YiB';//YiB ?!
         };
-    })
+    }])
     .filter('unsafe',['$sce', function ($sce) {
         return function (content) {
             if (content != null){
