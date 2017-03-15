@@ -37,6 +37,13 @@ public class Repository implements Serializable {
     @Column(name = "type", nullable = false)
     private RepositoryType type;
 
+    @NotNull
+    @Column(name = "name", nullable = false, unique = true)
+    private String name;
+
+    @Column(name = "revision")
+    private Long revision = 0L;
+
     public Long getId() {
         return id;
     }
@@ -77,6 +84,22 @@ public class Repository implements Serializable {
         this.type = type;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Long getRevision() {
+        return revision;
+    }
+
+    public void setRevision(Long revision) {
+        this.revision = revision;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -105,6 +128,8 @@ public class Repository implements Serializable {
             ", username='" + username + "'" +
             ", password='" + password + "'" +
             ", type='" + type + "'" +
+            ", name='" + name + "'" +
+            ", revision='" + revision + "'" +
             '}';
     }
 }

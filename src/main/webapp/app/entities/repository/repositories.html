@@ -1,4 +1,4 @@
-<div class="container well">
+<div>
     <h2 translate="klaskApp.repository.home.title">Repositories</h2>
     <jhi-alert></jhi-alert>
     <div class="container-fluid">
@@ -46,6 +46,10 @@
                     class="glyphicon glyphicon-sort"></span></th>
                 <th jh-sort-by="type"><span translate="klaskApp.repository.type">Type</span> <span
                     class="glyphicon glyphicon-sort"></span></th>
+                <th jh-sort-by="name"><span translate="klaskApp.repository.name">Name</span> <span
+                    class="glyphicon glyphicon-sort"></span></th>
+                <th jh-sort-by="revision"><span translate="klaskApp.repository.revision">Revision</span> <span
+                    class="glyphicon glyphicon-sort"></span></th>
                 <th></th>
             </tr>
             </thead>
@@ -56,6 +60,8 @@
                 <td>{{repository.username}}</td>
                 <td>{{repository.password}}</td>
                 <td translate="{{'klaskApp.RepositoryType.' + repository.type}}">{{repository.type}}</td>
+                <td>{{repository.name}}</td>
+                <td>{{repository.revision}}</td>
                 <td class="text-right">
                     <div class="btn-group flex-btn-group-container">
                         <button type="submit"

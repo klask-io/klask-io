@@ -19,7 +19,9 @@
             "path": "Path",
             "username": "Username",
             "password": "Password",
-            "type": "Type"
+            "type": "Type",
+            "name": "Name",
+            "revision": "Revision"
         }
     }
 }

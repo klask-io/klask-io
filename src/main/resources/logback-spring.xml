@@ -65,6 +65,7 @@
     <logger name="io.klask.web.rest.CrawlerResource" level="DEBUG"/>
     <logger name="io.klask.service.CrawlerService" level="DEBUG"/>
     <logger name="svnkit" level="WARN"/>
+    <logger name="svnkit-wc" level="WARN"/>
 
     <logger name="javax.activation" level="WARN"/>
     <logger name="javax.mail" level="WARN"/>

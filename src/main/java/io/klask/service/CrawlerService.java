@@ -13,6 +13,8 @@ import io.klask.repository.RepositoryRepository;
 import io.klask.repository.search.FileSearchRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.elasticsearch.annotations.Mapping;
+import org.springframework.data.elasticsearch.annotations.Setting;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.core.query.AliasBuilder;
 import org.springframework.data.elasticsearch.core.query.AliasQuery;
@@ -21,7 +23,6 @@ import org.springframework.stereotype.Service;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Created by jeremie on 30/04/16.
@@ -73,7 +74,7 @@ public class CrawlerService {
                     aCrawler = new GitCrawler(repo);
                     break;
                 case SVN:
-                    aCrawler = new SVNCrawler(repo, klaskProperties, fileSearchRepository, elasticsearchTemplate);
+                    aCrawler = new SVNCrawler(repo, klaskProperties, fileSearchRepository, elasticsearchTemplate, repositoryRepository);
                     break;
                 case FILE_SYSTEM:
                 default:
@@ -112,28 +113,33 @@ public class CrawlerService {
     }
 
     public void createIndexes() {
-        Map<String, Object> mapping = elasticsearchTemplate.getMapping(File.class);
-        Map<String, Object> setting = elasticsearchTemplate.getSetting(File.class);
-        if (log.isDebugEnabled()) {
-            for (Map.Entry<String, Object> entry : mapping.entrySet()) {
-                log.debug("mapping {} : {}", entry.getKey(), entry.getValue());
-            }
-            for (Map.Entry<String, Object> entry : setting.entrySet()) {
-                log.debug("settings {} : {}", entry.getKey(), entry.getValue());
-            }
-        }
+        String mappingPath = File.class.getAnnotation(Mapping.class).mappingPath();
+        String mappings = ElasticsearchTemplate.readFileFromClasspath(mappingPath);
+        String settingPath = File.class.getAnnotation(Setting.class).settingPath();
+        String settings = ElasticsearchTemplate.readFileFromClasspath(settingPath);
+
+//        Map<String, Object> mapping = elasticsearchTemplate.getMapping(File.class);
+//        Map<String, Object> setting = elasticsearchTemplate.getSetting(File.class);
+//        if (log.isDebugEnabled()) {
+//            for (Map.Entry<String, Object> entry : mapping.entrySet()) {
+//                log.debug("mapping {} : {}", entry.getKey(), entry.getValue());
+//            }
+//            for (Map.Entry<String, Object> entry : setting.entrySet()) {
+//                log.debug("settings {} : {}", entry.getKey(), entry.getValue());
+//            }
+//        }
 
         if (elasticsearchTemplate.indexExists("file")) {
             elasticsearchTemplate.deleteIndex(File.class);
         }
 
         this.repositoryRepository.findAll().forEach(repository -> {
-            String indexName = "file" + repository.getId();
+            String indexName = "repo-klask-" + repository.getName() + "-" + repository.getId();
             if (elasticsearchTemplate.indexExists(indexName)) {
                 elasticsearchTemplate.deleteIndex(indexName);
             }
-            elasticsearchTemplate.createIndex(indexName, setting);
-            elasticsearchTemplate.putMapping(indexName, repository.getType().name(), mapping);
+            elasticsearchTemplate.createIndex(indexName, settings);
+            elasticsearchTemplate.putMapping(indexName, repository.getType().name(), mappings);
             elasticsearchTemplate.refresh(indexName);
             AliasQuery aliasQuery = new AliasBuilder()
                 .withIndexName(indexName)

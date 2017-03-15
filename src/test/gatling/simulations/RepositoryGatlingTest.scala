@@ -68,7 +68,7 @@ class RepositoryGatlingTest extends Simulation {
             .exec(http("Create new repository")
             .post("/api/repositories")
             .headers(headers_http_authenticated)
-            .body(StringBody("""{"id":null, "path":"SAMPLE_TEXT", "username":"SAMPLE_TEXT", "password":"SAMPLE_TEXT", "type":null}""")).asJSON
+            .body(StringBody("""{"id":null, "path":"SAMPLE_TEXT", "username":"SAMPLE_TEXT", "password":"SAMPLE_TEXT", "type":null, "name":"SAMPLE_TEXT", "revision":null}""")).asJSON
             .check(status.is(201))
             .check(headerRegex("Location", "(.*)").saveAs("new_repository_url"))).exitHereIfFailed
             .pause(10)

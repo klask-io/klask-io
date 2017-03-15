@@ -37,6 +37,14 @@
                 <constraints nullable="false"/>
             </column>
 
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="revision" type="bigint">
+                <constraints nullable="true"/>
+            </column>
+
             <!-- jhipster-needle-liquibase-add-column - Jhipster will add columns here, do not remove-->
         </createTable>
 

@@ -97,6 +97,8 @@
                                 username: null,
                                 password: null,
                                 type: null,
+                                name: null,
+                                revision: null,
                                 id: null
                             };
                         }

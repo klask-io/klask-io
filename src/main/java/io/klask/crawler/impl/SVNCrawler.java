@@ -4,8 +4,10 @@ import io.klask.config.KlaskProperties;
 import io.klask.crawler.CrawlerResult;
 import io.klask.crawler.ICrawler;
 import io.klask.crawler.svn.SVNVisitorCrawler;
+import io.klask.crawler.svn.SvnProgressCanceller;
 import io.klask.domain.File;
 import io.klask.domain.Repository;
+import io.klask.repository.RepositoryRepository;
 import io.klask.repository.search.FileSearchRepository;
 import org.bouncycastle.jcajce.provider.digest.SHA256;
 import org.bouncycastle.util.encoders.Hex;
@@ -47,7 +49,9 @@ public class SVNCrawler implements ICrawler {
 
     private ElasticsearchTemplate elasticsearchTemplate;
 
+    //JPA Repository
     private FileSearchRepository fileSearchRepository;
+    private RepositoryRepository repositoriesRepository;
 
     private int numberOfFailedDocuments = 0;
 
@@ -56,6 +60,8 @@ public class SVNCrawler implements ICrawler {
     private boolean crawling = false;
 
     private boolean abortAsked = false;
+
+    private SvnProgressCanceller svnProgressCanceller = new SvnProgressCanceller();
 
     private Set<File> listeDeFichiers = new HashSet<>();
 
@@ -73,11 +79,13 @@ public class SVNCrawler implements ICrawler {
      *
      * @param repo - the repo is a SVN type repository
      */
-    public SVNCrawler(Repository repo, KlaskProperties klaskProperties, FileSearchRepository fileSearchRepository, ElasticsearchTemplate elasticsearchTemplate) {
+    public SVNCrawler(Repository repo, KlaskProperties klaskProperties, FileSearchRepository fileSearchRepository, ElasticsearchTemplate elasticsearchTemplate, RepositoryRepository repositoriesRepository) {
         this.repository = repo;
         this.klaskProperties = klaskProperties;
         this.fileSearchRepository = fileSearchRepository;
         this.elasticsearchTemplate = elasticsearchTemplate;
+        this.repositoriesRepository = repositoriesRepository;
+
     }
 
     public static String extractName(String path) {
@@ -130,49 +138,24 @@ public class SVNCrawler implements ICrawler {
             //our editor only stores properties of files and directories
             SVNVisitorCrawler editor = new SVNVisitorCrawler(this);
             //run an update-like request which never receives any real file deltas
+            this.svnRepository.setCanceller(this.svnProgressCanceller);
             this.svnRepository.update(lastRevision, null, true, reporter, editor);
 
+
             addUpdatedFiles(editor.getUpdatedFiles());
-
             indexingBulkFiles();
-
             deleteFiles(editor.getDeletedFiles());
 
-//            //now iterate over file and directory properties and print them out to the console
-//            Map dirProps = editor.getDirsToProps();
-//            for (Iterator dirPathsIter = dirProps.keySet().iterator(); dirPathsIter.hasNext();) {
-//                String path = (String) dirPathsIter.next();
-//                Map props = (Map) dirProps.get(path);
-//                System.out.println("Directory '" + path + "' has the following properties:");
-//                for (Iterator propNamesIter = props.keySet().iterator(); propNamesIter.hasNext();) {
-//                    String propName = (String) propNamesIter.next();
-//                    SVNPropertyValue propValue = (SVNPropertyValue) props.get(propName);
-//                    System.out.println("  '" + propName + "' = '" + SVNPropertyValue.getPropertyAsString(propValue) + "'");
-//                }
-//                System.out.println();
-//            }
-//
-//            Map fileProps = editor.getFilesToProps();
-//            for (Iterator filePathsIter = fileProps.keySet().iterator(); filePathsIter.hasNext();) {
-//                String path = (String) filePathsIter.next();
-//                Map props = (Map) fileProps.get(path);
-//                System.out.println("File '" + path + "' has the following properties:");
-//                for (Iterator propNamesIter = props.keySet().iterator(); propNamesIter.hasNext();) {
-//                    String propName = (String) propNamesIter.next();
-//                    SVNPropertyValue propValue = (SVNPropertyValue) props.get(propName);
-//                    System.out.println("  '" + propName + "' = '" + SVNPropertyValue.getPropertyAsString(propValue) + "'");
-//                }
-//                System.out.println();
-//            }
 
+            //everything goes ok, so let's save the new revision with JPA
+            //repository = repositoriesRepository.findOne(repository.getId());
+            repository.setRevision(lastRevision);
+            repositoriesRepository.save(repository);
 
-
-
-//            if (nodeKind == SVNNodeKind.DIR) {
-//                readInDepthSVN("");
-//            }
             log.info("Finish parsing files in {} (r{})", this.repository.getPath(), lastRevision);
 
+        } catch (final SVNCancelException e) {
+            log.warn("Operation cancelled by user");
         } catch (final SVNException e) {
             log.error("Exception in SVN crawler", e);
         } finally {
@@ -283,9 +266,6 @@ public class SVNCrawler implements ICrawler {
 
         //Set up connection protocols support:
         if (this.svnRepository == null && this.repository != null && this.repository.getPath() != null) {
-
-
-
             //http:// and https://
             if (this.repository.getPath().toLowerCase().startsWith("http")) {
                 DAVRepositoryFactory.setup();
@@ -340,7 +320,7 @@ public class SVNCrawler implements ICrawler {
     @Override
     public void stop() {
         log.debug("indexing SVN aborted by user ");
-        this.abortAsked=true;
+        this.svnProgressCanceller.setAbortAsked(true);
     }
 
     @Override
@@ -523,5 +503,9 @@ public class SVNCrawler implements ICrawler {
         } else {
             return true;
         }
+    }
+
+    public SvnProgressCanceller getSvnProgressCanceller() {
+        return this.svnProgressCanceller;
     }
 }
