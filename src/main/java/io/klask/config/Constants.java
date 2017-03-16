@@ -24,8 +24,10 @@ public final class Constants {
     public static final String SPRING_PROFILE_NO_LIQUIBASE = "no-liquibase";
     // Account system
     public static final String SYSTEM_ACCOUNT = "system";
-    // Index name in elasticsearch
+    // Default index name in elasticsearch
     public static final String INDEX_NAME = "file";
+    // Index prefix for creation, alias will be used then
+    public static final String INDEX_PREFIX = "repo-klask-";
     // Type in elasticsearch
     public static final String TYPE_NAME = "file";
     // Parameter 'index.max_result_window' in elasticsearch

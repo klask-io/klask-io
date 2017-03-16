@@ -129,12 +129,13 @@ public class CrawlerService {
 //            }
 //        }
 
-        if (elasticsearchTemplate.indexExists("file")) {
+        //delete default index named "file"
+        if (elasticsearchTemplate.indexExists(Constants.INDEX_NAME)) {
             elasticsearchTemplate.deleteIndex(File.class);
         }
 
         this.repositoryRepository.findAll().forEach(repository -> {
-            String indexName = "repo-klask-" + repository.getName() + "-" + repository.getId();
+            String indexName = Constants.INDEX_PREFIX + repository.getName() + "-" + repository.getId();
             if (elasticsearchTemplate.indexExists(indexName)) {
                 elasticsearchTemplate.deleteIndex(indexName);
             }

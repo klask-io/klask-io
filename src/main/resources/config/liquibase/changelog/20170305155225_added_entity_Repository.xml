@@ -38,7 +38,7 @@
             </column>
 
             <column name="name" type="varchar(255)">
-                <constraints nullable="false"/>
+                <constraints nullable="false" unique="true" uniqueConstraintName="UNIQ_REPOSITORY_NAME"/>
             </column>
 
             <column name="revision" type="bigint">
@@ -48,5 +48,13 @@
             <!-- jhipster-needle-liquibase-add-column - Jhipster will add columns here, do not remove-->
         </createTable>
 
+        <addUniqueConstraint columnNames="name"
+                             constraintName="const_name"
+                             deferrable="true"
+                             disabled="true"
+                             initiallyDeferred="true"
+
+                             tableName="repository"
+        />
     </changeSet>
 </databaseChangeLog>

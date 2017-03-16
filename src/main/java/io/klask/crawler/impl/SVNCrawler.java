@@ -1,5 +1,6 @@
 package io.klask.crawler.impl;
 
+import io.klask.config.Constants;
 import io.klask.config.KlaskProperties;
 import io.klask.crawler.CrawlerResult;
 import io.klask.crawler.ICrawler;
@@ -105,7 +106,8 @@ public class SVNCrawler implements ICrawler {
             //this.originRevision = 206361;
             //this.lastRevision = this.svnRepository.getLatestRevision();
 
-            this.originRevision = 0;
+            repository = repositoriesRepository.findOne(repository.getId());
+            this.originRevision = repository.getRevision() != null ? repository.getRevision() : 0;
             this.lastRevision = this.svnRepository.getLatestRevision();
 
             boolean startEmpty = (originRevision == 0);
@@ -424,10 +426,14 @@ public class SVNCrawler implements ICrawler {
         log.trace("indexing bulk files : {}", listeDeFichiers);
         try {
             //fileSearchRepository.save(listeDeFichiers);
+            if (listeDeFichiers.isEmpty()) {
+                log.info("no files to index");
+                return;
+            }
             List<IndexQuery> queriesList = new ArrayList<>(listeDeFichiers.size());
             for (File file : listeDeFichiers) {
                 IndexQuery query = new IndexQueryBuilder()
-                    .withIndexName("file" + repository.getId())
+                    .withIndexName(Constants.INDEX_PREFIX + repository.getName() + "-" + repository.getId())
                     .withObject(file)
                     .withType(repository.getType().name())
                     .build();

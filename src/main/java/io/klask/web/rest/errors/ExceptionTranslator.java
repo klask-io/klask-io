@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.ResponseEntity.BodyBuilder;
@@ -82,6 +83,13 @@ public class ExceptionTranslator {
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     public ErrorDTO processMethodNotSupportedException(HttpRequestMethodNotSupportedException exception) {
         return new ErrorDTO(ErrorConstants.ERR_METHOD_NOT_SUPPORTED, exception.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseBody
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorDTO processDataIntegrityViolationException(DataIntegrityViolationException exception) {
+        return new ErrorDTO("Data integrity violation", exception.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
