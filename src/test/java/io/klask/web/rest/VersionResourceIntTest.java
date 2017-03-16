@@ -77,6 +77,7 @@ public class VersionResourceIntTest {
         this.restFileMockMvc = MockMvcBuilders.standaloneSetup(versionResource)
             .setCustomArgumentResolvers(pageableArgumentResolver)
             .setMessageConverters(jacksonMessageConverter).build();
+
     }
 
     @Before

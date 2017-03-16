@@ -20,5 +20,5 @@ public interface CustomSearchRepository {
 
     Page<File> customfindAll(Pageable pageable, List<String> version, List<String> project, List<String> extension);
 
-
+    File findOne(String id);
 }

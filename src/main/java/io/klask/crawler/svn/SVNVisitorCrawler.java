@@ -9,6 +9,7 @@ import org.tmatesoft.svn.core.SVNCommitInfo;
 import org.tmatesoft.svn.core.SVNException;
 import org.tmatesoft.svn.core.SVNProperty;
 import org.tmatesoft.svn.core.SVNPropertyValue;
+import org.tmatesoft.svn.core.internal.util.SVNPathUtil;
 import org.tmatesoft.svn.core.internal.wc.SVNFileUtil;
 import org.tmatesoft.svn.core.io.ISVNEditor;
 import org.tmatesoft.svn.core.io.diff.SVNDeltaProcessor;
@@ -95,14 +96,18 @@ public class SVNVisitorCrawler implements ISVNEditor {
     //in the closeFile, the param md5Checksum give the MD5 check sum
     @Override
     public void closeFile(String path, String md5Checksum) throws SVNException {
-        log.trace("closeFile {}:{}", path, md5Checksum);
         if(skip)return;
+        log.trace("closeFile {}:{}", path, md5Checksum);
         if (currentFileExcluded) {
             return;
         }
-        if (currentFileReadable) {
-            currentFile.setContent(new String(outputStream.toByteArray(), Charset.forName("iso-8859-1")));
-
+        try {
+            if (currentFileReadable) {
+                currentFile.setContent(new String(outputStream.toByteArray(), Charset.forName("iso-8859-1")));
+            }
+        }
+        catch(OutOfMemoryError exception){
+            log.error("OutOfMemoryException on file {}",path,exception);
         }
         currentFile.setSize(currentSize);//TODO fix the int => long problem
         currentFile.setProject(currentProject);
@@ -113,6 +118,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public void deleteEntry(String path, long revision) throws SVNException {
+        if(skip)return;
         log.trace("deleteEntry {} : {}", path, revision);
         deletedFiles.put(this.svnCrawler.getRepository().getPath() + "/" + path, revision);
     }
@@ -126,8 +132,8 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public void applyTextDelta(String path, String baseChecksum) throws SVNException {
-        log.trace("applyTextDelta {} ck {}", path, baseChecksum);
         if(skip)return;
+        log.trace("applyTextDelta {} ck {}", path, baseChecksum);
         if (!currentFileExcluded && currentFileReadable) {
             myDeltaProcessor.applyTextDelta(null, outputStream, false);
         }
@@ -135,8 +141,8 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public OutputStream textDeltaChunk(String path, SVNDiffWindow diffWindow) throws SVNException {
+        if(skip)return SVNFileUtil.DUMMY_OUT;
         log.trace("textDeltaChunk {}:{}", path, diffWindow);
-        if(skip)return null;
         currentSize = diffWindow.getTargetViewLength();
         if (currentSize > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE) {
             currentFileReadable = false;
@@ -145,27 +151,12 @@ public class SVNVisitorCrawler implements ISVNEditor {
             return SVNFileUtil.DUMMY_OUT;
         }
         return myDeltaProcessor.textDeltaChunk( diffWindow );
-
-
-//        try {
-//            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//            diffWindow.writeTo(outputStream, false, true);
-//
-//            currentFile.setContent(new String(outputStream.toByteArray(), Charset.forName("iso-8859-1")));
-//            currentFile.setSize((long)diffWindow.getDataLength());//TODO fix the int => long problem
-//            return outputStream;
-//        }
-//        catch(Exception e){
-//            log.error("read failed on {}",path, e);
-//        }
-//
-//        return null;
     }
 
     @Override
     public void textDeltaEnd(String path) throws SVNException {
-        log.trace("textDeltaEnd {}", path);
         if(skip)return;
+        log.trace("textDeltaEnd {}", path);
         if (!currentFileExcluded && currentFileReadable) {
             myDeltaProcessor.textDeltaEnd();
         }
@@ -175,21 +166,25 @@ public class SVNVisitorCrawler implements ISVNEditor {
     public void addDir(String path, String copyFromPath, long copyFromRevision) throws SVNException {
         log.trace("addDir {}, copyFromPath={}, copyFromRevision={}", path, copyFromPath, copyFromRevision);
         if (path != null) {
-            if (path.endsWith("tags")) {
-                skip = true;
+            if (path.endsWith("/tags")) {
+                //if path end with /tags, it shouldn't contains "trunk" or "branches" in the tail path like
+                // /http//myserver/svn/myproject/trunk/mymodule/tags
+                String tail = SVNPathUtil.removeTail(path);
+                if(tail.indexOf("/trunk") == -1 && tail.indexOf("/branches") == -1 && tail.indexOf("/tags") == -1) {
+                    skip = true;
+                }
             }
             if (currentProject == null && (path.endsWith("trunk") || path.endsWith("branches"))) {
                 String lastDir = myDirectoriesStack.peek();
                 this.currentProject = lastDir.substring(lastDir.lastIndexOf('/') + 1);
             }
 
-            if (myDirectoriesStack.peek().endsWith("branches")) {
+            if (myDirectoriesStack.peek().endsWith("/branches")  ) {
                 currentBranch = path.substring(path.lastIndexOf('/') + 1);
             }
-            if (myDirectoriesStack.peek().endsWith("trunk")) {
+            if (myDirectoriesStack.peek().endsWith("/trunk")) {
                 currentBranch = "trunk";
             }
-
         }
 
         String absoluteDirPath = "/" + path;
@@ -198,12 +193,11 @@ public class SVNVisitorCrawler implements ISVNEditor {
 
     @Override
     public void changeDirProperty(String name, SVNPropertyValue value) throws SVNException {
+        if(skip)return;
         //filter out svn:entry and svn:wc properties since we are interested in regular properties only
 //        if (!SVNProperty.isRegularProperty(name)) {
 //            return;
 //        }
-        if(skip)return;
-
 //        String currentDirPath = myDirectoriesStack.peek();
 //        Map props = (Map) myDirProps.get(currentDirPath);
 //        if (props == null) {
@@ -238,7 +232,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
             case "svn:entry:committed-rev":
                 break;
             case "svn:entry:uuid":
-                //on en fait rien
+                //we do nothing
                 break;
             default:
                 log.trace("new property {}={}", propertyName, propertyValue.getString());
@@ -259,11 +253,19 @@ public class SVNVisitorCrawler implements ISVNEditor {
         log.trace("closeDir {}", last);
         if (last != null) {
             if (last.endsWith("tags")) {
-                skip = false;
+                //if path end with /tags, it shouldn't contains "trunk" or "branches" in the tail path like
+                // /http//myserver/svn/myproject/trunk/mymodule/tags
+                String tail = SVNPathUtil.removeTail(last);
+                if(tail.indexOf("/trunk") == -1 && tail.indexOf("/branches") == -1 && tail.indexOf("/tags") == -1) {
+                    skip = false;
+                }
             }
             if (last.endsWith("branches") || last.endsWith("trunk")) {
-                currentProject = null;
-                currentBranch = null;
+                String tail = SVNPathUtil.removeTail(last);
+                if(tail.indexOf("/trunk") == -1 && tail.indexOf("/branches") == -1 && tail.indexOf("/tags") == -1) {
+                    currentProject = null;
+                    currentBranch = null;
+                }
             }
         }
 
@@ -276,7 +278,12 @@ public class SVNVisitorCrawler implements ISVNEditor {
         String absoluteDirPath = "/" + path;
         if (path != null) {
             if (path.endsWith("tags")) {
-                skip = true;
+                //if path end with /tags, it shouldn't contains "trunk" or "branches" in the tail path like
+                // /http//myserver/svn/myproject/trunk/mymodule/tags
+                String tail = SVNPathUtil.removeTail(path);
+                if(tail.indexOf("/trunk") == -1 && tail.indexOf("/branches") == -1 && tail.indexOf("/tags") == -1) {
+                    skip = true;
+                }
             }
             if (currentProject == null && (path.endsWith("trunk") || path.endsWith("branches"))) {
                 String lastDir = myDirectoriesStack.peek();

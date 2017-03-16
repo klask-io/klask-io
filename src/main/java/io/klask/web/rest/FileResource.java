@@ -147,7 +147,8 @@ public class FileResource {
     @Timed
     public ResponseEntity<FileDetailDTO> getFile(@PathVariable(required = true) String id) {
         log.debug("REST request to get File : {}", id);
-        File file = fileSearchRepository.findOne(id);
+
+        File file = customSearchRepository.findOne(id);
 
         //TODO vérifier que le fichier est readable (extraire la configuration dans des classes à part)
         //if( file != null && file is readable)

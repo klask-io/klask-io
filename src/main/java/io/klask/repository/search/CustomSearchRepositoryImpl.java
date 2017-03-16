@@ -7,6 +7,7 @@ import io.klask.repository.search.mapper.ResultHighlightMapper;
 import io.klask.repository.search.mapper.ResultTruncatedContentMapper;
 import io.klask.web.rest.util.Queries;
 import org.apache.commons.lang3.StringUtils;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -24,6 +25,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
+import org.springframework.data.elasticsearch.core.convert.ElasticsearchConverter;
+import org.springframework.data.elasticsearch.core.mapping.ElasticsearchPersistentEntity;
+import org.springframework.data.elasticsearch.core.query.GetQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 
@@ -125,11 +129,26 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         SearchHit[] hits = response.getHits().hits();
         ResultTruncatedContentMapper mapper = new ResultTruncatedContentMapper();
         return mapper.mapResults(response, File.class, nativeSearchQuery.getPageable());
-
 //        }
-
     }
 
+    @Override
+    public File findOne(String id) {
+        GetQuery getQuery = new GetQuery();
+        getQuery.setId(id);
+
+        ElasticsearchConverter converter = elasticsearchTemplate.getElasticsearchConverter();
+
+
+//        ElasticsearchPersistentEntity persistentEntity = converter.getMappingContext().getPersistentEntity(File.class);
+//
+//        GetResponse response = elasticsearchTemplate.getClient()
+//            .prepareGet(Constants.ALIAS, "*", id).execute()
+//            .actionGet();
+//        elasticsearchTemplate.map
+//        T entity = mapper.mapResult(response, clazz);
+        return elasticsearchTemplate.queryForObject(getQuery,File.class);
+    }
 
     @Override
     public Map<String, Long> aggregateByRawField(String field, String filtre) {
