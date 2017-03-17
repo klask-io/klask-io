@@ -98,11 +98,8 @@ private boolean skipTags = false;
     //in the closeFile, the param md5Checksum give the MD5 check sum
     @Override
     public void closeFile(String path, String md5Checksum) throws SVNException {
+        if(skipTags || currentFileExcluded)return;
         log.trace("closeFile {}:{}", path, md5Checksum);
-        if(skip)return;
-        if (currentFileExcluded) {
-            return;
-        }
         if (currentFileReadable) {
             currentFile.setContent(new String(outputStream.toByteArray(), Charset.forName("iso-8859-1")));
 
@@ -116,6 +113,7 @@ private boolean skipTags = false;
 
     @Override
     public void deleteEntry(String path, long revision) throws SVNException {
+        if(skipTags) return;
         log.trace("deleteEntry {} : {}", path, revision);
         deletedFiles.put(this.svnCrawler.getRepository().getPath() + "/" + path, revision);
     }
@@ -148,21 +146,6 @@ private boolean skipTags = false;
             return SVNFileUtil.DUMMY_OUT;
         }
         return myDeltaProcessor.textDeltaChunk( diffWindow );
-
-
-//        try {
-//            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//            diffWindow.writeTo(outputStream, false, true);
-//
-//            currentFile.setContent(new String(outputStream.toByteArray(), Charset.forName("iso-8859-1")));
-//            currentFile.setSize((long)diffWindow.getDataLength());//TODO fix the int => long problem
-//            return outputStream;
-//        }
-//        catch(Exception e){
-//            log.error("read failed on {}",path, e);
-//        }
-//
-//        return null;
     }
 
     @Override
@@ -187,7 +170,7 @@ private boolean skipTags = false;
                     skipTags = true;
                 }
             }
-            if (currentProject == null && (path.endsWith("trunk") || path.endsWith("branches"))) {
+            if (currentProject == null && (path.endsWith("/trunk") || path.endsWith("/branches"))) {
                 String lastDir = myDirectoriesStack.peek();
                 this.currentProject = lastDir.substring(lastDir.lastIndexOf('/') + 1);
             }
@@ -302,15 +285,15 @@ private boolean skipTags = false;
                     skipTags = true;
                 }
             }
-            if (currentProject == null && (path.endsWith("trunk") || path.endsWith("branches"))) {
+            if (currentProject == null && (path.endsWith("/trunk") || path.endsWith("/branches"))) {
                 String lastDir = myDirectoriesStack.peek();
                 this.currentProject = lastDir.substring(lastDir.lastIndexOf('/') + 1);
             }
 
-            if (myDirectoriesStack.peek().endsWith("branches")) {
+            if (myDirectoriesStack.peek().endsWith("/branches")) {
                 currentBranch = path.substring(path.lastIndexOf('/') + 1);
             }
-            if (myDirectoriesStack.peek().endsWith("trunk")) {
+            if (myDirectoriesStack.peek().endsWith("/trunk")) {
                 currentBranch = "trunk";
             }
 

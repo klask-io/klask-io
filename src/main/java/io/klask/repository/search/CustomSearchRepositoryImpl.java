@@ -27,9 +27,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.core.convert.ElasticsearchConverter;
 import org.springframework.data.elasticsearch.core.mapping.ElasticsearchPersistentEntity;
-import org.springframework.data.elasticsearch.core.query.GetQuery;
-import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
-import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
+import org.springframework.data.elasticsearch.core.query.*;
 
 import javax.inject.Inject;
 import java.util.Comparator;
@@ -134,12 +132,17 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
 
     @Override
     public File findOne(String id) {
-        GetQuery getQuery = new GetQuery();
-        getQuery.setId(id);
+        Criteria criteria = new Criteria("id");
+        criteria.is(id);
+        CriteriaQuery criteriaQuery = new CriteriaQuery(criteria);
+        criteriaQuery.addIndices(Constants.ALIAS);
+        criteriaQuery.addCriteria(criteria);
 
         ElasticsearchConverter converter = elasticsearchTemplate.getElasticsearchConverter();
 
-
+        StringQuery stringQuery = new StringQuery(QueryBuilders.termQuery("id", id).toString());
+        System.out.println("stringQuery:"+stringQuery);
+        stringQuery.addIndices(Constants.ALIAS);
 //        ElasticsearchPersistentEntity persistentEntity = converter.getMappingContext().getPersistentEntity(File.class);
 //
 //        GetResponse response = elasticsearchTemplate.getClient()
@@ -147,7 +150,8 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
 //            .actionGet();
 //        elasticsearchTemplate.map
 //        T entity = mapper.mapResult(response, clazz);
-        return elasticsearchTemplate.queryForObject(getQuery,File.class);
+        File retour = elasticsearchTemplate.queryForObject(stringQuery,File.class);
+        return retour;
     }
 
     @Override
