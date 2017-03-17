@@ -23,6 +23,17 @@
             "fieldValidateRules": [
                 "required"
             ]
+        },
+        {
+            "fieldName": "name",
+            "fieldType": "String",
+            "fieldValidateRules": [
+                "required"
+            ]
+        },
+        {
+            "fieldName": "revision",
+            "fieldType": "Long"
         }
     ],
     "changelogDate": "20170305155225",

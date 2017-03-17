@@ -43,10 +43,10 @@ public class RepositoryService {
     }
 
     /**
-     * Get all the repositories.
+     *  Get all the repositories.
      *
-     * @param pageable the pagination information
-     * @return the list of entities
+     *  @param pageable the pagination information
+     *  @return the list of entities
      */
     @Transactional(readOnly = true)
     public Page<Repository> findAll(Pageable pageable) {
@@ -56,10 +56,10 @@ public class RepositoryService {
     }
 
     /**
-     * Get one repository by id.
+     *  Get one repository by id.
      *
-     * @param id the id of the entity
-     * @return the entity
+     *  @param id the id of the entity
+     *  @return the entity
      */
     @Transactional(readOnly = true)
     public Repository findOne(Long id) {
@@ -69,9 +69,9 @@ public class RepositoryService {
     }
 
     /**
-     * Delete the  repository by id.
+     *  Delete the  repository by id.
      *
-     * @param id the id of the entity
+     *  @param id the id of the entity
      */
     public void delete(Long id) {
         log.debug("Request to delete Repository : {}", id);
@@ -82,8 +82,8 @@ public class RepositoryService {
     /**
      * Search for the repository corresponding to the query.
      *
-     * @param query the query of the search
-     * @return the list of entities
+     *  @param query the query of the search
+     *  @return the list of entities
      */
     @Transactional(readOnly = true)
     public Page<Repository> search(String query, Pageable pageable) {

@@ -1,5 +1,4 @@
 {
-    "file": {
         "properties": {
             "id": {
                 "type": "string",
@@ -82,5 +81,4 @@
                 "type": "long"
             }
         }
-    }
 }

@@ -49,6 +49,11 @@ public class RepositoryResourceIntTest {
 
     private static final RepositoryType DEFAULT_TYPE = RepositoryType.SVN;
     private static final RepositoryType UPDATED_TYPE = RepositoryType.FILE_SYSTEM;
+    private static final String DEFAULT_NAME = "AAAAA";
+    private static final String UPDATED_NAME = "BBBBB";
+
+    private static final Long DEFAULT_REVISION = 1L;
+    private static final Long UPDATED_REVISION = 2L;
 
     @Inject
     private RepositoryRepository repositoryRepository;
@@ -87,6 +92,8 @@ public class RepositoryResourceIntTest {
         repository.setUsername(DEFAULT_USERNAME);
         repository.setPassword(DEFAULT_PASSWORD);
         repository.setType(DEFAULT_TYPE);
+        repository.setName(DEFAULT_NAME);
+        repository.setRevision(DEFAULT_REVISION);
     }
 
     @Test
@@ -109,6 +116,8 @@ public class RepositoryResourceIntTest {
         assertThat(testRepository.getUsername()).isEqualTo(DEFAULT_USERNAME);
         assertThat(testRepository.getPassword()).isEqualTo(DEFAULT_PASSWORD);
         assertThat(testRepository.getType()).isEqualTo(DEFAULT_TYPE);
+        assertThat(testRepository.getName()).isEqualTo(DEFAULT_NAME);
+        assertThat(testRepository.getRevision()).isEqualTo(DEFAULT_REVISION);
 
         // Validate the Repository in ElasticSearch
         Repository repositoryEs = repositorySearchRepository.findOne(testRepository.getId());
@@ -153,6 +162,24 @@ public class RepositoryResourceIntTest {
 
     @Test
     @Transactional
+    public void checkNameIsRequired() throws Exception {
+        int databaseSizeBeforeTest = repositoryRepository.findAll().size();
+        // set the field null
+        repository.setName(null);
+
+        // Create the Repository, which fails.
+
+        restRepositoryMockMvc.perform(post("/api/repositories")
+            .contentType(TestUtil.APPLICATION_JSON_UTF8)
+            .content(TestUtil.convertObjectToJsonBytes(repository)))
+            .andExpect(status().isBadRequest());
+
+        List<Repository> repositories = repositoryRepository.findAll();
+        assertThat(repositories).hasSize(databaseSizeBeforeTest);
+    }
+
+    @Test
+    @Transactional
     public void getAllRepositories() throws Exception {
         // Initialize the database
         repositoryRepository.saveAndFlush(repository);
@@ -165,7 +192,9 @@ public class RepositoryResourceIntTest {
             .andExpect(jsonPath("$.[*].path").value(hasItem(DEFAULT_PATH.toString())))
             .andExpect(jsonPath("$.[*].username").value(hasItem(DEFAULT_USERNAME.toString())))
             .andExpect(jsonPath("$.[*].password").value(hasItem(DEFAULT_PASSWORD.toString())))
-            .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())));
+            .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())))
+            .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME.toString())))
+            .andExpect(jsonPath("$.[*].revision").value(hasItem(DEFAULT_REVISION.intValue())));
     }
 
     @Test
@@ -182,7 +211,9 @@ public class RepositoryResourceIntTest {
             .andExpect(jsonPath("$.path").value(DEFAULT_PATH.toString()))
             .andExpect(jsonPath("$.username").value(DEFAULT_USERNAME.toString()))
             .andExpect(jsonPath("$.password").value(DEFAULT_PASSWORD.toString()))
-            .andExpect(jsonPath("$.type").value(DEFAULT_TYPE.toString()));
+            .andExpect(jsonPath("$.type").value(DEFAULT_TYPE.toString()))
+            .andExpect(jsonPath("$.name").value(DEFAULT_NAME.toString()))
+            .andExpect(jsonPath("$.revision").value(DEFAULT_REVISION.intValue()));
     }
 
     @Test
@@ -208,6 +239,8 @@ public class RepositoryResourceIntTest {
         updatedRepository.setUsername(UPDATED_USERNAME);
         updatedRepository.setPassword(UPDATED_PASSWORD);
         updatedRepository.setType(UPDATED_TYPE);
+        updatedRepository.setName(UPDATED_NAME);
+        updatedRepository.setRevision(UPDATED_REVISION);
 
         restRepositoryMockMvc.perform(put("/api/repositories")
             .contentType(TestUtil.APPLICATION_JSON_UTF8)
@@ -222,6 +255,8 @@ public class RepositoryResourceIntTest {
         assertThat(testRepository.getUsername()).isEqualTo(UPDATED_USERNAME);
         assertThat(testRepository.getPassword()).isEqualTo(UPDATED_PASSWORD);
         assertThat(testRepository.getType()).isEqualTo(UPDATED_TYPE);
+        assertThat(testRepository.getName()).isEqualTo(UPDATED_NAME);
+        assertThat(testRepository.getRevision()).isEqualTo(UPDATED_REVISION);
 
         // Validate the Repository in ElasticSearch
         Repository repositoryEs = repositorySearchRepository.findOne(testRepository.getId());
@@ -264,6 +299,8 @@ public class RepositoryResourceIntTest {
             .andExpect(jsonPath("$.[*].path").value(hasItem(DEFAULT_PATH.toString())))
             .andExpect(jsonPath("$.[*].username").value(hasItem(DEFAULT_USERNAME.toString())))
             .andExpect(jsonPath("$.[*].password").value(hasItem(DEFAULT_PASSWORD.toString())))
-            .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())));
+            .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())))
+            .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME.toString())))
+            .andExpect(jsonPath("$.[*].revision").value(hasItem(DEFAULT_REVISION.intValue())));
     }
 }

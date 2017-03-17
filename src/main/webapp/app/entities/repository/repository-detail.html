@@ -1,3 +1,4 @@
+
 <div>
     <h2><span translate="klaskApp.repository.detail.title">Repository</span> {{vm.repository.id}}</h2>
     <hr>
@@ -18,6 +19,14 @@
         <dt><span translate="klaskApp.repository.type">Type</span></dt>
         <dd>
             <span translate="{{'klaskApp.RepositoryType.' + vm.repository.type}}">{{vm.repository.type}}</span>
+        </dd>
+        <dt><span translate="klaskApp.repository.name">Name</span></dt>
+        <dd>
+            <span>{{vm.repository.name}}</span>
+        </dd>
+        <dt><span translate="klaskApp.repository.revision">Revision</span></dt>
+        <dd>
+            <span>{{vm.repository.revision}}</span>
         </dd>
     </dl>
 
