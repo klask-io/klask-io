@@ -5,9 +5,7 @@ import io.klask.domain.Repository;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.*;
-import org.mockito.runners.MockitoJUnitRunner;
 import org.tmatesoft.svn.core.SVNException;
 import org.tmatesoft.svn.core.io.diff.SVNDeltaProcessor;
 
@@ -21,13 +19,16 @@ import java.io.OutputStream;
 public class SVNVisitorCrawlerTest {
 
     @Mock
-    private SVNDeltaProcessor svnDeltaProcessor = new SVNDeltaProcessor();
+    private SVNDeltaProcessor svnDeltaProcessor;
 
     @Mock
-    private static SVNCrawler svnCrawler;
+    private SvnProgressCanceller svnProgressCanceller;
+
+    @Mock
+    private SVNCrawler svnCrawler;
 
     @InjectMocks
-    private SVNVisitorCrawler svnVisitorCrawler = new SVNVisitorCrawler(svnCrawler);
+    private SVNVisitorCrawler svnVisitorCrawler = new SVNVisitorCrawler(svnCrawler, svnProgressCanceller);
 
 
 
@@ -47,13 +48,14 @@ public class SVNVisitorCrawlerTest {
     @Test
     public void checkDoubleSVNHierarchyInPath() throws SVNException {
         Repository repoMock = new Repository();
-        repoMock.setPath("svn:/localhost");
+        repoMock.setPath("svn://localhost");
         //when
         Mockito.when(svnCrawler.getRepository()).thenReturn(repoMock);
         Mockito.when(svnCrawler.isReadableExtension(Matchers.anyString())).thenReturn(true);
 
         this.svnVisitorCrawler.openRoot(1000);
         this.svnVisitorCrawler.addDir("/",null,-1);
+        this.svnVisitorCrawler.addDir("/localhost", null, -1);
         this.svnVisitorCrawler.addDir("/localhost/trunk",null,-1);
         this.svnVisitorCrawler.addDir("/localhost/trunk/project",null,-1);
         this.svnVisitorCrawler.addDir("/localhost/trunk/project/path",null,-1);

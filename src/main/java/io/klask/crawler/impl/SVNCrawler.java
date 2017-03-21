@@ -138,7 +138,7 @@ public class SVNCrawler implements ICrawler {
             };
 
             //our editor only stores properties of files and directories
-            SVNVisitorCrawler editor = new SVNVisitorCrawler(this);
+            SVNVisitorCrawler editor = new SVNVisitorCrawler(this, svnProgressCanceller);
             //run an update-like request which never receives any real file deltas
             this.svnRepository.setCanceller(this.svnProgressCanceller);
             this.svnRepository.update(lastRevision, null, true, reporter, editor);

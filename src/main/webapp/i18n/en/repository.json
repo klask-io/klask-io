@@ -21,7 +21,8 @@
             "password": "Password",
             "type": "Type",
             "name": "Name",
-            "revision": "Revision"
+            "revision": "Revision",
+            "schedule": "Schedule"
         }
     }
 }

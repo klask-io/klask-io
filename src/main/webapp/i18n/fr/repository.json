@@ -20,8 +20,9 @@
             "username": "Username",
             "password": "Password",
             "type": "Type",
-            "name": "Nom",
-            "revision": "Révision"
+            "name": "Name",
+            "revision": "Revision",
+            "schedule": "Schedule"
         }
     }
 }

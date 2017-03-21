@@ -44,6 +44,9 @@ public class Repository implements Serializable {
     @Column(name = "revision")
     private Long revision = 0L;
 
+    @Column(name = "schedule")
+    private String schedule;
+
     public Long getId() {
         return id;
     }
@@ -100,6 +103,14 @@ public class Repository implements Serializable {
         this.revision = revision;
     }
 
+    public String getSchedule() {
+        return schedule;
+    }
+
+    public void setSchedule(String schedule) {
+        this.schedule = schedule;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -130,6 +141,7 @@ public class Repository implements Serializable {
             ", type='" + type + "'" +
             ", name='" + name + "'" +
             ", revision='" + revision + "'" +
+            ", schedule='" + schedule + "'" +
             '}';
     }
 }

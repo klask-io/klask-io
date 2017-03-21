@@ -54,6 +54,8 @@ public class RepositoryResourceIntTest {
 
     private static final Long DEFAULT_REVISION = 1L;
     private static final Long UPDATED_REVISION = 2L;
+    private static final String DEFAULT_SCHEDULE = "AAAAA";
+    private static final String UPDATED_SCHEDULE = "BBBBB";
 
     @Inject
     private RepositoryRepository repositoryRepository;
@@ -94,6 +96,7 @@ public class RepositoryResourceIntTest {
         repository.setType(DEFAULT_TYPE);
         repository.setName(DEFAULT_NAME);
         repository.setRevision(DEFAULT_REVISION);
+        repository.setSchedule(DEFAULT_SCHEDULE);
     }
 
     @Test
@@ -118,6 +121,7 @@ public class RepositoryResourceIntTest {
         assertThat(testRepository.getType()).isEqualTo(DEFAULT_TYPE);
         assertThat(testRepository.getName()).isEqualTo(DEFAULT_NAME);
         assertThat(testRepository.getRevision()).isEqualTo(DEFAULT_REVISION);
+        assertThat(testRepository.getSchedule()).isEqualTo(DEFAULT_SCHEDULE);
 
         // Validate the Repository in ElasticSearch
         Repository repositoryEs = repositorySearchRepository.findOne(testRepository.getId());
@@ -194,7 +198,8 @@ public class RepositoryResourceIntTest {
             .andExpect(jsonPath("$.[*].password").value(hasItem(DEFAULT_PASSWORD.toString())))
             .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())))
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME.toString())))
-            .andExpect(jsonPath("$.[*].revision").value(hasItem(DEFAULT_REVISION.intValue())));
+            .andExpect(jsonPath("$.[*].revision").value(hasItem(DEFAULT_REVISION.intValue())))
+            .andExpect(jsonPath("$.[*].schedule").value(hasItem(DEFAULT_SCHEDULE.toString())));
     }
 
     @Test
@@ -213,7 +218,8 @@ public class RepositoryResourceIntTest {
             .andExpect(jsonPath("$.password").value(DEFAULT_PASSWORD.toString()))
             .andExpect(jsonPath("$.type").value(DEFAULT_TYPE.toString()))
             .andExpect(jsonPath("$.name").value(DEFAULT_NAME.toString()))
-            .andExpect(jsonPath("$.revision").value(DEFAULT_REVISION.intValue()));
+            .andExpect(jsonPath("$.revision").value(DEFAULT_REVISION.intValue()))
+            .andExpect(jsonPath("$.schedule").value(DEFAULT_SCHEDULE.toString()));
     }
 
     @Test
@@ -241,6 +247,7 @@ public class RepositoryResourceIntTest {
         updatedRepository.setType(UPDATED_TYPE);
         updatedRepository.setName(UPDATED_NAME);
         updatedRepository.setRevision(UPDATED_REVISION);
+        updatedRepository.setSchedule(UPDATED_SCHEDULE);
 
         restRepositoryMockMvc.perform(put("/api/repositories")
             .contentType(TestUtil.APPLICATION_JSON_UTF8)
@@ -257,6 +264,7 @@ public class RepositoryResourceIntTest {
         assertThat(testRepository.getType()).isEqualTo(UPDATED_TYPE);
         assertThat(testRepository.getName()).isEqualTo(UPDATED_NAME);
         assertThat(testRepository.getRevision()).isEqualTo(UPDATED_REVISION);
+        assertThat(testRepository.getSchedule()).isEqualTo(UPDATED_SCHEDULE);
 
         // Validate the Repository in ElasticSearch
         Repository repositoryEs = repositorySearchRepository.findOne(testRepository.getId());
@@ -301,6 +309,7 @@ public class RepositoryResourceIntTest {
             .andExpect(jsonPath("$.[*].password").value(hasItem(DEFAULT_PASSWORD.toString())))
             .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())))
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME.toString())))
-            .andExpect(jsonPath("$.[*].revision").value(hasItem(DEFAULT_REVISION.intValue())));
+            .andExpect(jsonPath("$.[*].revision").value(hasItem(DEFAULT_REVISION.intValue())))
+            .andExpect(jsonPath("$.[*].schedule").value(hasItem(DEFAULT_SCHEDULE.toString())));
     }
 }

@@ -99,6 +99,7 @@
                                 type: null,
                                 name: null,
                                 revision: null,
+                                schedule: null,
                                 id: null
                             };
                         }

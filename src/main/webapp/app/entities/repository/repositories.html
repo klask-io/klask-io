@@ -50,6 +50,8 @@
                     class="glyphicon glyphicon-sort"></span></th>
                 <th jh-sort-by="revision"><span translate="klaskApp.repository.revision">Revision</span> <span
                     class="glyphicon glyphicon-sort"></span></th>
+                <th jh-sort-by="schedule"><span translate="klaskApp.repository.schedule">Schedule</span> <span
+                    class="glyphicon glyphicon-sort"></span></th>
                 <th></th>
             </tr>
             </thead>
@@ -62,6 +64,7 @@
                 <td translate="{{'klaskApp.RepositoryType.' + repository.type}}">{{repository.type}}</td>
                 <td>{{repository.name}}</td>
                 <td>{{repository.revision}}</td>
+                <td>{{repository.schedule}}</td>
                 <td class="text-right">
                     <div class="btn-group flex-btn-group-container">
                         <button type="submit"

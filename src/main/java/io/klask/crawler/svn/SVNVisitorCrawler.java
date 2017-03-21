@@ -32,8 +32,8 @@ public class SVNVisitorCrawler implements ISVNEditor {
     SvnProgressCanceller svnProgressCanceller;
     private Stack<String> myDirectoriesStack = new Stack<>();
     private Map myDirProps = new HashMap();
-//    private Map myFileProps = new HashMap();
-private boolean skipTags = false;
+    //private Map myFileProps = new HashMap();
+    private boolean skipTags = false;
     private boolean currentFileReadable = false;
     private boolean currentFileExcluded = false;
     private long currentSize=-1;
@@ -47,9 +47,9 @@ private boolean skipTags = false;
     //if crawler get 'trunk', 'tags' or 'branches' the currentBranch is the directory just below
     private String currentBranch = null;
 
-    public SVNVisitorCrawler(SVNCrawler svnCrawler){
+    public SVNVisitorCrawler(SVNCrawler svnCrawler, SvnProgressCanceller svnProgressCanceller) {
         this.svnCrawler = svnCrawler;
-        this.svnProgressCanceller = this.svnCrawler.getSvnProgressCanceller();
+        this.svnProgressCanceller = svnProgressCanceller;
     }
 
     @Override
@@ -166,7 +166,7 @@ private boolean skipTags = false;
                 //if path end with /tags, it shouldn't contains "trunk" or "branches" in the tail path like
                 // /http//myserver/svn/myproject/trunk/mymodule/tags
                 String tail = SVNPathUtil.removeTail(path);
-                if(tail.indexOf("/trunk") == -1 && tail.indexOf("/branches") == -1 && tail.indexOf("/tags") == -1) {
+                if (!tail.contains("/trunk") && !tail.contains("/branches") && !tail.contains("/tags")) {
                     skipTags = true;
                 }
             }
@@ -255,13 +255,13 @@ private boolean skipTags = false;
                 //if path end with /tags, it shouldn't contains "trunk" or "branches" in the tail path like
                 // /http//myserver/svn/myproject/trunk/mymodule/tags
                 String tail = SVNPathUtil.removeTail(last);
-                if(tail.indexOf("/trunk") == -1 && tail.indexOf("/branches") == -1 && tail.indexOf("/tags") == -1) {
+                if (!tail.contains("/trunk") && !tail.contains("/branches") && !tail.contains("/tags")) {
                     skipTags = false;
                 }
             }
             if (last.endsWith("/branches") || last.endsWith("/trunk")) {
                 String tail = SVNPathUtil.removeTail(last);
-                if(tail.indexOf("/trunk") == -1 && tail.indexOf("/branches") == -1 && tail.indexOf("/tags") == -1) {
+                if (!tail.contains("/trunk") && !tail.contains("/branches") && !tail.contains("/tags")) {
                     currentProject = null;
                     currentBranch = null;
                 }
@@ -281,7 +281,7 @@ private boolean skipTags = false;
                 //if path end with /tags, it shouldn't contains "trunk" or "branches" in the tail path like
                 // /http//myserver/svn/myproject/trunk/mymodule/tags
                 String tail = SVNPathUtil.removeTail(path);
-                if(tail.indexOf("/trunk") == -1 && tail.indexOf("/branches") == -1 && tail.indexOf("/tags") == -1) {
+                if (!tail.contains("/trunk") && !tail.contains("/branches") && !tail.contains("/tags")) {
                     skipTags = true;
                 }
             }

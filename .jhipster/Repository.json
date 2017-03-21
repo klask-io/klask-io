@@ -34,6 +34,10 @@
         {
             "fieldName": "revision",
             "fieldType": "Long"
+        },
+        {
+            "fieldName": "schedule",
+            "fieldType": "String"
         }
     ],
     "changelogDate": "20170305155225",
