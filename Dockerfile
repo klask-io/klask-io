@@ -1,8 +1,10 @@
 FROM openjdk:8
 MAINTAINER Jérémie H.
 
-ENV JHIPSTER_SLEEP 0
-ENV SPRING_PROFILES_ACTIVE=prod,docker
+ENV SPRING_OUTPUT_ANSI_ENABLED=ALWAYS \
+    JHIPSTER_SLEEP=0 \
+    SPRING_PROFILES_ACTIVE=prod,docker \
+    JAVA_OPTS=""
 
 # add source
 ADD . /code/
@@ -23,4 +25,4 @@ EXPOSE 8080
 
 CMD echo "The application will start in ${JHIPSTER_SLEEP}s..." && \
     sleep ${JHIPSTER_SLEEP} && \
-    java -Djava.security.egd=file:/dev/./urandom -jar /app.war
+    java ${JAVA_OPTS} -Djava.security.egd=file:/dev/./urandom -jar /app.war
