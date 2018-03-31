@@ -291,8 +291,11 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
 
 
     private SearchRequestBuilder templateResponse() {
-        return elasticsearchTemplate.getClient().prepareSearch(Constants.ALIAS)
+        return elasticsearchTemplate.getClient()
+            .prepareSearch(Constants.ALIAS)
+            .setTypes(Constants.TYPE_NAME)
             //.setIndices(Constants.ALIAS)//using alias to query
-            .setTypes(RepositoryType.getAllTypes());//SVN, GIT, FILE_SYSTEM
+            //.setTypes(RepositoryType.getAllTypes())
+            ;//SVN, GIT, FILE_SYSTEM
     }
 }

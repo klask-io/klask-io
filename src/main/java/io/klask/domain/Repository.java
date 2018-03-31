@@ -1,5 +1,6 @@
 package io.klask.domain;
 
+import io.klask.config.Constants;
 import io.klask.domain.enumeration.RepositoryType;
 import org.springframework.data.elasticsearch.annotations.Document;
 

@@ -21,6 +21,7 @@ public class Queries {
         /*return QueryBuilders.queryStringQuery(query)
             .defaultOperator(QueryStringQueryBuilder.Operator.AND);*/
         return new NativeSearchQueryBuilder()
+
             .withQuery(
                 queryBuilder(query)
             )

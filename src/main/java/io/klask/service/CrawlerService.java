@@ -78,7 +78,7 @@ public class CrawlerService {
                     break;
                 case FILE_SYSTEM:
                 default:
-                    aCrawler = new FileSystemCrawler(repo.getPath(), klaskProperties, fileSearchRepository, elasticsearchTemplate);
+                    aCrawler = new FileSystemCrawler(repo, klaskProperties, fileSearchRepository, elasticsearchTemplate);
                     break;
 
             }

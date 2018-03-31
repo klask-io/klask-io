@@ -7,13 +7,17 @@ import io.klask.crawler.CrawlerResult;
 import io.klask.crawler.ICrawler;
 import io.klask.crawler.filesystem.FileSystemVisitorCrawler;
 import io.klask.domain.File;
+import io.klask.domain.Repository;
 import io.klask.repository.search.FileSearchRepository;
 import org.bouncycastle.jcajce.provider.digest.SHA256;
 import org.bouncycastle.util.encoders.Hex;
+import org.elasticsearch.common.lucene.search.Queries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.elasticsearch.ElasticsearchException;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
+import org.springframework.data.elasticsearch.core.query.IndexQuery;
+import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -21,9 +25,7 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Future;
 
 /**
@@ -33,10 +35,10 @@ public class FileSystemCrawler implements ICrawler {
 
     private final Logger log = LoggerFactory.getLogger(FileSystemCrawler.class);
     private Path rootPath;
+    private Repository repository;
     private FileSearchRepository fileSearchRepository;
     private KlaskProperties klaskProperties;
     private String before;
-    private String root;
     private boolean crawling=false;
     private long totalFiles=0L;
 
@@ -55,10 +57,10 @@ public class FileSystemCrawler implements ICrawler {
     //FileVisitor implementation where it is possible to stop if received the command
     private FileSystemVisitorCrawler visitor = new FileSystemVisitorCrawler(this);
 
-    public FileSystemCrawler(String root, KlaskProperties klaskProperties, FileSearchRepository fileSearchRepository, ElasticsearchTemplate elasticsearchTemplate){
+    public FileSystemCrawler(Repository repository, KlaskProperties klaskProperties, FileSearchRepository fileSearchRepository, ElasticsearchTemplate elasticsearchTemplate){
         super();
-        this.root = root;
-        this.rootPath = new java.io.File(this.root).toPath();
+        this.repository = repository;
+        this.rootPath = new java.io.File(repository.getPath()).toPath();
         this.result = null;
         this.klaskProperties = klaskProperties;
         this.fileSearchRepository = fileSearchRepository;
@@ -85,7 +87,7 @@ public class FileSystemCrawler implements ICrawler {
     @Timed
     public CrawlerResult start() {
         this.crawling=true;
-        log.debug("Start Parsing files in {}", root);
+        log.debug("Start Parsing files in {}", this.repository.getPath());
 
         directoriesToExcludeSet.clear();
         directoriesToExcludeSet.addAll(klaskProperties.getCrawler().getDirectoriesToExclude());
@@ -145,7 +147,7 @@ public class FileSystemCrawler implements ICrawler {
         if (numberOfFailedDocuments > 0) {
             log.error("{} files with indexing errors", numberOfFailedDocuments);
         }
-        log.debug("Finish to parse files in {}", this.root);
+        log.debug("Finish to parse files in {}", this.repository.getPath());
         return new CrawlerResult();
     }
 
@@ -223,7 +225,18 @@ public class FileSystemCrawler implements ICrawler {
     private void indexingBulkFiles() {
         log.trace("indexing bulk files : {}", listeDeFichiers);
         try {
-            fileSearchRepository.save(listeDeFichiers);
+            //fileSearchRepository.save(listeDeFichiers);
+
+            String indexName = Constants.INDEX_PREFIX + repository.getName() + "-" + repository.getId();
+            List<IndexQuery> queries = new ArrayList<>();
+            for (File f:listeDeFichiers) {
+                IndexQuery b = new IndexQueryBuilder()
+                .withIndexName(indexName)
+                .withObject(f).build();
+                queries.add(b);
+            }
+            elasticsearchTemplate.bulkIndex(queries);
+
         } catch (ElasticsearchException e) {
             log.error("Exception while indexing file -- getting file's list...");
             Set<String> failedDocuments = e.getFailedDocuments().keySet();
