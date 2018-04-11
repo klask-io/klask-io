@@ -18,6 +18,7 @@ import org.tmatesoft.svn.core.io.diff.SVNDiffWindow;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
@@ -78,10 +79,10 @@ public class SVNVisitorCrawler implements ISVNEditor {
     @Override
     public void addFile(String path, String copyFromPath, long copyFromRevision) throws SVNException {
         if (skipTags) return;
-        log.trace("addFile {}, copyFromPath={}, copyFromRevision={}", path, copyFromPath, copyFromRevision);
+        log.trace("addFileInCurrentBranch {}, copyFromPath={}, copyFromRevision={}", path, copyFromPath, copyFromRevision);
         outputStream.reset();
         currentFileReadable = this.svnCrawler.isReadableExtension(path);
-        currentFileExcluded = this.svnCrawler.isFileInExclusion(path);
+        currentFileExcluded = this.svnCrawler.isFileInExclusion(Paths.get(path));
         if (!currentFileExcluded) {
             currentFile = this.svnCrawler.createFile(path);
         } else {

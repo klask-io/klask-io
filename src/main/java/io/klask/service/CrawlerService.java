@@ -71,7 +71,7 @@ public class CrawlerService {
             ICrawler aCrawler;
             switch (repo.getType()) {
                 case GIT:
-                    aCrawler = new GitCrawler(repo);
+                    aCrawler = new GitCrawler(repo, klaskProperties, elasticsearchTemplate);
                     break;
                 case SVN:
                     aCrawler = new SVNCrawler(repo, klaskProperties, fileSearchRepository, elasticsearchTemplate, repositoryRepository);

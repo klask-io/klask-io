@@ -1,5 +1,6 @@
 package io.klask.web.rest.util;
 
+import io.klask.config.Constants;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.client.Client;

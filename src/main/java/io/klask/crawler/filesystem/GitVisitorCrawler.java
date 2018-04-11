@@ -1,7 +1,6 @@
 package io.klask.crawler.filesystem;
 
-import io.klask.crawler.impl.FileSystemCrawler;
-import io.klask.crawler.impl.GenericCrawler;
+import io.klask.crawler.impl.GitCrawler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,17 +13,19 @@ import java.nio.file.attribute.BasicFileAttributes;
 /**
  * Created by jeremie on 18/02/17.
  */
-public class FileSystemVisitorCrawler extends SimpleFileVisitor<Path> {
+public class GitVisitorCrawler extends SimpleFileVisitor<Path> {
 
-    private final Logger log = LoggerFactory.getLogger(FileSystemVisitorCrawler.class);
+    private final Logger log = LoggerFactory.getLogger(GitVisitorCrawler.class);
 
-    private FileSystemCrawler crawler;
+    private GitCrawler crawler;
 
     private boolean abortAsked=false;
 
     private long indexedFiles=0;
 
-    public FileSystemVisitorCrawler(FileSystemCrawler crawler){
+    String currentBranch="EMPTY_BRANCH";
+
+    public GitVisitorCrawler(GitCrawler crawler){
         this.crawler = crawler;
     }
 
@@ -47,7 +48,7 @@ public class FileSystemVisitorCrawler extends SimpleFileVisitor<Path> {
         log.trace("visitFile {}",path);
         if(attrs.isRegularFile() && !this.crawler.isFileInExclusion(path)) {
             this.indexedFiles++;
-            this.crawler.addFile(path);
+            this.crawler.addFileInCurrentBranch(path, currentBranch);
         }
         else{
             log.trace("exclude file {}",path);
@@ -75,5 +76,9 @@ public class FileSystemVisitorCrawler extends SimpleFileVisitor<Path> {
 
     public long getIndexedFiles() {
         return indexedFiles;
+    }
+
+    public void setCurrentBranch(String currentBranch) {
+        this.currentBranch = currentBranch;
     }
 }

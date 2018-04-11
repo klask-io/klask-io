@@ -29,6 +29,8 @@ public class KlaskProperties {
 
         private List<String> directoriesToScan = new ArrayList<>();//Arrays.asList(".");
 
+        private String workingDirectory = new String();
+
         private List<String> directoriesToExclude = new ArrayList<>();//Arrays.asList(".svn");
 
         private List<String> extensionsToExclude = new ArrayList<>();//Arrays.asList("sha1", "md5");
@@ -40,6 +42,14 @@ public class KlaskProperties {
         private List<String> extensionsToRead = new ArrayList<>();//Arrays.asList("java","txt","php","xml","properties");
 
         private int batchSize = 25;
+
+        public String getWorkingDirectory() {
+            return workingDirectory;
+        }
+
+        public void setWorkingDirectory(String workingDirectory) {
+            this.workingDirectory = workingDirectory;
+        }
 
         public List<String> getDirectoriesToScan() {
             return directoriesToScan;

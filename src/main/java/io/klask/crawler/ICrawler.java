@@ -4,6 +4,7 @@ import com.codahale.metrics.annotation.Timed;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.nio.file.Path;
 import java.util.concurrent.Future;
 
 /**
@@ -31,4 +32,6 @@ public interface ICrawler {
     long getIndexedFiles();
 
     long getTotalFiles();
+
+
 }

@@ -135,13 +135,12 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         Criteria criteria = new Criteria("id");
         criteria.is(id);
         CriteriaQuery criteriaQuery = new CriteriaQuery(criteria);
-        criteriaQuery.addIndices(Constants.ALIAS);
         criteriaQuery.addCriteria(criteria);
 
         ElasticsearchConverter converter = elasticsearchTemplate.getElasticsearchConverter();
 
         StringQuery stringQuery = new StringQuery(QueryBuilders.termQuery("id", id).toString());
-        System.out.println("stringQuery:"+stringQuery);
+        //System.out.println("stringQuery:"+stringQuery);
         stringQuery.addIndices(Constants.ALIAS);
 //        ElasticsearchPersistentEntity persistentEntity = converter.getMappingContext().getPersistentEntity(File.class);
 //
@@ -293,8 +292,8 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
     private SearchRequestBuilder templateResponse() {
         return elasticsearchTemplate.getClient()
             .prepareSearch(Constants.ALIAS)
-            .setTypes(Constants.TYPE_NAME)
-            //.setIndices(Constants.ALIAS)//using alias to query
+            //.setTypes(Constants.TYPE_NAME)
+            .setIndices(Constants.ALIAS)//using alias to query
             //.setTypes(RepositoryType.getAllTypes())
             ;//SVN, GIT, FILE_SYSTEM
     }

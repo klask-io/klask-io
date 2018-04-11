@@ -1,6 +1,5 @@
 package io.klask.crawler.impl;
 
-import io.klask.config.Constants;
 import io.klask.config.KlaskProperties;
 import io.klask.crawler.CrawlerResult;
 import io.klask.crawler.ICrawler;
@@ -10,14 +9,10 @@ import io.klask.domain.File;
 import io.klask.domain.Repository;
 import io.klask.repository.RepositoryRepository;
 import io.klask.repository.search.FileSearchRepository;
-import org.bouncycastle.jcajce.provider.digest.SHA256;
-import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.elasticsearch.ElasticsearchException;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
-import org.springframework.data.elasticsearch.core.query.IndexQuery;
-import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder;
 import org.tmatesoft.svn.core.*;
 import org.tmatesoft.svn.core.internal.io.dav.DAVRepositoryFactory;
 import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
@@ -29,34 +24,26 @@ import org.tmatesoft.svn.core.wc.SVNWCUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.Future;
 
 /**
  * Created by jeremie on 11/01/17.
  */
-public class SVNCrawler implements ICrawler {
+public class SVNCrawler extends GenericCrawler implements ICrawler {
 
     private final static Set<String> motsClefsSVN = new HashSet<>(Arrays.asList("trunk", "branches", "tags"));
 
     private final Logger log = LoggerFactory.getLogger(SVNCrawler.class);
-    //The associated repository like "svn://mysvnserver/myproject
-    private Repository repository;
 
     //not thread-safe, should not be used in multiples threads
     private SVNRepository svnRepository;
 
-    private ElasticsearchTemplate elasticsearchTemplate;
-
     //JPA Repository
     private FileSearchRepository fileSearchRepository;
     private RepositoryRepository repositoriesRepository;
-
-    private int numberOfFailedDocuments = 0;
-
-    private KlaskProperties klaskProperties;
 
     private boolean crawling = false;
 
@@ -64,34 +51,32 @@ public class SVNCrawler implements ICrawler {
 
     private SvnProgressCanceller svnProgressCanceller = new SvnProgressCanceller();
 
-    private Set<File> listeDeFichiers = new HashSet<>();
 
     //last revision on SVN
     private long lastRevision;
     private long originRevision;
 
-    private Set<String> directoriesToExcludeSet = new HashSet<>();
-    private Set<String> filesToExcludeSet = new HashSet<>();
-    private Set<String> extensionsToExcludeSet = new HashSet<>();
-    private Set<String> readableExtensionSet = new HashSet<>();
 
     /**
-     * Constructor
-     *
-     * @param repo - the repo is a SVN type repository
+     * constructor
+     * @param repository
+     * @param klaskProperties
+     * @param fileSearchRepository
+     * @param elasticsearchTemplate
+     * @param repositoriesRepository
      */
-    public SVNCrawler(Repository repo, KlaskProperties klaskProperties, FileSearchRepository fileSearchRepository, ElasticsearchTemplate elasticsearchTemplate, RepositoryRepository repositoriesRepository) {
-        this.repository = repo;
+    public SVNCrawler(Repository repository, KlaskProperties klaskProperties, FileSearchRepository fileSearchRepository, ElasticsearchTemplate elasticsearchTemplate, RepositoryRepository repositoriesRepository) {
+        super(repository, klaskProperties, elasticsearchTemplate);
         this.klaskProperties = klaskProperties;
         this.fileSearchRepository = fileSearchRepository;
-        this.elasticsearchTemplate = elasticsearchTemplate;
+
         this.repositoriesRepository = repositoriesRepository;
 
+
     }
 
-    public static String extractName(String path) {
-        return path.substring(path.lastIndexOf('/') + 1);
-    }
+
+
 
     @Override
     public CrawlerResult start() {
@@ -246,6 +231,8 @@ public class SVNCrawler implements ICrawler {
         }
     }
 
+
+
     /**
      * initialize the SVN repository with the protocols beginning in the URL
      */
@@ -377,93 +364,6 @@ public class SVNCrawler implements ICrawler {
 
     }
 
-    /**
-     * sha256 on the file's path. It should be the same, even after a full reindex
-     *
-     * @param path
-     * @return
-     * @throws UnsupportedEncodingException
-     */
-    private String convertSHA256(String path) throws UnsupportedEncodingException {
-        SHA256.Digest md = new SHA256.Digest();
-        md.update(path.toString().getBytes("UTF-8"));
-        return Hex.toHexString(md.digest());
-    }
-
-    /**
-     * Read the content of the file in the outputStream
-     *
-     * @return
-     * @throws IOException
-     */
-    private String readContent(ByteArrayOutputStream outputStream)  {
-        return new String(outputStream.toByteArray(), Charset.forName("iso-8859-1"));
-    }
-
-    private String extractExtension(String fileName, int posPoint) {
-        if (posPoint > 0) {
-            return fileName.substring(posPoint + 1, fileName.length()).toLowerCase();
-        }
-        //the file name doesn't contain a dot or the name is like ".project" so no extension
-        return "";
-    }
-
-    /**
-     * check the size of batch index, and index if necessary
-     */
-    private void indexBulkFilesIfNecessary() {
-        if (listeDeFichiers.size() > klaskProperties.getCrawler().getBatchSize()) {
-            indexingBulkFiles();
-            listeDeFichiers.clear();
-        }
-    }
-
-    /**
-     * Index a bulk of files (Constant default : 100)
-     *
-     */
-    private void indexingBulkFiles() {
-        log.trace("indexing bulk files : {}", listeDeFichiers);
-        try {
-            //fileSearchRepository.save(listeDeFichiers);
-            if (listeDeFichiers.isEmpty()) {
-                log.info("no files to index");
-                return;
-            }
-            List<IndexQuery> queriesList = new ArrayList<>(listeDeFichiers.size());
-            for (File file : listeDeFichiers) {
-                IndexQuery query = new IndexQueryBuilder()
-                    .withIndexName(Constants.INDEX_PREFIX + repository.getName() + "-" + repository.getId())
-                    .withObject(file)
-                    .withType(repository.getType().name())
-                    .build();
-                queriesList.add(query);
-            }
-            elasticsearchTemplate.bulkIndex(queriesList);
-
-        } catch (ElasticsearchException e) {
-            log.error("Exception while indexing file -- getting file's list...");
-            Set<String> failedDocuments = e.getFailedDocuments().keySet();
-            numberOfFailedDocuments += failedDocuments.size();
-            listeDeFichiers.stream()
-                .filter(f -> failedDocuments.contains(f.getId()))
-                .forEach(file -> log.error("Exception while indexing file {}, {}", file.getPath(), e.getFailedDocuments().get(file.getId())));
-        } catch (OutOfMemoryError e) {
-            log.error("OutOfMemory while indexing one file of the following files :");
-            StringBuilder sb = new StringBuilder();
-            listeDeFichiers
-                .forEach(file -> sb.append(file.getPath() + ","));
-            log.error(sb.toString());
-            listeDeFichiers.clear();
-        } catch (Exception e) {
-            log.error("elasticsearch node is not avaible, waiting 10s and continue", e);
-            try {
-                Thread.sleep(10000);
-            } catch (Exception ee) {
-                log.error("Error while Thread.sleep", e);
-            }
-        }
-    }
 
     public Repository getRepository() {
         return repository;
@@ -473,45 +373,10 @@ public class SVNCrawler implements ICrawler {
         this.repository = repository;
     }
 
-    /**
-     * the dir parameter need to be a directory
-     * return true if the directory is in exclusion list
-     * used by {@code SVNVisitorCrawler}
-     *
-     * @param path
-     * @return
-     */
-    public boolean isDirectoryInExclusion(String path) {
-        return directoriesToExcludeSet.contains(extractName(path));
-    }
 
-    /**
-     * the parameter need to be a file, not a directory. It's used in {@code SVNVisitorCrawler}
-     *
-     * @param path
-     * @return
-     */
-    public boolean isFileInExclusion(String path) {
-        String fileName = extractName(path);
-        return
-            filesToExcludeSet.contains(fileName) || fileName.endsWith("~") ||
-                extensionsToExcludeSet.contains(extractExtension(fileName, fileName.lastIndexOf(".")));
-    }
-
-    public boolean isReadableExtension(String path) {
-        String fileName = extractName(path);
-        String extension = extractExtension(fileName, fileName.lastIndexOf("."));
-        if ((!readableExtensionSet.contains(extension) && !"".equals(extension))
-            //|| size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE
-            ) {
-            log.trace("parsing only name on file : {}", path);
-            return false;
-        } else {
-            return true;
-        }
-    }
 
     public SvnProgressCanceller getSvnProgressCanceller() {
         return this.svnProgressCanceller;
     }
+
 }

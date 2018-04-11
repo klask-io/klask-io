@@ -18,7 +18,8 @@ spring:
         livereload:
             enabled: false # we use gulp + BrowserSync for livereload
     datasource:
-        url: jdbc:h2:mem:klask;DB_CLOSE_DELAY=-1
+        #url: jdbc:h2:mem:klask;DB_CLOSE_DELAY=-1
+        url: jdbc:h2:./target/h2-bdd:klask;DB_CLOSE_DELAY=-1
         name:
         username: klask
         password:
