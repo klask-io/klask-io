@@ -162,7 +162,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
             // (voir : https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-terms-aggregation.html#_size)
             .order(Terms.Order.aggregation("_count", false));
 
-        SearchResponse response = createResponse(filtre, aggregation);
+        SearchResponse response = createResponseForAggregate(filtre, aggregation);
 
         Map<String, Aggregation> results = response.getAggregations().asMap();
         StringTerms topField = (StringTerms) results.get("top_" + field);
@@ -271,10 +271,13 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
      * @param aggregation
      * @return
      */
-    private SearchResponse createResponse(String query, TermsBuilder aggregation) {
+    private SearchResponse createResponseForAggregate(String query, TermsBuilder aggregation) {
         SearchResponse response;
         if (StringUtils.isNotEmpty(query)) {
             response = this.templateResponse()
+                .setSize(0)// pour l'aggrégation, on ne désire pas retourner les résultats contenu dans le hits, mais seulement l'aggrégation !
+                //attention, ce n'est pas le même size(0) qui se trouve dans l'aggrégation, qui permet lui de retourner l'ensemble des buckets sur tous les shards
+
                 //ici nous utilisons la même querybuilder que dans la recherche principale pour obtenir justement
                 //le même filtrage sur les versions courantes
                 .setQuery(Queries.constructQuery(query))
@@ -282,6 +285,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
                 .execute().actionGet();
         } else {
             response = this.templateResponse()
+                .setSize(0)
                 .addAggregation(aggregation)
                 .execute().actionGet();
         }
@@ -292,8 +296,8 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
     private SearchRequestBuilder templateResponse() {
         return elasticsearchTemplate.getClient()
             .prepareSearch(Constants.ALIAS)
-            //.setTypes(Constants.TYPE_NAME)
-            .setIndices(Constants.ALIAS)//using alias to query
+            .setTypes(Constants.TYPE_NAME)
+            //.setIndices(Constants.ALIAS)//using alias to query
             //.setTypes(RepositoryType.getAllTypes())
             ;//SVN, GIT, FILE_SYSTEM
     }

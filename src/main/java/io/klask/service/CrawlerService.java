@@ -140,7 +140,7 @@ public class CrawlerService {
                 elasticsearchTemplate.deleteIndex(indexName);
             }
             elasticsearchTemplate.createIndex(indexName, settings);
-            elasticsearchTemplate.putMapping(indexName, repository.getType().name(), mappings);
+            elasticsearchTemplate.putMapping(indexName, Constants.TYPE_NAME, mappings);
             elasticsearchTemplate.refresh(indexName);
             AliasQuery aliasQuery = new AliasBuilder()
                 .withIndexName(indexName)

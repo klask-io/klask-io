@@ -15,7 +15,7 @@ import java.util.Objects;
  * @author Jérémie Harel
  */
 
-@Document(indexName = Constants.INDEX_NAME, shards = 8, replicas = 0, type = Constants.TYPE_NAME, createIndex = true)
+@Document(indexName = Constants.INDEX_NAME, shards = 8, replicas = 0, type = Constants.TYPE_NAME, createIndex = false)
 @Setting(settingPath = "elasticsearch/settings.json")
 @Mapping(mappingPath = "elasticsearch/mapping.json")
 public class File implements Serializable {
