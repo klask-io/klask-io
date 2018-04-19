@@ -16,6 +16,8 @@ import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevTree;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.transport.CredentialsProvider;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.AndTreeFilter;
 import org.eclipse.jgit.treewalk.filter.TreeFilter;
@@ -132,10 +134,10 @@ public class GitCrawler extends GenericCrawler implements ICrawler {
 
     private void pullRepositoryGit(Git repoGit) throws GitAPIException {
         repoGit.clean();
-        repoGit
-            .pull()
-            .setRecurseSubmodules(SubmoduleConfig.FetchRecurseSubmodulesMode.YES)
-            .call();
+//        repoGit
+//            .pull()
+//            .setRecurseSubmodules(SubmoduleConfig.FetchRecurseSubmodulesMode.YES)
+//            .call();
 
         //list remotes branch
         List<Ref> branches = repoGit.branchList()
@@ -457,12 +459,24 @@ public class GitCrawler extends GenericCrawler implements ICrawler {
             }
         } else {
 
+            String privatekey = klaskProperties.getCrawler().getPrivateKey();
+            String userGit = klaskProperties.getCrawler().getUserGit();
+            log.info("private Key : {}", privatekey);
+            CredentialsProvider credentials =
+            new UsernamePasswordCredentialsProvider( userGit, privatekey);
+            String repositoryPath = repository.getPath();
+            //repositoryPath = repositoryPath.replaceFirst("https://", "https://"+userGit+":"+privatekey+"@");
             try (Git repoGit = Git.cloneRepository()
-                .setURI(repository.getPath())
+                //.setURI(repository.getPath().replace("@", ":"+privatekey+"@"))
+                //if gitlab, redefine the path with private key
+
+                .setCredentialsProvider( credentials)
+                .setURI(repositoryPath)
                 .setDirectory(pathRepo.toFile())
                 .setCloneSubmodules(true)
                 .setCloneAllBranches(true)
                 .call()) {
+
                 pullRepositoryGit(repoGit);
 
             } catch (GitAPIException e) {

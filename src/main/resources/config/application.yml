@@ -85,6 +85,8 @@ jhipster:
 klask:
     crawler:
         workingDirectory: /tmp/klask/klask-working-directory/
+        privateKey: "vMky9q9ozQBcKU8h-iHi"
+        userGit: "jeremie"
         directoriesToScan: /repo
         batchSize: 25
         directoriesToExclude:

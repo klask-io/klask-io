@@ -135,7 +135,7 @@ public class CrawlerService {
         }
 
         this.repositoryRepository.findAll().forEach(repository -> {
-            String indexName = Constants.INDEX_PREFIX + repository.getName() + "-" + repository.getId();
+            String indexName = (Constants.INDEX_PREFIX + repository.getName() + "-" + repository.getId()).toLowerCase();
             if (elasticsearchTemplate.indexExists(indexName)) {
                 elasticsearchTemplate.deleteIndex(indexName);
             }

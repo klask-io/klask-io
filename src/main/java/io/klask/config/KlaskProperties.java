@@ -31,6 +31,10 @@ public class KlaskProperties {
 
         private String workingDirectory = new String();
 
+        private String privateKey = new String();
+
+        private String userGit = new String();
+
         private List<String> directoriesToExclude = new ArrayList<>();//Arrays.asList(".svn");
 
         private List<String> extensionsToExclude = new ArrayList<>();//Arrays.asList("sha1", "md5");
@@ -42,6 +46,22 @@ public class KlaskProperties {
         private List<String> extensionsToRead = new ArrayList<>();//Arrays.asList("java","txt","php","xml","properties");
 
         private int batchSize = 25;
+
+        public String getUserGit() {
+            return userGit;
+        }
+
+        public void setUserGit(String userGit) {
+            this.userGit = userGit;
+        }
+
+        public String getPrivateKey() {
+            return privateKey;
+        }
+
+        public void setPrivateKey(String privateKey) {
+            this.privateKey = privateKey;
+        }
 
         public String getWorkingDirectory() {
             return workingDirectory;
