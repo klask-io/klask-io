@@ -237,7 +237,7 @@ public abstract class GenericCrawler {
                 log.info("no files to index");
                 return;
             }
-            String indexName = Constants.INDEX_PREFIX + repository.getName() + "-" + repository.getId();
+            String indexName = (Constants.INDEX_PREFIX + repository.getName() + "-" + repository.getId()).toLowerCase();
             List<IndexQuery> queriesList = new ArrayList<>(listeDeFichiers.size());
             for (File file : listeDeFichiers) {
                 IndexQuery query = new IndexQueryBuilder()
