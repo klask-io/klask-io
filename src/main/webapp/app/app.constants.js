@@ -4,6 +4,6 @@
     angular
         .module('klaskApp')
         .constant('VERSION', "0.2-SNAPSHOT")
-        .constant('DEBUG_INFO_ENABLED', false)
+        .constant('DEBUG_INFO_ENABLED', true)
 ;
 })();

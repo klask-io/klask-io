@@ -12,7 +12,7 @@ var gulp = require('gulp'),
     es = require('event-stream'),
     flatten = require('gulp-flatten'),
     del = require('del'),
-    runSequence = require('run-sequence'),
+    runSequence = require('gulp4-run-sequence').use(gulp),
     browserSync = require('browser-sync'),
     KarmaServer = require('karma').Server,
     plumber = require('gulp-plumber'),
@@ -100,13 +100,10 @@ gulp.task('languages', function () {
         .pipe(gulp.dest(config.app + 'i18n/'));
 });
 
-gulp.task('styles', [], function () {
+gulp.task('styles', function () {
     return gulp.src(config.app + 'content/css')
         .pipe(browserSync.reload({stream: true}));
 });
-
-gulp.task('inject', ['inject:dep', 'inject:app']);
-gulp.task('inject:dep', ['inject:test', 'inject:vendor']);
 
 gulp.task('inject:app', function () {
     return gulp.src(config.app + 'index.html')
@@ -146,7 +143,7 @@ gulp.task('inject:troubleshoot', function () {
     return gulp.src(config.app + 'index.html')
         .pipe(plumber({errorHandler: handleErrors}))
         /* having empty src as we dont have to read any files*/
-        .pipe(inject(gulp.src('', {read: false}), {
+        .pipe(inject(gulp.src('.', {read: false, allowEmpty: true}), {
             starttag: '<!-- inject:troubleshoot -->',
             removeTags: true,
             transform: function () {
@@ -156,7 +153,8 @@ gulp.task('inject:troubleshoot', function () {
         .pipe(gulp.dest(config.app));
 });
 
-gulp.task('assets:prod', ['images', 'styles', 'html'], build);
+gulp.task('inject:dep', gulp.series('inject:test', 'inject:vendor'));
+gulp.task('inject', gulp.series('inject:dep', 'inject:app'));
 
 gulp.task('html', function () {
     return gulp.src(config.app + 'app/**/*.html')
@@ -168,6 +166,8 @@ gulp.task('html', function () {
         }))
         .pipe(gulp.dest(config.tmp));
 });
+
+gulp.task('assets:prod', gulp.series('images', 'styles', 'html'), build);
 
 gulp.task('ngconstant:dev', function () {
     return ngConstant({
@@ -217,7 +217,7 @@ gulp.task('eslint:fix', function () {
         .pipe(gulpIf(util.isLintFixed, gulp.dest(config.app + 'app')));
 });
 
-gulp.task('test', ['inject:test', 'ngconstant:dev'], function (done) {
+gulp.task('test', gulp.series('inject:test', 'ngconstant:dev'), function (done) {
     new KarmaServer({
         configFile: __dirname + '/' + config.test + 'karma.conf.js',
         singleRun: true
@@ -226,24 +226,24 @@ gulp.task('test', ['inject:test', 'ngconstant:dev'], function (done) {
 
 
 gulp.task('watch', function () {
-    gulp.watch('bower.json', ['install']);
-    gulp.watch(['gulpfile.js', 'pom.xml'], ['ngconstant:dev']);
-    gulp.watch(config.app + 'content/css/**/*.css', ['styles']);
-    gulp.watch(config.app + 'content/images/**', ['images']);
-    gulp.watch(config.app + 'app/**/*.js', ['inject:app']);
+    gulp.watch('bower.json', gulp.series('install'));
+    gulp.watch(['gulpfile.js', 'pom.xml'], gulp.series('ngconstant:dev'));
+    gulp.watch(config.app + 'content/css/**/*.css', gulp.series('styles'));
+    gulp.watch(config.app + 'content/images/**', gulp.series('images'));
+    gulp.watch(config.app + 'app/**/*.js', gulp.series('inject:app'));
     gulp.watch([config.app + '*.html', config.app + 'app/**', config.app + 'i18n/**']).on('change', browserSync.reload);
 });
 
-gulp.task('install', function () {
-    runSequence(['inject:dep', 'ngconstant:dev'], 'languages', 'inject:app', 'inject:troubleshoot');
+gulp.task('install', function (cb) {
+    runSequence(['inject:dep', 'ngconstant:dev'], 'languages', 'inject:app', 'inject:troubleshoot', cb);
 });
 
-gulp.task('serve', function () {
-    runSequence('install', serve);
+gulp.task('serve', function (cb) {
+    runSequence('install', serve, cb);
 });
 
-gulp.task('build', ['clean'], function (cb) {
+gulp.task('build', gulp.series('clean'), function (cb) {
     runSequence(['copy', 'inject:vendor', 'ngconstant:prod', 'languages'], 'inject:app', 'inject:troubleshoot', 'assets:prod', cb);
 });
 
-gulp.task('default', ['serve']);
+gulp.task('default', gulp.series('serve'));
