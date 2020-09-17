@@ -56,5 +56,5 @@ module.exports = function () {
         }
     });
 
-    gulp.start('watch');
+    gulp.task('start', gulp.series('watch'));
 }
