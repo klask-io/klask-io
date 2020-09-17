@@ -3,6 +3,7 @@ package io.klask.service;
 import io.klask.config.Constants;
 import io.klask.config.KlaskProperties;
 import io.klask.crawler.AsyncCrawler;
+import io.klask.crawler.impl.GitlabCrawler;
 import io.klask.crawler.ICrawler;
 import io.klask.crawler.impl.FileSystemCrawler;
 import io.klask.crawler.impl.GitCrawler;
@@ -72,6 +73,8 @@ public class CrawlerService {
             switch (repo.getType()) {
                 case GIT:
                     aCrawler = new GitCrawler(repo, klaskProperties, elasticsearchTemplate);
+                case GITLAB:
+                    aCrawler = new GitlabCrawler(repo, klaskProperties, elasticsearchTemplate);
                     break;
                 case SVN:
                     aCrawler = new SVNCrawler(repo, klaskProperties, fileSearchRepository, elasticsearchTemplate, repositoryRepository);
@@ -112,46 +115,6 @@ public class CrawlerService {
         }
     }
 
-    public void createIndexes() {
-        String mappingPath = File.class.getAnnotation(Mapping.class).mappingPath();
-        String mappings = ElasticsearchTemplate.readFileFromClasspath(mappingPath);
-        String settingPath = File.class.getAnnotation(Setting.class).settingPath();
-        String settings = ElasticsearchTemplate.readFileFromClasspath(settingPath);
-
-//        Map<String, Object> mapping = elasticsearchTemplate.getMapping(File.class);
-//        Map<String, Object> setting = elasticsearchTemplate.getSetting(File.class);
-//        if (log.isDebugEnabled()) {
-//            for (Map.Entry<String, Object> entry : mapping.entrySet()) {
-//                log.debug("mapping {} : {}", entry.getKey(), entry.getValue());
-//            }
-//            for (Map.Entry<String, Object> entry : setting.entrySet()) {
-//                log.debug("settings {} : {}", entry.getKey(), entry.getValue());
-//            }
-//        }
-
-        //delete default index named "file"
-        if (elasticsearchTemplate.indexExists(Constants.INDEX_NAME)) {
-            elasticsearchTemplate.deleteIndex(File.class);
-        }
-
-        this.repositoryRepository.findAll().forEach(repository -> {
-            String indexName = (Constants.INDEX_PREFIX + repository.getName() + "-" + repository.getId()).toLowerCase();
-            if (elasticsearchTemplate.indexExists(indexName)) {
-                elasticsearchTemplate.deleteIndex(indexName);
-            }
-            elasticsearchTemplate.createIndex(indexName, settings);
-            elasticsearchTemplate.putMapping(indexName, Constants.TYPE_NAME, mappings);
-            elasticsearchTemplate.refresh(indexName);
-            AliasQuery aliasQuery = new AliasBuilder()
-                .withIndexName(indexName)
-                .withAliasName(Constants.ALIAS)
-                //.withRouting("2")
-                .build();
-            elasticsearchTemplate.addAlias(aliasQuery);
-            elasticsearchTemplate.refresh(indexName);
-
-        });
 
 
-    }
 }

@@ -18,12 +18,16 @@ import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
+import org.elasticsearch.search.sort.FieldSortBuilder;
+import org.elasticsearch.search.sort.ScoreSortBuilder;
+import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.core.convert.ElasticsearchConverter;
 import org.springframework.data.elasticsearch.core.mapping.ElasticsearchPersistentEntity;
@@ -119,6 +123,8 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
     @Override
     public Page<File> customfindAll(Pageable pageable, List<String> version, List<String> project, List<String> extension) {
         NativeSearchQueryBuilder nativeSearchQueryBuilder = Queries.constructSearchQueryBuilder("");
+        //SortBuilder b = new FieldSortBuilder("id").unmappedType("string").order(SortOrder.DESC);
+        //nativeSearchQueryBuilder.withSort(b);
         NativeSearchQuery nativeSearchQuery = nativeSearchQueryBuilder.build();
 
         SearchRequestBuilder searchRequestBuilder = constructRequestBuilder(nativeSearchQuery, pageable, version, project, extension);
@@ -165,7 +171,11 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         SearchResponse response = createResponseForAggregate(filtre, aggregation);
 
         Map<String, Aggregation> results = response.getAggregations().asMap();
-        StringTerms topField = (StringTerms) results.get("top_" + field);
+        Aggregation topFieldTerms = (Terms) results.get("top_" + field);
+        if (!(topFieldTerms instanceof StringTerms)) {
+            return new LinkedHashMap();
+        }
+        StringTerms topField = (StringTerms) topFieldTerms;
 
         //sur l'ensemble des buckets, triés par ordre décroissant sur le nombre de documents
         // on retourne une Map (LinkedHashMap) pour conserver l'ordre avec la clé, le nom du champ (exemple version), et la valeur, le nombre de docs

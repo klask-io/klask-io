@@ -3,6 +3,7 @@ package io.klask.web.rest;
 import com.codahale.metrics.annotation.Timed;
 import io.klask.config.KlaskProperties;
 import io.klask.service.CrawlerService;
+import io.klask.service.IndexService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,9 @@ public class CrawlerResource {
 
     @Inject
     private CrawlerService crawlerService;
+
+    @Inject
+    private IndexService indexService;
 
     @Inject
     private KlaskProperties klaskProperties;
@@ -93,7 +97,7 @@ public class CrawlerResource {
      */
     public void resetIndex() throws IOException {
 
-        crawlerService.createIndexes();
+        indexService.createIndexes();
         //crawlerService.clearIndex();
         //TODO : ne plus supprimer l'index
         crawlerService.resetAllRepo();

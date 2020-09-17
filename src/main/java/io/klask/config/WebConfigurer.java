@@ -3,6 +3,7 @@ package io.klask.config;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.servlet.InstrumentedFilter;
 import com.codahale.metrics.servlets.MetricsServlet;
+import io.klask.service.IndexService;
 import io.klask.web.filter.CachingHttpHeadersFilter;
 import io.klask.web.filter.ContextHeaderFilter;
 import org.slf4j.Logger;
@@ -41,8 +42,12 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
     @Inject
     private JHipsterProperties jHipsterProperties;
 
+    @Inject
+    private IndexService indexService;
+
     @Autowired(required = false)
     private MetricRegistry metricRegistry;
+
 
     @Override
     public void onStartup(ServletContext servletContext) throws ServletException {
@@ -58,6 +63,9 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
         if (env.acceptsProfiles(Constants.SPRING_PROFILE_DEVELOPMENT)) {
             initH2Console(servletContext);
         }
+
+        indexService.initIndexes();
+
         log.info("Web application fully configured");
     }
 

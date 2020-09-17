@@ -14,7 +14,7 @@ import java.util.Objects;
  */
 @Entity
 @Table(name = "repository")
-@Document(indexName = "repository")
+@Document(indexName = "repository", replicas = 0, shards = 1)
 public class Repository implements Serializable {
 
     private static final long serialVersionUID = 1L;

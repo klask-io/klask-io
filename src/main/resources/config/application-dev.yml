@@ -48,6 +48,10 @@ spring:
                 path:
                   logs: target/elasticsearch/log
                   data: target/elasticsearch/data
+                http:
+                    enabled: true
+                    cors.enabled: true
+                    cors.allow-origin: "*"
 
     mail:
         host: localhost
