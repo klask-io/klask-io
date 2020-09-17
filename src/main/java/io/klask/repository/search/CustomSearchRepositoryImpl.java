@@ -34,10 +34,7 @@ import org.springframework.data.elasticsearch.core.mapping.ElasticsearchPersiste
 import org.springframework.data.elasticsearch.core.query.*;
 
 import javax.inject.Inject;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -123,11 +120,10 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
     @Override
     public Page<File> customfindAll(Pageable pageable, List<String> version, List<String> project, List<String> extension) {
         NativeSearchQueryBuilder nativeSearchQueryBuilder = Queries.constructSearchQueryBuilder("");
-        //SortBuilder b = new FieldSortBuilder("id").unmappedType("string").order(SortOrder.DESC);
-        //nativeSearchQueryBuilder.withSort(b);
         NativeSearchQuery nativeSearchQuery = nativeSearchQueryBuilder.build();
 
         SearchRequestBuilder searchRequestBuilder = constructRequestBuilder(nativeSearchQuery, pageable, version, project, extension);
+
         SearchResponse response = searchRequestBuilder.execute().actionGet();
 
         SearchHit[] hits = response.getHits().hits();
@@ -239,6 +235,8 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
             .setTrackScores(true)
             .setPostFilter(filter);
 
+        //searchRequestBuilder.addSort(nativeSearchQuery.getElasticsearchSorts().stream().findFirst().get());
+
         //add the sort order to searchRequestBuilder
         addPagingAndSortingToSearchRequest(pageable, searchRequestBuilder);
 
@@ -265,9 +263,18 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
 
             if (pageable.getSort() != null) {
                 pageable.getSort().forEach(
-                    order -> searchRequestBuilder.addSort(
-                        Constants.ORDER_FIELD_MAPPING.get(order.getProperty()),
-                        SortOrder.valueOf(order.getDirection().name()))
+                    order -> {
+                        SortBuilder sb;
+                        //cas particulier si on a l'id en filtre, il doit être unmappedType pour éviter l'erreur du
+                        // "all shards failed : No mapping found for [id] in order to sort on"
+                        if("id".equals(order.getProperty())) {
+                            sb = new FieldSortBuilder("id").unmappedType("string").order(SortOrder.valueOf(order.getDirection().name()));
+                        } else {
+                            sb = new FieldSortBuilder(Constants.ORDER_FIELD_MAPPING.get(order.getProperty()))
+                                .order(SortOrder.valueOf(order.getDirection().name()));
+                        }
+                            searchRequestBuilder.addSort(sb);
+                    }
                 );
             }
         }
