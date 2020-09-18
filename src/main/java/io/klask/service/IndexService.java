@@ -26,14 +26,18 @@ public class IndexService {
     private RepositoryRepository repositoryRepository;
 
     public void initIndexes() {
+        String mappingPath = File.class.getAnnotation(Mapping.class).mappingPath();
+        String mappings = ElasticsearchTemplate.readFileFromClasspath(mappingPath);
+        String settingPath = File.class.getAnnotation(Setting.class).settingPath();
+        String settings = ElasticsearchTemplate.readFileFromClasspath(settingPath);
         //delete default index named "file"
         if (!elasticsearchTemplate.indexExists(Constants.INDEX_NAME)) {
             elasticsearchTemplate.createIndex(File.class);
+            elasticsearchTemplate.putMapping(Constants.INDEX_NAME, Constants.TYPE_NAME, mappings);
         }
         AliasQuery aliasQuery = new AliasBuilder()
             .withIndexName(Constants.INDEX_NAME)
             .withAliasName(Constants.ALIAS)
-            //.withRouting("2")
             .build();
         elasticsearchTemplate.addAlias(aliasQuery);
         elasticsearchTemplate.refresh(Constants.INDEX_NAME);
@@ -45,11 +49,6 @@ public class IndexService {
         String mappings = ElasticsearchTemplate.readFileFromClasspath(mappingPath);
         String settingPath = File.class.getAnnotation(Setting.class).settingPath();
         String settings = ElasticsearchTemplate.readFileFromClasspath(settingPath);
-
-        //delete default index named "file"
-        if (elasticsearchTemplate.indexExists(Constants.INDEX_NAME)) {
-            elasticsearchTemplate.deleteIndex(File.class);
-        }
 
         this.repositoryRepository.findAll().forEach(repository -> {
             String indexName = (Constants.INDEX_PREFIX + repository.getName() + "-" + repository.getId()).toLowerCase();

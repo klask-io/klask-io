@@ -6,13 +6,13 @@
     <parent>
         <artifactId>spring-boot-starter-parent</artifactId>
         <groupId>org.springframework.boot</groupId>
-        <version>1.5.10.RELEASE</version>
+        <version>1.5.22.RELEASE</version>
         <relativePath/>
     </parent>
 
     <groupId>io.klask</groupId>
     <artifactId>klask</artifactId>
-    <version>0.2-SNAPSHOT</version>
+    <version>0.3-SNAPSHOT</version>
     <packaging>war</packaging>
     <name>klask</name>
 
@@ -47,7 +47,7 @@
         <logstash-logback-encoder.version>4.6</logstash-logback-encoder.version>
         <postgresql.version>9.4-1203-jdbc42</postgresql.version>
         <run.addResources>false</run.addResources>
-        <spring-security.version>4.1.0.RELEASE</spring-security.version>
+        <spring-security.version>4.2.18.RELEASE</spring-security.version>
         <springfox.version>2.4.0</springfox.version>
         <!-- Sonar properties -->
         <project.testresult.directory>${project.build.directory}/test-results</project.testresult.directory>

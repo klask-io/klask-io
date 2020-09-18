@@ -13,6 +13,12 @@ import java.util.UUID;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
+import io.klask.KlaskApp;
+import io.klask.domain.File;
+import io.klask.repository.search.CustomSearchRepository;
+import io.klask.repository.search.FileSearchRepository;
+import io.klask.service.IndexService;
+import io.klask.web.rest.dto.VersionDTO;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -26,11 +32,6 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import io.klask.KlaskApp;
-import io.klask.domain.File;
-import io.klask.repository.search.CustomSearchRepository;
-import io.klask.repository.search.FileSearchRepository;
 
 
 /**
@@ -63,6 +64,9 @@ public class VersionResourceIntTest {
     @Inject
     private FileSearchRepository fileSearchRepository;
 
+    @Inject
+    private IndexService indexService;
+
     private MockMvc restFileMockMvc;
 
     private File file;
@@ -75,7 +79,7 @@ public class VersionResourceIntTest {
         this.restFileMockMvc = MockMvcBuilders.standaloneSetup(versionResource)
             .setCustomArgumentResolvers(pageableArgumentResolver)
             .setMessageConverters(jacksonMessageConverter).build();
-
+        indexService.initIndexes();
     }
 
     @Before

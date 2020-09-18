@@ -86,7 +86,8 @@ public class RepositoryService {
     public Repository findOne(Long id) {
         log.debug("Request to get Repository : {}", id);
         Repository repository = repositoryRepository.findOne(id);
-        repository.setPassword(PASSWORD_PLACEHOLDER);
+        if(repository!=null)
+            repository.setPassword(PASSWORD_PLACEHOLDER);
         return repository;
     }
 
