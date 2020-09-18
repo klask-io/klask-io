@@ -18,22 +18,23 @@ import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
+import org.elasticsearch.search.sort.FieldSortBuilder;
+import org.elasticsearch.search.sort.ScoreSortBuilder;
+import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.core.convert.ElasticsearchConverter;
 import org.springframework.data.elasticsearch.core.mapping.ElasticsearchPersistentEntity;
 import org.springframework.data.elasticsearch.core.query.*;
 
 import javax.inject.Inject;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -122,6 +123,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         NativeSearchQuery nativeSearchQuery = nativeSearchQueryBuilder.build();
 
         SearchRequestBuilder searchRequestBuilder = constructRequestBuilder(nativeSearchQuery, pageable, version, project, extension);
+
         SearchResponse response = searchRequestBuilder.execute().actionGet();
 
         SearchHit[] hits = response.getHits().hits();
@@ -165,7 +167,11 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         SearchResponse response = createResponseForAggregate(filtre, aggregation);
 
         Map<String, Aggregation> results = response.getAggregations().asMap();
-        StringTerms topField = (StringTerms) results.get("top_" + field);
+        Aggregation topFieldTerms = (Terms) results.get("top_" + field);
+        if (!(topFieldTerms instanceof StringTerms)) {
+            return new LinkedHashMap();
+        }
+        StringTerms topField = (StringTerms) topFieldTerms;
 
         //sur l'ensemble des buckets, triés par ordre décroissant sur le nombre de documents
         // on retourne une Map (LinkedHashMap) pour conserver l'ordre avec la clé, le nom du champ (exemple version), et la valeur, le nombre de docs
@@ -229,6 +235,8 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
             .setTrackScores(true)
             .setPostFilter(filter);
 
+        //searchRequestBuilder.addSort(nativeSearchQuery.getElasticsearchSorts().stream().findFirst().get());
+
         //add the sort order to searchRequestBuilder
         addPagingAndSortingToSearchRequest(pageable, searchRequestBuilder);
 
@@ -255,9 +263,18 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
 
             if (pageable.getSort() != null) {
                 pageable.getSort().forEach(
-                    order -> searchRequestBuilder.addSort(
-                        Constants.ORDER_FIELD_MAPPING.get(order.getProperty()),
-                        SortOrder.valueOf(order.getDirection().name()))
+                    order -> {
+                        SortBuilder sb;
+                        //cas particulier si on a l'id en filtre, il doit être unmappedType pour éviter l'erreur du
+                        // "all shards failed : No mapping found for [id] in order to sort on"
+                        if("id".equals(order.getProperty())) {
+                            sb = new FieldSortBuilder("id").unmappedType("string").order(SortOrder.valueOf(order.getDirection().name()));
+                        } else {
+                            sb = new FieldSortBuilder(Constants.ORDER_FIELD_MAPPING.get(order.getProperty()))
+                                .order(SortOrder.valueOf(order.getDirection().name()));
+                        }
+                            searchRequestBuilder.addSort(sb);
+                    }
                 );
             }
         }

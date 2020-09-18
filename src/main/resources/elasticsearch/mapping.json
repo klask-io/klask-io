@@ -1,84 +1,84 @@
 {
-        "properties": {
-            "id": {
-                "type": "string",
-                "index": "not_analyzed"
-            },
-            "name": {
-                "store": true,
-                "type": "string",
-                "search_analyzer": "keyword",
-                "analyzer": "keyword",
-                "fields": {
-                    "raw": {
-                        "type": "string",
-                        "index": "not_analyzed"
-                    }
+    "properties": {
+        "id": {
+            "type": "string",
+            "index": "not_analyzed"
+        },
+        "name": {
+            "store": true,
+            "type": "string",
+            "search_analyzer": "keyword",
+            "analyzer": "keyword",
+            "fields": {
+                "raw": {
+                    "type": "string",
+                    "index": "not_analyzed"
                 }
-            },
-            "extension": {
-                "store": true,
-                "type": "string",
-                "search_analyzer": "keyword",
-                "analyzer": "keyword",
-                "fields": {
-                    "raw": {
-                        "type": "string",
-                        "index": "not_analyzed"
-                    }
-                }
-            },
-            "path": {
-                "store": true,
-                "type": "string",
-                "term_vector": "with_positions_offsets",
-                "search_analyzer": "customanalyzer",
-                "analyzer": "camelanalyzer",
-                "fields": {
-                    "raw": {
-                        "type": "string",
-                        "index": "not_analyzed"
-                    }
-                }
-
-            },
-            "project": {
-                "type": "string",
-                "fields": {
-                    "raw": {
-                        "type": "string",
-                        "index": "not_analyzed"
-                    }
-                }
-            },
-            "content": {
-                "store": false,
-                "type": "string",
-                "term_vector": "with_positions_offsets",
-                "search_analyzer": "customanalyzer",
-                "analyzer": "camelanalyzer"
-            },
-            "version": {
-                "type": "string",
-                "fields": {
-                    "raw": {
-                        "type": "string",
-                        "index": "not_analyzed"
-                    }
-                }
-            },
-            "lastAuthor": {
-                "type": "string",
-                "index": "not_analyzed"
-            },
-            "lastDate": {
-                "type": "date",
-                "format": "strict_date_optional_time||epoch_millis",
-                "index": "not_analyzed"
-            },
-            "size": {
-                "store": false,
-                "type": "long"
             }
+        },
+        "extension": {
+            "store": true,
+            "type": "string",
+            "search_analyzer": "keyword",
+            "analyzer": "keyword",
+            "fields": {
+                "raw": {
+                    "type": "string",
+                    "index": "not_analyzed"
+                }
+            }
+        },
+        "path": {
+            "store": true,
+            "type": "string",
+            "term_vector": "with_positions_offsets",
+            "search_analyzer": "customanalyzer",
+            "analyzer": "camelanalyzer",
+            "fields": {
+                "raw": {
+                    "type": "string",
+                    "index": "not_analyzed"
+                }
+            }
+
+        },
+        "project": {
+            "type": "string",
+            "fields": {
+                "raw": {
+                    "type": "string",
+                    "index": "not_analyzed"
+                }
+            }
+        },
+        "content": {
+            "store": false,
+            "type": "string",
+            "term_vector": "with_positions_offsets",
+            "search_analyzer": "customanalyzer",
+            "analyzer": "camelanalyzer"
+        },
+        "version": {
+            "type": "string",
+            "fields": {
+                "raw": {
+                    "type": "string",
+                    "index": "not_analyzed"
+                }
+            }
+        },
+        "lastAuthor": {
+            "type": "string",
+            "index": "not_analyzed"
+        },
+        "lastDate": {
+            "type": "date",
+            "format": "strict_date_optional_time||epoch_millis",
+            "index": "not_analyzed"
+        },
+        "size": {
+            "store": false,
+            "type": "long"
         }
+    }
 }
