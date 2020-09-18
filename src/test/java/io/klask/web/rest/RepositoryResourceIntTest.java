@@ -56,6 +56,7 @@ public class RepositoryResourceIntTest {
     private static final Long UPDATED_REVISION = 2L;
     private static final String DEFAULT_SCHEDULE = "AAAAA";
     private static final String UPDATED_SCHEDULE = "BBBBB";
+    private static final String PASSWORD_PLACEHOLDER = "********";
 
     @Inject
     private RepositoryRepository repositoryRepository;
@@ -195,7 +196,7 @@ public class RepositoryResourceIntTest {
             .andExpect(jsonPath("$.[*].id").value(hasItem(repository.getId().intValue())))
             .andExpect(jsonPath("$.[*].path").value(hasItem(DEFAULT_PATH.toString())))
             .andExpect(jsonPath("$.[*].username").value(hasItem(DEFAULT_USERNAME.toString())))
-            .andExpect(jsonPath("$.[*].password").value(hasItem(DEFAULT_PASSWORD.toString())))
+            .andExpect(jsonPath("$.[*].password").value(hasItem(PASSWORD_PLACEHOLDER.toString())))
             .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())))
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME.toString())))
             .andExpect(jsonPath("$.[*].revision").value(hasItem(DEFAULT_REVISION.intValue())))
@@ -215,7 +216,7 @@ public class RepositoryResourceIntTest {
             .andExpect(jsonPath("$.id").value(repository.getId().intValue()))
             .andExpect(jsonPath("$.path").value(DEFAULT_PATH.toString()))
             .andExpect(jsonPath("$.username").value(DEFAULT_USERNAME.toString()))
-            .andExpect(jsonPath("$.password").value(DEFAULT_PASSWORD.toString()))
+            .andExpect(jsonPath("$.password").value(PASSWORD_PLACEHOLDER.toString()))
             .andExpect(jsonPath("$.type").value(DEFAULT_TYPE.toString()))
             .andExpect(jsonPath("$.name").value(DEFAULT_NAME.toString()))
             .andExpect(jsonPath("$.revision").value(DEFAULT_REVISION.intValue()))
@@ -306,7 +307,7 @@ public class RepositoryResourceIntTest {
             .andExpect(jsonPath("$.[*].id").value(hasItem(repository.getId().intValue())))
             .andExpect(jsonPath("$.[*].path").value(hasItem(DEFAULT_PATH.toString())))
             .andExpect(jsonPath("$.[*].username").value(hasItem(DEFAULT_USERNAME.toString())))
-            .andExpect(jsonPath("$.[*].password").value(hasItem(DEFAULT_PASSWORD.toString())))
+            .andExpect(jsonPath("$.[*].password").value(hasItem(PASSWORD_PLACEHOLDER.toString())))
             .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())))
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME.toString())))
             .andExpect(jsonPath("$.[*].revision").value(hasItem(DEFAULT_REVISION.intValue())))

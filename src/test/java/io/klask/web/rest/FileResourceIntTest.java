@@ -4,6 +4,7 @@ import io.klask.KlaskApp;
 import io.klask.domain.File;
 import io.klask.repository.search.CustomSearchRepository;
 import io.klask.repository.search.FileSearchRepository;
+import io.klask.service.IndexService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,6 +61,9 @@ public class FileResourceIntTest {
     @Inject
     private PageableHandlerMethodArgumentResolver pageableArgumentResolver;
 
+    @Inject
+    private IndexService indexService;
+
     private MockMvc restFileMockMvc;
 
     private File file;
@@ -73,6 +77,7 @@ public class FileResourceIntTest {
         this.restFileMockMvc = MockMvcBuilders.standaloneSetup(fileResource)
             .setCustomArgumentResolvers(pageableArgumentResolver)
             .setMessageConverters(jacksonMessageConverter).build();
+        indexService.initIndexes();
     }
 
     @Before
