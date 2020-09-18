@@ -1,10 +1,18 @@
 package io.klask.web.rest;
 
-import io.klask.KlaskApp;
-import io.klask.domain.File;
-import io.klask.repository.search.CustomSearchRepository;
-import io.klask.repository.search.FileSearchRepository;
-import io.klask.web.rest.dto.VersionDTO;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.UUID;
+
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -19,14 +27,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
-import java.util.List;
-import java.util.UUID;
-
-import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import io.klask.KlaskApp;
+import io.klask.domain.File;
+import io.klask.repository.search.CustomSearchRepository;
+import io.klask.repository.search.FileSearchRepository;
 
 
 /**
@@ -40,16 +44,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class VersionResourceIntTest {
 
     private static final String DEFAULT_NAME = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    private static final String UPDATED_NAME = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
     private static final String DEFAULT_PATH = "AAAAA";
-    private static final String UPDATED_PATH = "BBBBB";
 
     private static final String DEFAULT_CONTENT = "AAAAA";
-    private static final String UPDATED_CONTENT = "BBBBB";
     private static final String DEFAULT_VERSION = "AAAAA";
     private static final String VERSION_1 = "BBBBB";
     private static final String VERSION_2 = "CCCCC";
-    private static final String VERSION_3 = "DDDDD";
 
     @Inject
     private CustomSearchRepository customSearchRepository;
@@ -64,8 +64,6 @@ public class VersionResourceIntTest {
     private FileSearchRepository fileSearchRepository;
 
     private MockMvc restFileMockMvc;
-
-    private List<VersionDTO> versions;
 
     private File file;
 

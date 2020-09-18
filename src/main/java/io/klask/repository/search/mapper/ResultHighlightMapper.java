@@ -29,8 +29,6 @@ public class ResultHighlightMapper implements SearchResultMapper {
                 return null;
             }
 
-            //System.out.println(response.toString());
-
             String summaryWithHighlight = null;
             String pathWithHighlight = null;
             HighlightField highlightFieldContent = searchHit.getHighlightFields().get("content");

@@ -1,25 +1,24 @@
 package io.klask.repository.search;
 
-import io.klask.config.Constants;
-import io.klask.domain.File;
-import io.klask.domain.enumeration.RepositoryType;
-import io.klask.repository.search.mapper.ResultHighlightMapper;
-import io.klask.repository.search.mapper.ResultTruncatedContentMapper;
-import io.klask.web.rest.util.Queries;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import javax.inject.Inject;
+
 import org.apache.commons.lang3.StringUtils;
-import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
-import org.elasticsearch.search.sort.ScoreSortBuilder;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.slf4j.Logger;
@@ -27,15 +26,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
-import org.springframework.data.elasticsearch.core.convert.ElasticsearchConverter;
-import org.springframework.data.elasticsearch.core.mapping.ElasticsearchPersistentEntity;
-import org.springframework.data.elasticsearch.core.query.*;
+import org.springframework.data.elasticsearch.core.query.Criteria;
+import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
+import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
+import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
+import org.springframework.data.elasticsearch.core.query.StringQuery;
 
-import javax.inject.Inject;
-import java.util.*;
-import java.util.stream.Collectors;
+import io.klask.config.Constants;
+import io.klask.domain.File;
+import io.klask.repository.search.mapper.ResultHighlightMapper;
+import io.klask.repository.search.mapper.ResultTruncatedContentMapper;
+import io.klask.web.rest.util.Queries;
 
 /**
  * Created by jeremie on 27/06/16.
@@ -47,35 +49,6 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
 
     @Inject
     private ElasticsearchTemplate elasticsearchTemplate;
-
-//    @Override
-//    public Page<File> findWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project) {
-//        //QueryBuilder searchQuery = Queries.constructQuery(query);
-//        //return elasticsearchTemplate.queryForPage(new NativeSearchQuery(searchQuery), File.class, new ResultHighlightMapper());
-//
-//        NativeSearchQueryBuilder nativeQuery = Queries.constructQueryWithHighlight(query, pageable, 3);
-//
-//        BoolQueryBuilder ensembleVersion = QueryBuilders.boolQuery();
-//        BoolQueryBuilder ensembleProjet = QueryBuilders.boolQuery();
-//
-//        if (version != null && !version.isEmpty()) {
-//            ensembleVersion = ensembleVersion.should(QueryBuilders.termsQuery("version.raw", version));
-//        }
-//        if (project != null && !project.isEmpty()) {
-//            ensembleProjet = ensembleProjet.should(QueryBuilders.termsQuery("project.raw", project));
-//        }
-//
-//        nativeQuery = nativeQuery.withFilter(QueryBuilders.boolQuery().must(ensembleVersion).must(ensembleProjet));
-//        log.debug("query : {}", nativeQuery.toString());
-//        SearchQuery searchQuery = nativeQuery.build();
-//        log.debug("query : {}", searchQuery.getQuery());
-//        log.debug("filter: {}", searchQuery.getFilter());
-//        //return elasticsearchTemplate.queryForPage(searchQuery, File.class, new ResultHighlightMapper());
-//        return elasticsearchTemplate.queryForPage(searchQuery, File.class, new ResultHighlightMapper());
-//
-////        SearchResponse searchResponse = searchRequestBuilder.execute().actionGet();
-//    }
-
 
     /**
      * Return records for query, and highlight the fragment of content with the ResultHighlightMapper
@@ -89,7 +62,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
     @Override
     public Page<File> customSearchWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project, List<String> extension) {
         if (StringUtils.isEmpty(query)) {
-            log.error("customSearchWithHighlightedSummary return null in case where query = " + query);
+            log.error("customSearchWithHighlightedSummary return null in case where query = {}", query);
             return null;
         }
         NativeSearchQueryBuilder nativeSearchQueryBuilder = Queries.constructSearchQueryBuilder(query);
@@ -102,7 +75,6 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         SearchResponse response = searchRequestBuilder.execute().actionGet();
         log.trace("<== Response ES <== \n{}", response);
 
-        SearchHit[] hits = response.getHits().hits();
         ResultHighlightMapper mapper = new ResultHighlightMapper();
         return mapper.mapResults(response, File.class, nativeSearchQuery.getPageable());
 
@@ -126,10 +98,8 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
 
         SearchResponse response = searchRequestBuilder.execute().actionGet();
 
-        SearchHit[] hits = response.getHits().hits();
         ResultTruncatedContentMapper mapper = new ResultTruncatedContentMapper();
         return mapper.mapResults(response, File.class, nativeSearchQuery.getPageable());
-//        }
     }
 
     @Override
@@ -139,10 +109,8 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         CriteriaQuery criteriaQuery = new CriteriaQuery(criteria);
         criteriaQuery.addCriteria(criteria);
 
-        ElasticsearchConverter converter = elasticsearchTemplate.getElasticsearchConverter();
-
         StringQuery stringQuery = new StringQuery(QueryBuilders.termQuery("id", id).toString());
-        //System.out.println("stringQuery:"+stringQuery);
+
         stringQuery.addIndices(Constants.ALIAS);
 //        ElasticsearchPersistentEntity persistentEntity = converter.getMappingContext().getPersistentEntity(File.class);
 //
@@ -151,8 +119,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
 //            .actionGet();
 //        elasticsearchTemplate.map
 //        T entity = mapper.mapResult(response, clazz);
-        File retour = elasticsearchTemplate.queryForObject(stringQuery,File.class);
-        return retour;
+        return elasticsearchTemplate.queryForObject(stringQuery,File.class);
     }
 
     @Override
@@ -167,9 +134,9 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         SearchResponse response = createResponseForAggregate(filtre, aggregation);
 
         Map<String, Aggregation> results = response.getAggregations().asMap();
-        Aggregation topFieldTerms = (Terms) results.get("top_" + field);
+        Aggregation topFieldTerms = results.get("top_" + field);
         if (!(topFieldTerms instanceof StringTerms)) {
-            return new LinkedHashMap();
+            return new LinkedHashMap<>();
         }
         StringTerms topField = (StringTerms) topFieldTerms;
 
@@ -198,7 +165,6 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
      * @return
      */
     private SearchRequestBuilder constructRequestBuilder(NativeSearchQuery nativeSearchQuery, Pageable pageable, List<String> version, List<String> project, List<String> extension) {
-        //SearchRequestBuilder searchRequestBuilder = Queries.constructSearchRequestBuilder(query, pageable, 3, elasticsearchTemplate.getClient());
 
         BoolQueryBuilder ensembleVersion = QueryBuilders.boolQuery();
         BoolQueryBuilder ensembleProjet = QueryBuilders.boolQuery();
@@ -218,8 +184,6 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
             filter = filter.must(ensembleExtension);
         }
 
-
-//        if (StringUtils.isNotEmpty(query)) {
         SearchRequestBuilder searchRequestBuilder = this.templateResponse()
             .setQuery(nativeSearchQuery.getQuery())
             .setHighlighterEncoder("html")//permet d'échapper tous les caractères html pour une sortie correcte sur le frontend

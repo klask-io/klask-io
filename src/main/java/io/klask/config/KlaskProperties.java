@@ -27,23 +27,23 @@ public class KlaskProperties {
 
     public static class CrawlerProperties {
 
-        private List<String> directoriesToScan = new ArrayList<>();//Arrays.asList(".");
+        private List<String> directoriesToScan = new ArrayList<>();
 
-        private String workingDirectory = new String();
+        private String workingDirectory;
 
-        private String privateKey = new String();
+        private String privateKey;
 
-        private String userGit = new String();
+        private String userGit;
 
-        private List<String> directoriesToExclude = new ArrayList<>();//Arrays.asList(".svn");
+        private List<String> directoriesToExclude = new ArrayList<>();
 
-        private List<String> extensionsToExclude = new ArrayList<>();//Arrays.asList("sha1", "md5");
+        private List<String> extensionsToExclude = new ArrayList<>();
 
-        private List<String> filesToExclude = new ArrayList<>();//Arrays.asList(".project");
+        private List<String> filesToExclude = new ArrayList<>();
 
-        private List<String> filesToInclude = new ArrayList<>();//Arrays.asList("README");
+        private List<String> filesToInclude = new ArrayList<>();
 
-        private List<String> extensionsToRead = new ArrayList<>();//Arrays.asList("java","txt","php","xml","properties");
+        private List<String> extensionsToRead = new ArrayList<>();
 
         private int batchSize = 25;
 

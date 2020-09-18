@@ -1,19 +1,25 @@
 package io.klask.web.rest;
 
-import com.codahale.metrics.annotation.Timed;
-import io.klask.config.KlaskProperties;
-import io.klask.service.CrawlerService;
-import io.klask.service.IndexService;
+import java.io.IOException;
+import java.net.URISyntaxException;
+
+import javax.inject.Inject;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
-import javax.inject.Inject;
-import java.io.IOException;
-import java.net.URISyntaxException;
+import com.codahale.metrics.annotation.Timed;
+
+import io.klask.service.CrawlerService;
+import io.klask.service.IndexService;
 
 /**
  * REST controller for managing File.
@@ -29,10 +35,6 @@ public class CrawlerResource {
 
     @Inject
     private IndexService indexService;
-
-    @Inject
-    private KlaskProperties klaskProperties;
-
 
     /**
      * POST  /crawler : Call the crawler

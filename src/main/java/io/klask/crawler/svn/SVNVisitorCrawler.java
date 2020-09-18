@@ -32,8 +32,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
     File currentFile = new File();
     SvnProgressCanceller svnProgressCanceller;
     private Stack<String> myDirectoriesStack = new Stack<>();
-    private Map myDirProps = new HashMap();
-    //private Map myFileProps = new HashMap();
+
     private boolean skipTags = false;
     private boolean currentFileReadable = false;
     private boolean currentFileExcluded = false;
@@ -308,15 +307,6 @@ public class SVNVisitorCrawler implements ISVNEditor {
         String absoluteDirPath = this.svnCrawler.getRepository().getPath();
         myDirectoriesStack.push(absoluteDirPath);
     }
-
-    public Map getDirsToProps() {
-        return myDirProps;
-    }
-
-//    public Map getFilesToProps() {
-//        return myFileProps;
-//    }
-
 
     public Map<String, Long> getUpdatedFiles() {
         return updatedFiles;
