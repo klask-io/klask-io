@@ -21,6 +21,8 @@ import static org.elasticsearch.index.query.QueryBuilders.queryStringQuery;
 @Transactional
 public class RepositoryService {
 
+    private static final String PASSWORD_PLACEHOLDER = "********";
+
     private final Logger log = LoggerFactory.getLogger(RepositoryService.class);
 
     @Inject
@@ -37,9 +39,27 @@ public class RepositoryService {
      */
     public Repository save(Repository repository) {
         log.debug("Request to save Repository : {}", repository);
+        repository.setPassword(defineRepoPassword(repository));
         Repository result = repositoryRepository.save(repository);
         repositorySearchRepository.save(result);
         return result;
+    }
+
+    private String defineRepoPassword(Repository repository) {
+        // if the repo password is NOT the placeholder, I just return it
+        if (!PASSWORD_PLACEHOLDER.equals(repository.getPassword())) {
+            return repository.getPassword();
+        }
+        // If the password is a placeholder, it means that
+        // we are dealing with a repository that was already present.
+        // Hence we need to retrieve the correct password.
+        Repository existingRepo = repositoryRepository.findOne(repository.getId());
+        if (existingRepo != null) {
+            return existingRepo.getPassword();
+        }
+        // The repository should exist, so this case should never happen.
+        // But just in case I'll return the received password
+        return repository.getPassword();
     }
 
     /**
@@ -52,6 +72,7 @@ public class RepositoryService {
     public Page<Repository> findAll(Pageable pageable) {
         log.debug("Request to get all Repositories");
         Page<Repository> result = repositoryRepository.findAll(pageable);
+        result.getContent().forEach(repo -> repo.setPassword(PASSWORD_PLACEHOLDER));
         return result;
     }
 
@@ -65,6 +86,7 @@ public class RepositoryService {
     public Repository findOne(Long id) {
         log.debug("Request to get Repository : {}", id);
         Repository repository = repositoryRepository.findOne(id);
+        repository.setPassword(PASSWORD_PLACEHOLDER);
         return repository;
     }
 
@@ -88,6 +110,8 @@ public class RepositoryService {
     @Transactional(readOnly = true)
     public Page<Repository> search(String query, Pageable pageable) {
         log.debug("Request to search for a page of Repositories for query {}", query);
-        return repositorySearchRepository.search(queryStringQuery(query), pageable);
+        Page<Repository> search = repositorySearchRepository.search(queryStringQuery(query), pageable);
+        search.forEach(repo -> repo.setPassword(PASSWORD_PLACEHOLDER));
+        return search;
     }
 }
