@@ -1,13 +1,21 @@
 package io.klask.domain;
 
-import io.klask.config.Constants;
-import io.klask.domain.enumeration.RepositoryType;
-import org.springframework.data.elasticsearch.annotations.Document;
-
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.Objects;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.Table;
+import javax.validation.constraints.NotNull;
+
+import org.springframework.data.elasticsearch.annotations.Document;
+
+import io.klask.domain.enumeration.RepositoryType;
 
 /**
  * A Repository.

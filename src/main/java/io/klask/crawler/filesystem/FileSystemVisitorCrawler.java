@@ -1,15 +1,15 @@
 package io.klask.crawler.filesystem;
 
-import io.klask.crawler.impl.FileSystemCrawler;
-import io.klask.crawler.impl.GenericCrawler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.klask.crawler.impl.FileSystemCrawler;
 
 /**
  * Created by jeremie on 18/02/17.

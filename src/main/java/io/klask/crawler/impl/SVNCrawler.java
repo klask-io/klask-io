@@ -1,5 +1,31 @@
 package io.klask.crawler.impl;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Future;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.elasticsearch.ElasticsearchException;
+import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
+import org.tmatesoft.svn.core.SVNCancelException;
+import org.tmatesoft.svn.core.SVNDepth;
+import org.tmatesoft.svn.core.SVNException;
+import org.tmatesoft.svn.core.SVNProperties;
+import org.tmatesoft.svn.core.SVNURL;
+import org.tmatesoft.svn.core.internal.io.dav.DAVRepositoryFactory;
+import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
+import org.tmatesoft.svn.core.io.ISVNReporter;
+import org.tmatesoft.svn.core.io.ISVNReporterBaton;
+import org.tmatesoft.svn.core.io.SVNRepository;
+import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
+import org.tmatesoft.svn.core.wc.SVNWCUtil;
+
 import io.klask.config.KlaskProperties;
 import io.klask.crawler.CrawlerResult;
 import io.klask.crawler.ICrawler;
@@ -9,32 +35,13 @@ import io.klask.domain.File;
 import io.klask.domain.Repository;
 import io.klask.repository.RepositoryRepository;
 import io.klask.repository.search.FileSearchRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.elasticsearch.ElasticsearchException;
-import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
-import org.tmatesoft.svn.core.*;
-import org.tmatesoft.svn.core.internal.io.dav.DAVRepositoryFactory;
-import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
-import org.tmatesoft.svn.core.io.ISVNReporter;
-import org.tmatesoft.svn.core.io.ISVNReporterBaton;
-import org.tmatesoft.svn.core.io.SVNRepository;
-import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
-import org.tmatesoft.svn.core.wc.SVNWCUtil;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Path;
-import java.util.*;
-import java.util.concurrent.Future;
 
 /**
  * Created by jeremie on 11/01/17.
  */
 public class SVNCrawler extends GenericCrawler implements ICrawler {
 
-    private final static Set<String> motsClefsSVN = new HashSet<>(Arrays.asList("trunk", "branches", "tags"));
+    public static final Set<String> SVN_KEY_WORDS = new HashSet<>(Arrays.asList("trunk", "branches", "tags"));
 
     private final Logger log = LoggerFactory.getLogger(SVNCrawler.class);
 
@@ -108,6 +115,7 @@ public class SVNCrawler extends GenericCrawler implements ICrawler {
             //with this reporter we just say to the repository server - please, send us the entire tree,
             //we do not have any local data
             ISVNReporterBaton reporter = new ISVNReporterBaton() {
+                @Override
                 public void report(ISVNReporter reporter) throws SVNException {
                     try {
                         reporter.setPath("", null, originRevision == 0 ? lastRevision : originRevision, SVNDepth.INFINITY,
@@ -203,35 +211,6 @@ public class SVNCrawler extends GenericCrawler implements ICrawler {
             }
         }
     }
-
-    private void readInDepthSVN(String path) throws SVNException {
-        if(this.abortAsked){
-            return;
-        }
-        final Collection<SVNDirEntry> entries = svnRepository.getDir(path, -1, null, (Collection) null);
-        for (final SVNDirEntry entry : entries) {
-            if (entry.getKind() == SVNNodeKind.FILE) {
-                log.debug("SVN file {}", entry.getURL().toDecodedString());
-                SVNProperties fileProperties = new SVNProperties();
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                svnRepository.getFile(path+"/"+entry.getName(), -1, fileProperties, null);
-
-                //String mimeType = fileProperties.getStringValue(SVNProperty.MIME_TYPE);
-                //boolean isTextType = SVNProperty.isTextMimeType(mimeType);
-//                log.debug("properties {} : {}", fileProperties);
-//                log.debug("isTextType : {}", isTextType);
-//                log.debug("commitMessage : {}",svnRepository.getRevisionPropertyValue(entry.getRevision(),SVNRevisionProperty.LOG).getString());
-
-
-            }
-            if (entry.getKind() == SVNNodeKind.DIR && !"tags".equals(entry.getName())) {
-                readInDepthSVN(path.equals("") ? entry.getName() : path + "/" + entry.getName());
-            }
-
-        }
-    }
-
-
 
     /**
      * initialize the SVN repository with the protocols beginning in the URL
@@ -336,8 +315,7 @@ public class SVNCrawler extends GenericCrawler implements ICrawler {
         File result = null;
         try {
             String fileName = path.substring(path.lastIndexOf('/')+1);
-            int posPoint = fileName.lastIndexOf(".");
-            String extension = extractExtension(fileName, posPoint);
+            String extension = extractExtension(fileName);
             log.trace("createFile name:{}\textension:{}", fileName, extension);
 
             //ByteArrayOutputStream baos = new ByteArrayOutputStream();

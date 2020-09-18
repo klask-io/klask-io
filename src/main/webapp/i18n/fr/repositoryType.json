@@ -4,7 +4,8 @@
             "null": "",
             "SVN": "SVN",
             "FILE_SYSTEM": "FILE_SYSTEM",
-            "GIT": "GIT"
+            "GIT": "GIT",
+            "GITLAB": "GITLAB"
         }
     }
 }

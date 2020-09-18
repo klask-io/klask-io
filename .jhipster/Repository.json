@@ -19,7 +19,7 @@
         {
             "fieldName": "type",
             "fieldType": "RepositoryType",
-            "fieldValues": "SVN,FILE_SYSTEM,GIT",
+            "fieldValues": "SVN,FILE_SYSTEM,GIT,GITLAB",
             "fieldValidateRules": [
                 "required"
             ]

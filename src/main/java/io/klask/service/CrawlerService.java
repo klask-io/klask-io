@@ -1,29 +1,26 @@
 package io.klask.service;
 
-import io.klask.config.Constants;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.inject.Inject;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
+import org.springframework.stereotype.Service;
+
 import io.klask.config.KlaskProperties;
 import io.klask.crawler.AsyncCrawler;
-import io.klask.crawler.impl.GitlabCrawler;
 import io.klask.crawler.ICrawler;
 import io.klask.crawler.impl.FileSystemCrawler;
 import io.klask.crawler.impl.GitCrawler;
+import io.klask.crawler.impl.GitlabCrawler;
 import io.klask.crawler.impl.SVNCrawler;
 import io.klask.domain.File;
 import io.klask.domain.Repository;
 import io.klask.repository.RepositoryRepository;
 import io.klask.repository.search.FileSearchRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.data.elasticsearch.annotations.Mapping;
-import org.springframework.data.elasticsearch.annotations.Setting;
-import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
-import org.springframework.data.elasticsearch.core.query.AliasBuilder;
-import org.springframework.data.elasticsearch.core.query.AliasQuery;
-import org.springframework.stereotype.Service;
-
-import javax.inject.Inject;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Created by jeremie on 30/04/16.
@@ -73,6 +70,7 @@ public class CrawlerService {
             switch (repo.getType()) {
                 case GIT:
                     aCrawler = new GitCrawler(repo, klaskProperties, elasticsearchTemplate);
+                    break;
                 case GITLAB:
                     aCrawler = new GitlabCrawler(repo, klaskProperties, elasticsearchTemplate);
                     break;

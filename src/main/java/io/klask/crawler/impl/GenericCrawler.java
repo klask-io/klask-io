@@ -109,7 +109,7 @@ public abstract class GenericCrawler {
         String fileName = file.getFileName().toString();
         return
             filesToExcludeSet.contains(fileName) || fileName.endsWith("~") ||
-                extensionsToExcludeSet.contains(extractExtension(fileName, fileName.lastIndexOf(".")));
+                extensionsToExcludeSet.contains(extractExtension(fileName));
     }
     /**
      * the parameter need to be a file, not a directory. It's used in {@code SVNVisitorCrawler}
@@ -121,7 +121,7 @@ public abstract class GenericCrawler {
         String fileName = extractName(path);
         return
             filesToExcludeSet.contains(fileName) || fileName.endsWith("~") ||
-                extensionsToExcludeSet.contains(extractExtension(fileName, fileName.lastIndexOf(".")));
+                extensionsToExcludeSet.contains(extractExtension(fileName));
     }
 
     /**
@@ -161,7 +161,7 @@ public abstract class GenericCrawler {
 
     public boolean isReadableExtension(String path) {
         String fileName = extractName(path);
-        String extension = extractExtension(fileName, fileName.lastIndexOf("."));
+        String extension = extractExtension(fileName);
         if ((!readableExtensionSet.contains(extension) && !"".equals(extension))
             //|| size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE
             ) {
@@ -178,7 +178,8 @@ public abstract class GenericCrawler {
      * @param posPoint if posPoint <= 0 then return empty string
      * @return
      */
-    protected String extractExtension(String fileName, int posPoint) {
+    protected String extractExtension(String fileName) {
+        int posPoint = fileName.lastIndexOf(".");
         if (posPoint > 0) {
             return fileName.substring(posPoint + 1, fileName.length()).toLowerCase();
         }

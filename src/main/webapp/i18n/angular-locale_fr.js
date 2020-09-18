@@ -104,19 +104,18 @@ $provide.value("$locale", {
         "negSuf": "",
         "posPre": "",
         "posSuf": ""
-      },
-      {
-        "gSize": 3,
-        "lgSize": 3,
-        "maxFrac": 2,
-        "minFrac": 2,
-        "minInt": 1,
-        "negPre": "-",
-        "negSuf": "\u00a0\u00a4",
-        "posPre": "",
-        "posSuf": "\u00a0\u00a4"
       }
-    ]
+    ],
+    "BINARY_PREFIX": [
+            "o",
+            "Kio",
+            "Mio",
+            "Gio",
+            "Tio",
+            "Pio",
+            "Eio",
+            "Zio",
+        ]
   },
   "id": "fr",
   "localeID": "fr",

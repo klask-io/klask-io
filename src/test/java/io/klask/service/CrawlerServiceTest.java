@@ -1,10 +1,7 @@
 package io.klask.service;
 
-import io.klask.domain.enumeration.RepositoryType;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Arrays;
 
 /**
  * Created by jeremie on 27/06/16.

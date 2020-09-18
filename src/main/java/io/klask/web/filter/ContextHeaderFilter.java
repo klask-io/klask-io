@@ -1,31 +1,28 @@
 package io.klask.web.filter;
 
-import io.klask.config.JHipsterProperties;
+import java.io.IOException;
+
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+
 import org.slf4j.MDC;
 
-import javax.servlet.*;
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
+import io.klask.config.JHipsterProperties;
 
 /**
  * This filter is used in production, to put remote ip address in logs.
  */
 public class ContextHeaderFilter implements Filter {
 
-    // We consider the last modified date is the start up time of the server
-    private final static long LAST_MODIFIED = System.currentTimeMillis();
-
-    private long CACHE_TIME_TO_LIVE = TimeUnit.DAYS.toMillis(1461L);
-
-    private JHipsterProperties jHipsterProperties;
-
     public ContextHeaderFilter(JHipsterProperties jHipsterProperties) {
-        this.jHipsterProperties = jHipsterProperties;
     }
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
-        CACHE_TIME_TO_LIVE = TimeUnit.DAYS.toMillis(jHipsterProperties.getHttp().getCache().getTimeToLiveInDays());
     }
 
     @Override
