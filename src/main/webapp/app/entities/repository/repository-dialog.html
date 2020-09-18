@@ -34,7 +34,7 @@
         </div>
         <div class="form-group">
             <label class="control-label" translate="klaskApp.repository.password" for="field_password">Password</label>
-            <input type="text" class="form-control" name="password" id="field_password"
+            <input type="password" class="form-control" name="password" id="field_password"
                    ng-model="vm.repository.password"
             />
         </div>
@@ -44,6 +44,7 @@
                 <option value="SVN" translate="klaskApp.RepositoryType.SVN">SVN</option>
                 <option value="FILE_SYSTEM" translate="klaskApp.RepositoryType.FILE_SYSTEM">FILE_SYSTEM</option>
                 <option value="GIT" translate="klaskApp.RepositoryType.GIT">GIT</option>
+                <option value="GITLAB" translate="klaskApp.RepositoryType.GITLAB">GITLAB</option>
             </select>
             <div ng-show="editForm.type.$invalid">
                 <p class="help-block"
