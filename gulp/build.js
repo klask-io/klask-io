@@ -27,11 +27,11 @@ var cssTask = lazypipe()
     .pipe(prefix)
     .pipe(cssnano);
 
-module.exports = function() {
+module.exports = function(done) {
     var templates = fs.readFileSync(config.tmp + '/templates.js');
     var manifest = gulp.src(config.revManifest);
 
-    return gulp.src([config.app + '**/*.html',
+    var r = gulp.src([config.app + '**/*.html',
         '!' + config.app + 'app/**/*.html',
         '!' + config.app + 'swagger-ui/**/*',
         '!' + config.bower + '**/*.html'])
@@ -47,4 +47,7 @@ module.exports = function() {
         .pipe(revReplace({manifest: manifest}))
         .pipe(sourcemaps.write('.'))
         .pipe(gulp.dest(config.dist));
+
+    done();
+    return r;
 }

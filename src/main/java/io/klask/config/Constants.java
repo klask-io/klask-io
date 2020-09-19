@@ -14,6 +14,8 @@ public final class Constants {
     public static final String SPRING_PROFILE_DEVELOPMENT = "dev";
     // Spring profile for production
     public static final String SPRING_PROFILE_PRODUCTION = "prod";
+    // Spring profile for docker
+    public static final String SPRING_PROFILE_DOCKER = "docker";
     // Spring profile used when deploying with Spring Cloud (used when deploying to CloudFoundry)
     public static final String SPRING_PROFILE_CLOUD = "cloud";
     // Spring profile used when deploying to Heroku
