@@ -9,7 +9,7 @@ var gulp = require('gulp'),
     ngConstant = require('gulp-ng-constant'),
     rename = require('gulp-rename'),
     eslint = require('gulp-eslint'),
-    es = require('event-stream'),
+    mergestream = require('merge-stream'),
     flatten = require('gulp-flatten'),
     del = require('del'),
     runSequence = require('gulp4-run-sequence').use(gulp),
@@ -37,7 +37,7 @@ gulp.task('clean', function () {
 });
 
 gulp.task('copy', function (done) {
-    var r = es.merge(
+    return mergestream(
         gulp.src(config.app + 'i18n/**')
             .pipe(plumber({ errorHandler: handleErrors }))
             .pipe(changed(config.dist + 'i18n/'))
@@ -71,10 +71,7 @@ gulp.task('copy', function (done) {
             .pipe(plumber({ errorHandler: handleErrors }))
             .pipe(changed(config.dist))
             .pipe(gulp.dest(config.dist))
-    );
-
-    done();
-    return r;
+    )
 });
 
 gulp.task('images', function (done) {
