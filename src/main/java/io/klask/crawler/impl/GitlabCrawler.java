@@ -30,6 +30,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -138,7 +139,9 @@ public class GitlabCrawler extends GenericCrawler implements ICrawler {
         if (Files.exists(pathRepo)) {
             return Git.open(pathRepo.toFile());
         } else {
-            CredentialsProvider credentials = new UsernamePasswordCredentialsProvider(repository.getUsername(),
+            String username = (StringUtils.isEmpty(repository.getUsername()) ? new String("oauth2")  : repository.getUsername());
+
+            CredentialsProvider credentials = new UsernamePasswordCredentialsProvider(username,
                     repository.getPassword());
 
             return Git.cloneRepository()
