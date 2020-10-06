@@ -2,7 +2,7 @@ version: '2'
 services:
     klask-elasticsearch:
         container_name: klask-elasticsearch
-        image: elasticsearch:2.4.1
+        image: elasticsearch:2.4
         volumes:
             - /tmp/elasticsearch/:/usr/share/elasticsearch/data/
         ports:

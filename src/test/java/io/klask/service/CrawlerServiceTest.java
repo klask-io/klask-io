@@ -8,7 +8,6 @@ import org.junit.Test;
  */
 public class CrawlerServiceTest {
 
-
     @Test
     public void testExtractionPath() {
         String pathWithTrunk = "/home/jeremie/Developpement/svn/klask/trunk/src/main/java/io/klask/async/package-info.java";

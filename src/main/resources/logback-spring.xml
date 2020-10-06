@@ -56,11 +56,17 @@
 
     <logger name="io.klask" level="#logback.loglevel#"/>
     <logger name="org.springframework.data.elasticsearch.core.ElasticsearchTemplate" level="DEBUG"/>
+    <!--<logger name="io.klask.crawler.svn.SVNVisitorCrawler" level="TRACE"/>-->
+    <!--<logger name="io.klask.crawler.impl.SVNCrawler" level="TRACE"/>-->
+
     <logger name="io.klask.repository.search.CustomSearchRepositoryImpl" level="DEBUG"/>
     <!--<logger name="CustomSearchRepositoryImpl" level="TRACE"/>-->
     <logger name="io.klask.web.rest.FileResource" level="DEBUG"/>
     <logger name="io.klask.web.rest.CrawlerResource" level="DEBUG"/>
     <logger name="io.klask.service.CrawlerService" level="DEBUG"/>
+    <logger name="svnkit" level="WARN"/>
+    <logger name="svnkit-wc" level="WARN"/>
+
     <logger name="javax.activation" level="WARN"/>
     <logger name="javax.mail" level="WARN"/>
     <logger name="javax.xml.bind" level="WARN"/>
@@ -86,6 +92,7 @@
     <logger name="sun.rmi" level="WARN"/>
     <logger name="liquibase" level="WARN"/>
     <logger name="sun.rmi.transport" level="WARN"/>
+    <logger name="org.eclipse.jgit" level="WARN" />
 
     <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
         <resetJUL>true</resetJUL>

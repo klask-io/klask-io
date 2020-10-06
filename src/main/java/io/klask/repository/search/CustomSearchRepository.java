@@ -14,11 +14,11 @@ public interface CustomSearchRepository {
 
     Map<String, Long> aggregateByRawField(String field, String filtre);
 
-    Page<File> findWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project);
+//    Page<File> findWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project);
 
     Page<File> customSearchWithHighlightedSummary(Pageable pageable, String query, List<String> version, List<String> project, List<String> extension);
 
     Page<File> customfindAll(Pageable pageable, List<String> version, List<String> project, List<String> extension);
 
-
+    File findOne(String id);
 }

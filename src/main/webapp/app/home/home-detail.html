@@ -2,14 +2,14 @@
     <div class="well">
         <div class="row">
         <h4><span>{{vm.file.project}} / </span>
-            <span>{{vm.file.name}}.{{vm.file.extension}} </span>
+            <span>{{vm.file.name}} </span>
             <em>({{vm.file.version}})</em>
             <span class="pull-right">{{vm.file.size | formatKoMoGo}}</span>
         </h4>
         <jhi-alert-error></jhi-alert-error>
     </div>
         <div>
-            <pre style="width: auto;height: 600px" nag-prism class="language-{{vm.file.contentType}} line-numbers"
+            <pre style="width: auto;height: calc(100vh - 280px)" nag-prism class="language-{{vm.file.contentType}} line-numbers"
                  source="{{vm.file.content}}"></pre>
             <hr>
         </div>
@@ -20,7 +20,7 @@
             <span class="glyphicon glyphicon-arrow-left"></span>&nbsp;<span translate="entity.action.back"> Back</span>
         </button>
         <div class="pull-right">
-            <span>{{vm.file.path}}</span>
+            <a href="{{vm.file.path}}">{{vm.file.path}}</a>
         </div>
     </div>
     </div>

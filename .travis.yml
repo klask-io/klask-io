@@ -1,14 +1,11 @@
 language: node_js
 node_js:
-  - "4.4.3"
+  - 14
 
 sudo: false
 jdk:
-  - oraclejdk8
-addons:
-  apt:
-    packages:
-      - oracle-java8-set-default
+  - openjdk8
+
 before_install:
   - npm install -g bower
   - npm install -g gulp

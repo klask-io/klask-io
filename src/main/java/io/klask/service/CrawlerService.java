@@ -1,29 +1,26 @@
 package io.klask.service;
 
-import com.codahale.metrics.annotation.Timed;
-import io.klask.config.Constants;
-import io.klask.config.KlaskProperties;
-import io.klask.crawler.AsyncCrawler;
-import io.klask.crawler.CrawlerResult;
-import io.klask.crawler.ICrawler;
-import io.klask.crawler.impl.FileSystemCrawler;
-import io.klask.domain.File;
-import io.klask.repository.search.FileSearchRepository;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.inject.Inject;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.elasticsearch.ElasticsearchException;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
 import org.springframework.stereotype.Service;
 
-import javax.inject.Inject;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.time.ZoneId;
-import java.util.*;
-import java.util.concurrent.Future;
+import io.klask.config.KlaskProperties;
+import io.klask.crawler.AsyncCrawler;
+import io.klask.crawler.ICrawler;
+import io.klask.crawler.impl.FileSystemCrawler;
+import io.klask.crawler.impl.GitCrawler;
+import io.klask.crawler.impl.GitlabCrawler;
+import io.klask.crawler.impl.SVNCrawler;
+import io.klask.domain.File;
+import io.klask.domain.Repository;
+import io.klask.repository.RepositoryRepository;
+import io.klask.repository.search.FileSearchRepository;
 
 /**
  * Created by jeremie on 30/04/16.
@@ -46,6 +43,9 @@ public class CrawlerService {
     private FileSearchRepository fileSearchRepository;
 
     @Inject
+    private RepositoryRepository repositoryRepository;
+
+    @Inject
     private AsyncCrawler asyncCrawler;
 
 
@@ -65,8 +65,25 @@ public class CrawlerService {
     public void resetAllRepo() {
         taskList.clear();
         //TODO : for now, we just use a fileSystem crawler
-        for (String directory : klaskProperties.getCrawler().getDirectoriesToScan()){
-            taskList.add(new FileSystemCrawler(directory,klaskProperties,fileSearchRepository, elasticsearchTemplate));
+        for (Repository repo : repositoryRepository.findAll()) {
+            ICrawler aCrawler;
+            switch (repo.getType()) {
+                case GIT:
+                    aCrawler = new GitCrawler(repo, klaskProperties, elasticsearchTemplate);
+                    break;
+                case GITLAB:
+                    aCrawler = new GitlabCrawler(repo, klaskProperties, elasticsearchTemplate);
+                    break;
+                case SVN:
+                    aCrawler = new SVNCrawler(repo, klaskProperties, fileSearchRepository, elasticsearchTemplate, repositoryRepository);
+                    break;
+                case FILE_SYSTEM:
+                default:
+                    aCrawler = new FileSystemCrawler(repo, klaskProperties, fileSearchRepository, elasticsearchTemplate);
+                    break;
+
+            }
+            taskList.add(aCrawler);
         }
 
     }
@@ -95,4 +112,7 @@ public class CrawlerService {
             job.stop();
         }
     }
+
+
+
 }

@@ -1,16 +1,15 @@
 package io.klask.crawler.filesystem;
 
-import io.klask.config.KlaskProperties;
-import io.klask.crawler.impl.FileSystemCrawler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.klask.crawler.impl.FileSystemCrawler;
 
 /**
  * Created by jeremie on 18/02/17.
@@ -44,14 +43,14 @@ public class FileSystemVisitorCrawler extends SimpleFileVisitor<Path> {
     }
 
     @Override
-    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-        log.trace("visitFile {}",file);
-        if(attrs.isRegularFile() && !this.crawler.isFileInExclusion(file)) {
+    public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) throws IOException {
+        log.trace("visitFile {}",path);
+        if(attrs.isRegularFile() && !this.crawler.isFileInExclusion(path)) {
             this.indexedFiles++;
-            this.crawler.addFile(file);
+            this.crawler.addFile(path);
         }
         else{
-            log.trace("exclude file {}",file);
+            log.trace("exclude file {}",path);
         }
         return FileVisitResult.CONTINUE;
 

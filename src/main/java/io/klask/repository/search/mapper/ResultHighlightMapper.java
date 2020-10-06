@@ -29,8 +29,6 @@ public class ResultHighlightMapper implements SearchResultMapper {
                 return null;
             }
 
-            //System.out.println(response.toString());
-
             String summaryWithHighlight = null;
             String pathWithHighlight = null;
             HighlightField highlightFieldContent = searchHit.getHighlightFields().get("content");
@@ -57,6 +55,8 @@ public class ResultHighlightMapper implements SearchResultMapper {
                 Long.valueOf(searchHit.getSource().get("size").toString())
             );
             oneFile.setScore(searchHit.getScore());
+            oneFile.setLastAuthor((String) searchHit.getSource().get("lastAuthor"));
+            oneFile.setLastDate((String) searchHit.getSource().get("lastDate"));
             result.add(oneFile);
         }
         return new AggregatedPageImpl<>((List<T>) result, pageable, totalHits, response.getAggregations());

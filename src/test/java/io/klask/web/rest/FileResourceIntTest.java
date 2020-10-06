@@ -4,6 +4,7 @@ import io.klask.KlaskApp;
 import io.klask.domain.File;
 import io.klask.repository.search.CustomSearchRepository;
 import io.klask.repository.search.FileSearchRepository;
+import io.klask.service.IndexService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,14 +44,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class FileResourceIntTest {
 
     private static final String DEFAULT_NAME = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    private static final String UPDATED_NAME = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
     private static final String DEFAULT_PATH = "AAAAA";
-    private static final String UPDATED_PATH = "BBBBB";
 
     private static final String DEFAULT_CONTENT = "AAAAA";
-    private static final String UPDATED_CONTENT = "BBBBB";
     private static final String DEFAULT_VERSION = "AAAAA";
-    private static final String UPDATED_VERSION = "BBBBB";
 
     @Inject
     private FileSearchRepository fileSearchRepository;
@@ -63,6 +60,9 @@ public class FileResourceIntTest {
 
     @Inject
     private PageableHandlerMethodArgumentResolver pageableArgumentResolver;
+
+    @Inject
+    private IndexService indexService;
 
     private MockMvc restFileMockMvc;
 
@@ -77,6 +77,7 @@ public class FileResourceIntTest {
         this.restFileMockMvc = MockMvcBuilders.standaloneSetup(fileResource)
             .setCustomArgumentResolvers(pageableArgumentResolver)
             .setMessageConverters(jacksonMessageConverter).build();
+        indexService.initIndexes();
     }
 
     @Before

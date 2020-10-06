@@ -20,7 +20,7 @@ import java.util.Set;
  */
 @Entity
 @Table(name = "jhi_user")
-@Document(indexName = "user")
+@Document(indexName = "user", replicas = 0, shards = 1)
 public class User extends AbstractAuditingEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;

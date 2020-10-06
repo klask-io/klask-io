@@ -14,6 +14,8 @@ public final class Constants {
     public static final String SPRING_PROFILE_DEVELOPMENT = "dev";
     // Spring profile for production
     public static final String SPRING_PROFILE_PRODUCTION = "prod";
+    // Spring profile for docker
+    public static final String SPRING_PROFILE_DOCKER = "docker";
     // Spring profile used when deploying with Spring Cloud (used when deploying to CloudFoundry)
     public static final String SPRING_PROFILE_CLOUD = "cloud";
     // Spring profile used when deploying to Heroku
@@ -24,8 +26,10 @@ public final class Constants {
     public static final String SPRING_PROFILE_NO_LIQUIBASE = "no-liquibase";
     // Account system
     public static final String SYSTEM_ACCOUNT = "system";
-    // Index name in elasticsearch
+    // Default index name in elasticsearch
     public static final String INDEX_NAME = "file";
+    // Index prefix for creation, alias will be used then
+    public static final String INDEX_PREFIX = "repo-klask-";
     // Type in elasticsearch
     public static final String TYPE_NAME = "file";
     // Parameter 'index.max_result_window' in elasticsearch
@@ -38,6 +42,7 @@ public final class Constants {
     public static final long MAX_SIZE_FOR_INDEXING_ONE_FILE = 20 * 1024 * 1024;
     // Map of fields which give the raw field to sort (https://www.elastic.co/guide/en/elasticsearch/guide/current/multi-fields.html)
     public static final Map<String, String> ORDER_FIELD_MAPPING = new HashMap<>();
+    public static final String ALIAS = "klask_files";
 
     static {
         ORDER_FIELD_MAPPING.put("id", "id");
@@ -49,6 +54,7 @@ public final class Constants {
         ORDER_FIELD_MAPPING.put("extension", "extension.raw");
         ORDER_FIELD_MAPPING.put("path", "path.raw");
         ORDER_FIELD_MAPPING.put("project", "project.raw");
+        ORDER_FIELD_MAPPING.put("lastDate", "lastDate");
 
     }
 

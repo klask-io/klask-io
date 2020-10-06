@@ -21,6 +21,7 @@ import java.util.Arrays;
 public class LoggingAspect {
 
     private final Logger log = LoggerFactory.getLogger(this.getClass());
+    ThreadLocal<Integer> count = ThreadLocal.withInitial(() -> new Integer(0));
 
     @Inject
     private Environment env;
@@ -43,13 +44,20 @@ public class LoggingAspect {
     @Around("loggingPointcut()")
     public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable {
         if (log.isDebugEnabled()) {
-            log.debug("=>> {}.{}() with argument[s] = {}", joinPoint.getSignature().getDeclaringTypeName(),
+
+            char[] espaces = new char[count.get().intValue()];
+            Arrays.fill(espaces, ' ');
+            count.set(count.get() + 1);
+            log.debug("{}=>> {}.{}() with argument[s] = {}", new String(espaces), joinPoint.getSignature().getDeclaringTypeName(),
                 joinPoint.getSignature().getName(), Arrays.toString(joinPoint.getArgs()));
         }
         try {
             Object result = joinPoint.proceed();
             if (log.isDebugEnabled()) {
-                log.debug("<<= {}.{}() with result = {}", joinPoint.getSignature().getDeclaringTypeName(),
+                count.set(count.get() - 1);
+                char[] espaces = new char[count.get().intValue()];
+                Arrays.fill(espaces, ' ');
+                log.debug("{}<<= {}.{}() with result = {}", new String(espaces), joinPoint.getSignature().getDeclaringTypeName(),
                     joinPoint.getSignature().getName(), result);
             }
             return result;

@@ -1,5 +1,6 @@
 package io.klask.vcs.svn;
 
+import org.junit.Test;
 import org.tmatesoft.svn.core.*;
 import org.tmatesoft.svn.core.internal.io.dav.DAVRepositoryFactory;
 import org.tmatesoft.svn.core.io.SVNRepository;
@@ -94,7 +95,7 @@ public class TestCheckOut {
         }
     }
 
-    //@Test
+    @Test
     public void checkoutTest() throws SVNException {
         String checkoutPath = "svn://localhost";
         String username = "integration";

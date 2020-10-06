@@ -27,19 +27,49 @@ public class KlaskProperties {
 
     public static class CrawlerProperties {
 
-        private List<String> directoriesToScan = new ArrayList<>();//Arrays.asList(".");
+        private List<String> directoriesToScan = new ArrayList<>();
 
-        private List<String> directoriesToExclude = new ArrayList<>();//Arrays.asList(".svn");
+        private String workingDirectory;
 
-        private List<String> extensionsToExclude = new ArrayList<>();//Arrays.asList("sha1", "md5");
+        private String privateKey;
 
-        private List<String> filesToExclude = new ArrayList<>();//Arrays.asList(".project");
+        private String userGit;
 
-        private List<String> filesToInclude = new ArrayList<>();//Arrays.asList("README");
+        private List<String> directoriesToExclude = new ArrayList<>();
 
-        private List<String> extensionsToRead = new ArrayList<>();//Arrays.asList("java","txt","php","xml","properties");
+        private List<String> extensionsToExclude = new ArrayList<>();
+
+        private List<String> filesToExclude = new ArrayList<>();
+
+        private List<String> filesToInclude = new ArrayList<>();
+
+        private List<String> extensionsToRead = new ArrayList<>();
 
         private int batchSize = 25;
+
+        public String getUserGit() {
+            return userGit;
+        }
+
+        public void setUserGit(String userGit) {
+            this.userGit = userGit;
+        }
+
+        public String getPrivateKey() {
+            return privateKey;
+        }
+
+        public void setPrivateKey(String privateKey) {
+            this.privateKey = privateKey;
+        }
+
+        public String getWorkingDirectory() {
+            return workingDirectory;
+        }
+
+        public void setWorkingDirectory(String workingDirectory) {
+            this.workingDirectory = workingDirectory;
+        }
 
         public List<String> getDirectoriesToScan() {
             return directoriesToScan;

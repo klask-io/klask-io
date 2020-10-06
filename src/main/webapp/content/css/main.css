@@ -341,7 +341,13 @@ ui bootstrap tweaks
     font-size: 0.9em;
 }
 
-.sizeDoc {
+.lastAuthor {
+    float: right;
+    margin-right: 10px;
+    text-align:right;
+}
+
+.italicRight {
     color: grey;
     float: right;
     margin-right: 10px;
