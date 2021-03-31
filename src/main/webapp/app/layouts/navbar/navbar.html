@@ -82,7 +82,7 @@
                                 <span translate="global.menu.account.login">Sign in</span>
                             </a>
                         </li>
-                        <li ui-sref-active="active" ng-switch-when="false">
+                        <li ui-sref-active="active" ng-switch-when="false" ng-show="vm.smtpActive">
                             <a ui-sref="register" ng-click="vm.collapseNavbar()">
                                 <span class="glyphicon glyphicon-plus-sign"></span>&nbsp;
                                 <span translate="global.menu.account.register">Register</span>

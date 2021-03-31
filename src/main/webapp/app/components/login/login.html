@@ -33,11 +33,13 @@
                 <button type="submit" class="btn btn-primary" translate="login.form.button">Sign in</button>
             </form>
             <p></p>
-            <div class="alert alert-warning">
-                <a class="alert-link" href="" ng-click="vm.requestResetPassword()" translate="login.password.forgot">Did you forget your password?</a>
-            </div>
-            <div class="alert alert-warning" translate="global.messages.info.register" translate-compile>
-                You don't have an account yet? <a class="alert-link" href="" ng-click="vm.register()">Register a new account</a>
+            <div ng-show="vm.smtpActive">
+                <div class="alert alert-warning">
+                    <a class="alert-link" href="" ng-click="vm.requestResetPassword()" translate="login.password.forgot">Did you forget your password?</a>
+                </div>
+                <div class="alert alert-warning" translate="global.messages.info.register" translate-compile>
+                    You don't have an account yet? <a class="alert-link" href="" ng-click="vm.register()">Register a new account</a>
+                </div>
             </div>
         </div>
     </div>

@@ -5,5 +5,6 @@
         .module('klaskApp')
         .constant('VERSION', "0.3-SNAPSHOT")
         .constant('DEBUG_INFO_ENABLED', false)
+        .constant('SMTP_ACTIVE', false)
 ;
 })();

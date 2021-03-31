@@ -64,12 +64,6 @@
                         $state.go('accessdenied');
                     }
                     else {
-                        //en anonyme, on veut pouvoir accéder à la page principale et le détail d'un fichier
-                        if(($rootScope.toState.name ==='home-detail' || $rootScope.toState.name ==='home')
-                         && $rootScope.toState.parent === 'app'){
-                            //ne bloque pas
-                        }
-                        else{
                         // user is not authenticated. stow the state they wanted before you
                         // send them to the login service, so you can return them when you're done
                         storePreviousState($rootScope.toState.name, $rootScope.toStateParams);
@@ -78,7 +72,6 @@
                         $state.go('accessdenied').then(function() {
                             LoginService.open();
                         });
-                        }
                     }
                 }
             }
@@ -143,6 +136,9 @@
         function logout () {
             AuthServerProvider.logout();
             Principal.authenticate(null);
+            $state.go('accessdenied').then(function() {
+                LoginService.open();
+            });
         }
 
         function resetPasswordFinish (keyAndPassword, callback) {

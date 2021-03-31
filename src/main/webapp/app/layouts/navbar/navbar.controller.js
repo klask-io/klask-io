@@ -5,11 +5,12 @@
         .module('klaskApp')
         .controller('NavbarController', NavbarController);
 
-    NavbarController.$inject = ['$state', 'Auth', 'Principal', 'ProfileService', 'LoginService'];
+    NavbarController.$inject = ['$state', 'Auth', 'Principal', 'ProfileService', 'LoginService',  'SMTP_ACTIVE'];
 
-    function NavbarController ($state, Auth, Principal, ProfileService, LoginService) {
+    function NavbarController ($state, Auth, Principal, ProfileService, LoginService, SMTP_ACTIVE) {
         var vm = this;
 
+        vm.smtpActive = SMTP_ACTIVE;
         vm.isNavbarCollapsed = true;
         vm.isAuthenticated = Principal.isAuthenticated;
 
