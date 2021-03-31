@@ -33,7 +33,9 @@
         function logout() {
             collapseNavbar();
             Auth.logout();
-            $state.go('home');
+            $state.go('accessdenied').then(function() {
+                LoginService.open();
+            });
         }
 
         function toggleNavbar() {

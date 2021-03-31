@@ -55,6 +55,9 @@
                     var previousState = Auth.getPreviousState();
                     Auth.resetPreviousState();
                     $state.go(previousState.name, previousState.params);
+                } else {
+                    // if there is not previous state, the default value will be home
+                    $state.go('home');
                 }
             }).catch(function () {
                 vm.authenticationError = true;
