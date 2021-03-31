@@ -1,0 +1,48 @@
+{
+    "relationships": [],
+    "fields": [
+        {
+            "fieldName": "path",
+            "fieldType": "String",
+            "fieldValidateRules": [
+                "required"
+            ]
+        },
+        {
+            "fieldName": "username",
+            "fieldType": "String"
+        },
+        {
+            "fieldName": "password",
+            "fieldType": "String"
+        },
+        {
+            "fieldName": "type",
+            "fieldType": "RepositoryType",
+            "fieldValues": "SVN,FILE_SYSTEM,GIT,GITLAB",
+            "fieldValidateRules": [
+                "required"
+            ]
+        },
+        {
+            "fieldName": "name",
+            "fieldType": "String",
+            "fieldValidateRules": [
+                "required"
+            ]
+        },
+        {
+            "fieldName": "revision",
+            "fieldType": "Long"
+        },
+        {
+            "fieldName": "schedule",
+            "fieldType": "String"
+        }
+    ],
+    "changelogDate": "20170305155225",
+    "dto": "no",
+    "service": "serviceClass",
+    "entityTableName": "repository",
+    "pagination": "pagination"
+}

@@ -142,11 +142,13 @@
                                         class="glyphicon glyphicon-sort"></span></th>
                                     <th jh-sort-by="size"><span translate="klaskApp.file.size">Size</span> <span
                                         class="glyphicon glyphicon-sort"></span></th>
+                                    <th jh-sort-by="lastDate"><span translate="klaskApp.file.date">Date</span> <span
+                                        class="glyphicon glyphicon-sort"></span></th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 <tr ng-repeat="file in vm.files track by file.id">
-                                    <td colspan="6">
+                                    <td colspan="7">
                                         <div>
                                             <div class="titreDoc">
                                                 <big><a data-toggle="tooltip" data-placement="left"
@@ -154,11 +156,19 @@
                                                         ui-sref="home-detail({id:file.id})">{{file.name|characters:60}}</a></big>
                                                 <span class="label label-info">{{file.version}}</span>
                                                 <span class="label label-primary">{{file.project}}</span>
-                                                <span class="sizeDoc">{{file.size | formatKoMoGo}}</span>
+                                                <div class="italicRight">
+                                                    <p class="label label-default">{{file.lastAuthor}}</p>
+                                                    <p data-toggle="tooltip" data-placement="left"
+                                                       title="{{file.lastDate|date:'medium':timezone}}">
+                                                        {{file.lastDate|date:format:timezone}}</p>
+                                                </div>
                                             </div>
+                                            <div ng-if="file.content == '' || file.content == null"><span>&nbsp;</span></div>
                                             <p class="small apercuCode"
                                                ng-bind-html="file.content | characters:500 | escapeall | unsafe"></p>
                                             <em class="pathDoc small" ng-bind-html="file.path | unsafe"></em>
+                                            <em class="pathDoc italicRight">{{file.size | formatKoMoGo |
+                                                translate}}</em>
                                         </div>
                                     </td>
                                 </tr>

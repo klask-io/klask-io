@@ -40,6 +40,8 @@ public class ResultTruncatedContentMapper implements SearchResultMapper {
                 //mais cela jette un classCastException Integer to Long
                 Long.valueOf(searchHit.getSource().get("size").toString())
             );
+            oneFile.setLastAuthor((String) searchHit.getSource().get("lastAuthor"));
+            oneFile.setLastDate((String) searchHit.getSource().get("lastDate"));
             result.add(oneFile);
         }
         return new AggregatedPageImpl<>((List<T>) result, pageable, totalHits, response.getAggregations());

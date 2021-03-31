@@ -1,0 +1,91 @@
+
+<form name="editForm" role="form" novalidate ng-submit="vm.save()" show-validation>
+
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true"
+                ng-click="vm.clear()">&times;</button>
+        <h4 class="modal-title" id="myRepositoryLabel" translate="klaskApp.repository.home.createOrEditLabel">Create or
+            edit a Repository</h4>
+    </div>
+    <div class="modal-body">
+        <jhi-alert-error></jhi-alert-error>
+        <div class="form-group" ng-show="vm.repository.id">
+            <label for="id" translate="global.field.id">ID</label>
+            <input type="text" class="form-control" id="id" name="id"
+                   ng-model="vm.repository.id" readonly/>
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="klaskApp.repository.path" for="field_path">Path</label>
+            <input type="text" class="form-control" name="path" id="field_path"
+                   ng-model="vm.repository.path"
+                   required/>
+            <div ng-show="editForm.path.$invalid">
+                <p class="help-block"
+                   ng-show="editForm.path.$error.required" translate="entity.validation.required">
+                    This field is required.
+                </p>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="klaskApp.repository.username" for="field_username">Username</label>
+            <input type="text" class="form-control" name="username" id="field_username"
+                   ng-model="vm.repository.username"
+            />
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="klaskApp.repository.password" for="field_password">Password</label>
+            <input type="password" class="form-control" name="password" id="field_password"
+                   ng-model="vm.repository.password"
+            />
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="klaskApp.repository.type" for="field_type">Type</label>
+            <select class="form-control" name="type" ng-model="vm.repository.type" id="field_type" required>
+                <option value="SVN" translate="klaskApp.RepositoryType.SVN">SVN</option>
+                <option value="FILE_SYSTEM" translate="klaskApp.RepositoryType.FILE_SYSTEM">FILE_SYSTEM</option>
+                <option value="GIT" translate="klaskApp.RepositoryType.GIT">GIT</option>
+                <option value="GITLAB" translate="klaskApp.RepositoryType.GITLAB">GITLAB</option>
+            </select>
+            <div ng-show="editForm.type.$invalid">
+                <p class="help-block"
+                   ng-show="editForm.type.$error.required" translate="entity.validation.required">
+                    This field is required.
+                </p>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="klaskApp.repository.name" for="field_name">Name</label>
+            <input type="text" class="form-control" name="name" id="field_name"
+                   ng-model="vm.repository.name"
+                   required/>
+            <div ng-show="editForm.name.$invalid">
+                <p class="help-block"
+                   ng-show="editForm.name.$error.required" translate="entity.validation.required">
+                    This field is required.
+                </p>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="klaskApp.repository.revision" for="field_revision">Revision</label>
+            <input type="number" class="form-control" name="revision" id="field_revision"
+                   ng-model="vm.repository.revision"
+            />
+        </div>
+        <div class="form-group">
+            <label class="control-label" translate="klaskApp.repository.schedule" for="field_schedule">Schedule</label>
+            <input type="text" class="form-control" name="schedule" id="field_schedule"
+                   ng-model="vm.repository.schedule"
+            />
+        </div>
+
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal" ng-click="vm.clear()">
+            <span class="glyphicon glyphicon-ban-circle"></span>&nbsp;<span
+            translate="entity.action.cancel">Cancel</span>
+        </button>
+        <button type="submit" ng-disabled="editForm.$invalid || vm.isSaving" class="btn btn-primary">
+            <span class="glyphicon glyphicon-save"></span>&nbsp;<span translate="entity.action.save">Save</span>
+        </button>
+    </div>
+</form>

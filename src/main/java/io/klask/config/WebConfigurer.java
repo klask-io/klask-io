@@ -3,6 +3,7 @@ package io.klask.config;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.servlet.InstrumentedFilter;
 import com.codahale.metrics.servlets.MetricsServlet;
+import io.klask.service.IndexService;
 import io.klask.web.filter.CachingHttpHeadersFilter;
 import io.klask.web.filter.ContextHeaderFilter;
 import org.slf4j.Logger;
@@ -41,8 +42,12 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
     @Inject
     private JHipsterProperties jHipsterProperties;
 
+    @Inject
+    private IndexService indexService;
+
     @Autowired(required = false)
     private MetricRegistry metricRegistry;
+
 
     @Override
     public void onStartup(ServletContext servletContext) throws ServletException {
@@ -52,12 +57,15 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
         EnumSet<DispatcherType> disps = EnumSet.of(DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.ASYNC);
         initMetrics(servletContext, disps);
         initContextHeader(servletContext, disps);
-        if (env.acceptsProfiles(Constants.SPRING_PROFILE_PRODUCTION)) {
+        if (env.acceptsProfiles(Constants.SPRING_PROFILE_PRODUCTION, Constants.SPRING_PROFILE_DOCKER)) {
             initCachingHttpHeadersFilter(servletContext, disps);
         }
         if (env.acceptsProfiles(Constants.SPRING_PROFILE_DEVELOPMENT)) {
             initH2Console(servletContext);
         }
+
+        indexService.initIndexes();
+
         log.info("Web application fully configured");
     }
 
@@ -95,7 +103,7 @@ public class WebConfigurer implements ServletContextInitializer, EmbeddedServlet
     private void setLocationForStaticAssets(ConfigurableEmbeddedServletContainer container) {
         File root;
         String prefixPath = resolvePathPrefix();
-        if (env.acceptsProfiles(Constants.SPRING_PROFILE_PRODUCTION)) {
+        if (env.acceptsProfiles(Constants.SPRING_PROFILE_PRODUCTION, Constants.SPRING_PROFILE_DOCKER)) {
             root = new File(prefixPath + "target/www/");
         } else {
             root = new File(prefixPath + "src/main/webapp/");

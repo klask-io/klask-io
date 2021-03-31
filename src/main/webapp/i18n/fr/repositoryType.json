@@ -1,0 +1,11 @@
+{
+    "klaskApp": {
+        "RepositoryType": {
+            "null": "",
+            "SVN": "SVN",
+            "FILE_SYSTEM": "FILE_SYSTEM",
+            "GIT": "GIT",
+            "GITLAB": "GITLAB"
+        }
+    }
+}

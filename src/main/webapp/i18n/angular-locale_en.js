@@ -134,7 +134,17 @@ $provide.value("$locale", {
         "posPre": "\u00a4",
         "posSuf": ""
       }
-    ]
+    ],
+    "BINARY_PREFIX": [
+            "o",
+            "Kio",
+            "Mio",
+            "Gio",
+            "Tio",
+            "Pio",
+            "Eio",
+            "Zio",
+        ]
   },
   "id": "en",
   "localeID": "en",

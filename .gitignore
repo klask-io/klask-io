@@ -2,6 +2,7 @@
 # Project Specific
 ######################
 /target/www/**
+/src/main/webapp/bower_components
 
 ######################
 # Node
@@ -132,3 +133,4 @@ Desktop.ini
 # ESLint
 ######################
 .eslintcache
+/target/
