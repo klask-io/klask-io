@@ -4,6 +4,7 @@ import io.klask.config.Constants;
 import io.klask.config.DefaultProfileUtil;
 import io.klask.config.JHipsterProperties;
 import io.klask.config.KlaskProperties;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
@@ -42,6 +43,9 @@ public class KlaskApp {
         SpringApplication app = new SpringApplication(KlaskApp.class);
         DefaultProfileUtil.addDefaultProfile(app);
         Environment env = app.run(args).getEnvironment();
+        if (!StringUtils.isEmpty(System.getenv(Constants.MASTER_AES_KEY))){
+            log.info("env variable {} is defined, so AES is activated", Constants.MASTER_AES_KEY);
+        }
         log.info("\n----------------------------------------------------------\n\t" +
                 "Application '{}' is running! Access URLs:\n\t" +
                 "Local: \t\thttp://127.0.0.1:{}\n\t" +
@@ -50,6 +54,7 @@ public class KlaskApp {
             env.getProperty("server.port"),
             InetAddress.getLocalHost().getHostAddress(),
             env.getProperty("server.port"));
+
 
     }
 
