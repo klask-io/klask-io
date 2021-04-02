@@ -13,6 +13,7 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 
+import io.klask.service.util.CipherUtil;
 import org.springframework.data.elasticsearch.annotations.Document;
 
 import io.klask.domain.enumeration.RepositoryType;
@@ -81,11 +82,12 @@ public class Repository implements Serializable {
     }
 
     public String getPassword() {
-        return password;
+        return CipherUtil.decipherTextIfAESActivated(password);
     }
 
     public void setPassword(String password) {
-        this.password = password;
+
+        this.password = CipherUtil.cipherTextIfAESActivated(password);
     }
 
     public RepositoryType getType() {
