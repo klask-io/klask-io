@@ -49,12 +49,15 @@ Before you can build this project, you must install and configure the following 
 
 After installing Node, you should be able to run the following command to install development tools (like
 [Bower][] and [BrowserSync][]). You will only need to run this command when dependencies change in package.json.
-
-    npm install
-
 We use [Gulp][] as our build system. Install the Gulp command-line tool globally with:
 
+    npm install
     npm install -g gulp
+    npm install -g bower
+    bower update
+    bower install
+    gulp
+
 
 Run the following commands in two separate terminals to create a blissful development experience where your browser
 auto-refreshes when files change on your hard drive.

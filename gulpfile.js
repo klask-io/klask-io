@@ -179,13 +179,14 @@ gulp.task('ngconstant:dev', function () {
         name: 'klaskApp',
         constants: {
             VERSION: util.parseVersion(),
-            DEBUG_INFO_ENABLED: true
+            DEBUG_INFO_ENABLED: true,
+            SMTP_ACTIVE: false
         },
         template: config.constantTemplate,
         stream: true
     })
-        .pipe(rename('app.constants.js'))
-        .pipe(gulp.dest(config.app + 'app/'));
+    .pipe(rename('app.constants.js'))
+    .pipe(gulp.dest(config.app + 'app/'));
 });
 
 gulp.task('ngconstant:prod', function (done) {
@@ -193,7 +194,8 @@ gulp.task('ngconstant:prod', function (done) {
         name: 'klaskApp',
         constants: {
             VERSION: util.parseVersion(),
-            DEBUG_INFO_ENABLED: false
+            DEBUG_INFO_ENABLED: false,
+            SMTP_ACTIVE: false
         },
         template: config.constantTemplate,
         stream: true

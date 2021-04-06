@@ -5,11 +5,12 @@
         .module('klaskApp')
         .controller('LoginController', LoginController);
 
-    LoginController.$inject = ['$rootScope', '$state', '$timeout', 'Auth', '$uibModalInstance'];
+    LoginController.$inject = ['$rootScope', '$state', '$timeout', 'Auth', '$uibModalInstance', 'SMTP_ACTIVE'];
 
-    function LoginController ($rootScope, $state, $timeout, Auth, $uibModalInstance) {
+    function LoginController ($rootScope, $state, $timeout, Auth, $uibModalInstance, SMTP_ACTIVE) {
         var vm = this;
 
+        vm.smtpActive = SMTP_ACTIVE;
         vm.authenticationError = false;
         vm.cancel = cancel;
         vm.credentials = {};
@@ -54,6 +55,9 @@
                     var previousState = Auth.getPreviousState();
                     Auth.resetPreviousState();
                     $state.go(previousState.name, previousState.params);
+                } else {
+                    // if there is not previous state, the default value will be home
+                    $state.go('home');
                 }
             }).catch(function () {
                 vm.authenticationError = true;
