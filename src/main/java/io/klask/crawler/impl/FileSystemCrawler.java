@@ -150,8 +150,7 @@ public class FileSystemCrawler extends GenericCrawler implements ICrawler {
         long size = attrs.size();
 
         String content = null;
-        if ((!readableExtensionSet.contains(extension) && !"".equals(extension))
-            || size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE) {
+        if (size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE || isFileInExclusion(path)) {
             log.trace("parsing only name on file : {}", path);
         } else {
             content = readContent(path);

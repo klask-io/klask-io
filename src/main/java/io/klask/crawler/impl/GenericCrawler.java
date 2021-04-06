@@ -4,6 +4,8 @@ import io.klask.config.Constants;
 import io.klask.config.KlaskProperties;
 import io.klask.domain.File;
 import io.klask.domain.Repository;
+
+import org.apache.tika.Tika;
 import org.bouncycastle.jcajce.provider.digest.SHA256;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
@@ -32,46 +34,49 @@ public abstract class GenericCrawler {
 
     protected ElasticsearchTemplate elasticsearchTemplate;
 
-
-    protected Set<String> directoriesToExcludeSet = new HashSet<>();
-    protected Set<String> filesToExcludeSet = new HashSet<>();
-    protected Set<String> extensionsToExcludeSet = new HashSet<>();
-    protected Set<String> readableExtensionSet = new HashSet<>();
     protected Set<File> listeDeFichiers = new HashSet<>();
-    protected  Repository repository;
+    protected Repository repository;
     protected int numberOfFailedDocuments = 0;
 
+    private final Set<String> directoriesToExclude = new HashSet<>();
+    private final Set<String> filesToExclude = new HashSet<>();
+    private final Set<String> extensionsToExclude = new HashSet<>();
+    private final Set<String> mimesToExclude = new HashSet<>();
+    private final Tika tikaFacade;
 
-    public GenericCrawler(Repository repository, KlaskProperties klaskProperties, ElasticsearchTemplate elasticsearchTemplate){
+    GenericCrawler(Repository repository, KlaskProperties klaskProperties, ElasticsearchTemplate elasticsearchTemplate) {
+        this(repository, klaskProperties, elasticsearchTemplate, new Tika());
+    }
+
+    GenericCrawler(Repository repository, KlaskProperties klaskProperties, ElasticsearchTemplate elasticsearchTemplate, Tika tikaFacade){
         this.repository = repository;
         this.klaskProperties = klaskProperties;
         this.elasticsearchTemplate = elasticsearchTemplate;
-
+        this.tikaFacade = tikaFacade;
     }
 
     /**
      * Initialize all properties for the crawler like directories to exclude, files extension to read, etc..
      */
     protected void initializeProperties(){
-        directoriesToExcludeSet.clear();
-        directoriesToExcludeSet.addAll(klaskProperties.getCrawler().getDirectoriesToExclude());
-        log.debug("exclude directories {}", directoriesToExcludeSet);
+        directoriesToExclude.clear();
+        directoriesToExclude.addAll(klaskProperties.getCrawler().getDirectoriesToExclude());
+        log.debug("exclude directories {}", directoriesToExclude);
 
-        filesToExcludeSet.clear();
-        filesToExcludeSet.addAll(klaskProperties.getCrawler().getFilesToExclude());
-        log.debug("exclude files : {}", filesToExcludeSet);
+        filesToExclude.clear();
+        filesToExclude.addAll(klaskProperties.getCrawler().getFilesToExclude());
+        log.debug("exclude files : {}", filesToExclude);
 
-        extensionsToExcludeSet.clear();
-        extensionsToExcludeSet.addAll(klaskProperties.getCrawler().getExtensionsToExclude());
-        log.debug("exclude extensions : {}", extensionsToExcludeSet);
+        extensionsToExclude.clear();
+        extensionsToExclude.addAll(klaskProperties.getCrawler().getExtensionsToExclude());
+        log.debug("exclude extensions : {}", extensionsToExclude);
 
-        readableExtensionSet.clear();
-        readableExtensionSet.addAll(klaskProperties.getCrawler().getExtensionsToRead());
-        log.debug("ascii files with extension : {}", readableExtensionSet);
+        mimesToExclude.clear();
+        mimesToExclude.addAll(klaskProperties.getCrawler().getMimesToExclude());
+        log.debug("exclude files with MIME type: {}", mimesToExclude);
 
         numberOfFailedDocuments = 0;
     }
-
 
     /**
      * this method is only used in count. Because the parameter dirOrFile could be either directory or file.
@@ -81,14 +86,11 @@ public abstract class GenericCrawler {
     protected boolean excludeDirectories(Path rootPath, Path dirOrFile){
         final boolean[] exclude = {false};
         rootPath.relativize(dirOrFile).forEach((Path subPath) -> {
-                exclude[0] |=directoriesToExcludeSet.contains(subPath.toString());
+                exclude[0] |=directoriesToExclude.contains(subPath.toString());
             }
         );
         return exclude[0];
     }
-
-
-
 
     /**
      * check the size of batch index, and index if necessary
@@ -102,26 +104,25 @@ public abstract class GenericCrawler {
 
     /**
      * the parameter need to be a file, not a directory. It's used in {@code FileSystemVisitorCrawler}
-     * @param file
+     * @param filePath
      * @return
      */
-    public boolean isFileInExclusion(Path file){
-        String fileName = file.getFileName().toString();
+    public boolean isFileInExclusion(Path filePath){
+        String fileName = filePath.getFileName().toString();
         return
-            filesToExcludeSet.contains(fileName) || fileName.endsWith("~") ||
-                extensionsToExcludeSet.contains(extractExtension(fileName));
+            filesToExclude.contains(fileName) || fileName.endsWith("~") ||
+                extensionsToExclude.contains(extractExtension(fileName)) ||
+                isMimeExcluded(filePath);
     }
-    /**
-     * the parameter need to be a file, not a directory. It's used in {@code SVNVisitorCrawler}
-     *
-     * @param path
-     * @return
-     */
-    protected boolean isFileInExclusion(String path) {
-        String fileName = extractName(path);
-        return
-            filesToExcludeSet.contains(fileName) || fileName.endsWith("~") ||
-                extensionsToExcludeSet.contains(extractExtension(fileName));
+
+    private boolean isMimeExcluded(Path filePath) {
+        try {
+            String mediaType = tikaFacade.detect(filePath);
+            return mimesToExclude.contains(mediaType);
+        } catch (IOException e) {
+            log.error("Error when detecting the mime-type for file {}", filePath, e);
+        }
+        return true;
     }
 
     /**
@@ -132,44 +133,7 @@ public abstract class GenericCrawler {
      * @return
      */
     public boolean isDirectoryInExclusion(Path dir){
-        return directoriesToExcludeSet.contains(dir.getFileName().toString());
-    }
-
-    /**
-     * extract the name of file
-     * @param path
-     * @return
-     */
-    protected static String extractName(String path) {
-        return path.substring(path.lastIndexOf('/') + 1);
-    }
-
-
-    /**
-     * the dir parameter need to be a directory
-     * return true if the directory is in exclusion list
-     * used by {@code SVNVisitorCrawler}
-     *
-     * @param path
-     * @return
-     */
-    protected boolean isDirectoryInExclusion(String path) {
-        return directoriesToExcludeSet.contains(extractName(path));
-    }
-
-
-
-    public boolean isReadableExtension(String path) {
-        String fileName = extractName(path);
-        String extension = extractExtension(fileName);
-        if ((!readableExtensionSet.contains(extension) && !"".equals(extension))
-            //|| size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE
-            ) {
-            log.trace("parsing only name on file : {}", path);
-            return false;
-        } else {
-            return true;
-        }
+        return directoriesToExclude.contains(dir.getFileName().toString());
     }
 
     /**
@@ -186,7 +150,6 @@ public abstract class GenericCrawler {
         //the file name doesn't contain a dot or the name is like ".project" so no extension
         return "";
     }
-
 
     /**
      * sha256 on the file's path. It should be the same, even after a full reindex
@@ -223,8 +186,6 @@ public abstract class GenericCrawler {
         return new String(content, Charset.forName("iso-8859-1"));
 
     }
-
-
 
     /**
      * Index a bulk of files (Constant default : 100)
@@ -273,4 +234,5 @@ public abstract class GenericCrawler {
             }
         }
     }
+
 }
