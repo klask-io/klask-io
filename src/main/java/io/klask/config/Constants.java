@@ -44,6 +44,9 @@ public final class Constants {
     public static final Map<String, String> ORDER_FIELD_MAPPING = new HashMap<>();
     public static final String ALIAS = "klask_files";
 
+    // Name of environment variable master password for AES encryption
+    public static final String MASTER_AES_KEY = "MASTER_AES_KEY";
+
     static {
         ORDER_FIELD_MAPPING.put("id", "id");
         ORDER_FIELD_MAPPING.put("_score", "_score");
