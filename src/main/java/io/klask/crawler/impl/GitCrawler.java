@@ -3,7 +3,6 @@ package io.klask.crawler.impl;
 import static org.eclipse.jgit.lib.Constants.OBJ_BLOB;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -95,8 +94,7 @@ public class GitCrawler extends GenericCrawler implements ICrawler {
 
 
         String content = null;
-        if ((!readableExtensionSet.contains(extension) && !"".equals(extension))
-            || size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE) {
+        if (size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE || isFileInExclusion(path)) {
             log.trace("parsing only name on file : {}", path);
         } else {
             content = readContent(path);
@@ -236,12 +234,12 @@ public class GitCrawler extends GenericCrawler implements ICrawler {
 
                             String content = null;
 
-                            if ((!readableExtensionSet.contains(extension) && !"".equals(extension))
-                                    || size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE) {
+                            if (size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE
+                                    || isFileInExclusion(workingDir.resolve(pathAndFileName))) {
                                 log.trace("parsing only name on file : {}", pathAndFileName);
                             } else {
                                 byte[] bytes = loader.getBytes();
-                                content = new String(bytes, Charset.forName("utf-8"));
+                                content = new String(bytes, StandardCharsets.UTF_8);
                                 log.trace("tree size    : {}", loader.getSize());
                             }
                             String pathComplet = this.repository.getPath() + "@" + branch + ":/" + pathAndFileName;

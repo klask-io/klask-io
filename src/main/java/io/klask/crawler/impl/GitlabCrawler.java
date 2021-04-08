@@ -42,7 +42,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.stream.Stream;
 
@@ -227,8 +226,8 @@ public class GitlabCrawler extends GenericCrawler implements ICrawler {
 
                         String content = null;
 
-                        if ((!readableExtensionSet.contains(extension) && !"".equals(extension))
-                            || size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE) {
+                        if (size > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE
+                                || isFileInExclusion(workingDir.resolve(pathAndFileName))) {
                             log.trace("parsing only name on file : {}", pathAndFileName);
                         } else {
                             content = new String(loader.getBytes(), StandardCharsets.UTF_8);

@@ -34,7 +34,6 @@ public class SVNVisitorCrawler implements ISVNEditor {
     private Stack<String> myDirectoriesStack = new Stack<>();
 
     private boolean skipTags = false;
-    private boolean currentFileReadable = false;
     private boolean currentFileExcluded = false;
     private long currentSize=-1;
     private SVNDeltaProcessor myDeltaProcessor = new SVNDeltaProcessor();
@@ -80,7 +79,6 @@ public class SVNVisitorCrawler implements ISVNEditor {
         if (skipTags) return;
         log.trace("addFileInCurrentBranch {}, copyFromPath={}, copyFromRevision={}", path, copyFromPath, copyFromRevision);
         outputStream.reset();
-        currentFileReadable = this.svnCrawler.isReadableExtension(path);
         currentFileExcluded = this.svnCrawler.isFileInExclusion(Paths.get(path));
         if (!currentFileExcluded) {
             currentFile = this.svnCrawler.createFile(path);
@@ -98,9 +96,11 @@ public class SVNVisitorCrawler implements ISVNEditor {
     //in the closeFile, the param md5Checksum give the MD5 check sum
     @Override
     public void closeFile(String path, String md5Checksum) throws SVNException {
-        if(skipTags || currentFileExcluded)return;
+        if (skipTags || currentFileExcluded) {
+            return;
+        }
         log.trace("closeFile {}:{}", path, md5Checksum);
-        if (currentFileReadable) {
+        if (!currentFileExcluded) {
             currentFile.setContent(new String(outputStream.toByteArray(), Charset.forName("iso-8859-1")));
 
         }
@@ -129,7 +129,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
     public void applyTextDelta(String path, String baseChecksum) throws SVNException {
         if (skipTags) return;
         log.trace("applyTextDelta {} ck {}", path, baseChecksum);
-        if (!currentFileExcluded && currentFileReadable) {
+        if (!currentFileExcluded) {
             myDeltaProcessor.applyTextDelta(null, outputStream, false);
         }
     }
@@ -140,9 +140,9 @@ public class SVNVisitorCrawler implements ISVNEditor {
         log.trace("textDeltaChunk {}:{}", path, diffWindow);
         currentSize = diffWindow.getTargetViewLength();
         if (currentSize > Constants.MAX_SIZE_FOR_INDEXING_ONE_FILE) {
-            currentFileReadable = false;
+            currentFileExcluded = true;
         }
-        if (currentFileExcluded || !currentFileReadable) {
+        if (currentFileExcluded) {
             return SVNFileUtil.DUMMY_OUT;
         }
         return myDeltaProcessor.textDeltaChunk( diffWindow );
@@ -152,7 +152,7 @@ public class SVNVisitorCrawler implements ISVNEditor {
     public void textDeltaEnd(String path) throws SVNException {
         if(skipTags)return;
         log.trace("textDeltaEnd {}", path);
-        if (!currentFileExcluded && currentFileReadable) {
+        if (!currentFileExcluded) {
             myDeltaProcessor.textDeltaEnd();
         }
     }
@@ -220,10 +220,10 @@ public class SVNVisitorCrawler implements ISVNEditor {
                 currentFile.setLastAuthor(propertyValue.getString());
                 break;
             case "svn:mime-type":
-                currentFileReadable = SVNProperty.isTextMimeType(propertyValue.getString());
+                currentFileExcluded = !SVNProperty.isTextMimeType(propertyValue.getString());
                 break;
             case "svn:executable":
-                currentFileReadable = false;
+                currentFileExcluded = true;
                 break;
             case "svn:entry:committed-date":
                 currentFile.setLastDate(propertyValue.getString());
