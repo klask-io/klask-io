@@ -41,9 +41,7 @@ public class KlaskProperties {
 
         private List<String> filesToExclude = new ArrayList<>();
 
-        private List<String> filesToInclude = new ArrayList<>();
-
-        private List<String> extensionsToRead = new ArrayList<>();
+        private List<String> mimesToExclude = new ArrayList<>();
 
         private int batchSize = 25;
 
@@ -103,20 +101,12 @@ public class KlaskProperties {
             this.extensionsToExclude = extensionsToExclude;
         }
 
-        public List<String> getFilesToInclude() {
-            return filesToInclude;
+        public List<String> getMimesToExclude() {
+            return mimesToExclude;
         }
 
-        public void setFilesToInclude(List<String> filesToInclude) {
-            this.filesToInclude = filesToInclude;
-        }
-
-        public List<String> getExtensionsToRead() {
-            return extensionsToRead;
-        }
-
-        public void setExtensionsToRead(List<String> extensionsToRead) {
-            this.extensionsToRead = extensionsToRead;
+        public void setMimesToExclude(List<String> mimesToExclude) {
+            this.mimesToExclude = mimesToExclude;
         }
 
         public int getBatchSize() {

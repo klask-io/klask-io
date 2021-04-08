@@ -11,6 +11,7 @@ import org.tmatesoft.svn.core.io.diff.SVNDeltaProcessor;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 
 /**
  * Created by harelj on 15/03/2017.
@@ -51,7 +52,7 @@ public class SVNVisitorCrawlerTest {
         repoMock.setPath("svn://localhost");
         //when
         Mockito.when(svnCrawler.getRepository()).thenReturn(repoMock);
-        Mockito.when(svnCrawler.isReadableExtension(Matchers.anyString())).thenReturn(true);
+        Mockito.when(svnCrawler.isFileInExclusion(Matchers.any(Path.class))).thenReturn(false);
 
         this.svnVisitorCrawler.openRoot(1000);
         this.svnVisitorCrawler.addDir("/",null,-1);

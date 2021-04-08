@@ -49,6 +49,7 @@
         <run.addResources>false</run.addResources>
         <spring-security.version>4.2.18.RELEASE</spring-security.version>
         <springfox.version>2.4.0</springfox.version>
+        <apache-tika.version>1.26</apache-tika.version>
         <!-- Sonar properties -->
         <project.testresult.directory>${project.build.directory}/test-results</project.testresult.directory>
         <sonar-maven-plugin.version>3.0.2</sonar-maven-plugin.version>
@@ -427,7 +428,11 @@
             <version>1.18.12</version>
             <scope>provided</scope>
         </dependency>
-
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>${apache-tika.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <defaultGoal>spring-boot:run</defaultGoal>

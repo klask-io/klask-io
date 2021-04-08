@@ -216,21 +216,7 @@ public class SVNCrawler extends GenericCrawler implements ICrawler {
      * initialize the SVN repository with the protocols beginning in the URL
      */
     private void initialize() throws SVNException {
-        directoriesToExcludeSet.clear();
-        directoriesToExcludeSet.addAll(klaskProperties.getCrawler().getDirectoriesToExclude());
-        log.debug("exclude directories {}", directoriesToExcludeSet);
-
-        filesToExcludeSet.clear();
-        filesToExcludeSet.addAll(klaskProperties.getCrawler().getFilesToExclude());
-        log.debug("exclude files : {}", filesToExcludeSet);
-
-        extensionsToExcludeSet.clear();
-        extensionsToExcludeSet.addAll(klaskProperties.getCrawler().getExtensionsToExclude());
-        log.debug("exclude extensions : {}", extensionsToExcludeSet);
-
-        readableExtensionSet.clear();
-        readableExtensionSet.addAll(klaskProperties.getCrawler().getExtensionsToRead());
-        log.debug("ascii files with extension : {}", readableExtensionSet);
+        this.initializeProperties();
 
         //Set up connection protocols support:
         if (this.svnRepository == null && this.repository != null && this.repository.getPath() != null) {
