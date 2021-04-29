@@ -24,7 +24,7 @@
         <hikaricp.version>2.4.6</hikaricp.version>
         <assertj-core.version>3.3.0</assertj-core.version>
         <awaitility.version>1.7.0</awaitility.version>
-        <commons-io.version>2.4</commons-io.version>
+        <commons-io.version>2.7</commons-io.version>
         <commons-lang.version>2.6</commons-lang.version>
         <frontend-maven-plugin.version>1.10.0</frontend-maven-plugin.version>
         <gatling.version>2.1.7</gatling.version>
