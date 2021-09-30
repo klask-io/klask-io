@@ -355,4 +355,9 @@ public class GitCrawler extends GenericCrawler implements ICrawler {
         }
 
     }
+
+    @Override
+    public long getRepositoryId() {
+        return repository.getId();
+    }
 }

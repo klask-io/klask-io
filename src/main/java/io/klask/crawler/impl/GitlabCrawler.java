@@ -50,6 +50,8 @@ public class GitlabCrawler extends GenericCrawler implements ICrawler {
 
     private final RestTemplate rt = new RestTemplate();
 
+    private boolean crawling = false;
+
     public GitlabCrawler(Repository repository, KlaskProperties klaskProperties,
             ElasticsearchTemplate elasticsearchTemplate) {
         super(repository, klaskProperties, elasticsearchTemplate);
@@ -57,14 +59,16 @@ public class GitlabCrawler extends GenericCrawler implements ICrawler {
 
     @Override
     public CrawlerResult start() {
-
-        initializeProperties();
-
+        if(this.crawling) {
+            log.warn("Repository is already under crawling ... exit new call to crawl");
+            return null;
+        }
+        this.crawling = true;
         try {
+            initializeProperties();
             retrieveGitlabProjects()
                 .forEach(prj -> {
                     try(Git repoGit = this.checkoutRepoGit(prj);) {
-
                         getRemoteBranches(repoGit).stream()
                             .map(this::extractBranchName)
                             .forEach(branchName->  {
@@ -79,6 +83,9 @@ public class GitlabCrawler extends GenericCrawler implements ICrawler {
                 });
         } catch (RestClientException e) {
             log.error("Error calling Gitlab API", e);
+        }
+        finally {
+            this.crawling = false;
         }
         return null;
     }
@@ -116,7 +123,7 @@ public class GitlabCrawler extends GenericCrawler implements ICrawler {
 
     @Override
     public boolean isCrawling() {
-        return false;
+        return this.crawling;
     }
 
     @Override
@@ -274,6 +281,11 @@ public class GitlabCrawler extends GenericCrawler implements ICrawler {
                     .filter(file -> !this.isFileInExclusion(file))
                     .count();
         }
+    }
+
+    @Override
+    public long getRepositoryId() {
+        return repository.getId();
     }
 
 }
