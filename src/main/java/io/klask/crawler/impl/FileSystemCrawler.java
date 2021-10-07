@@ -214,4 +214,9 @@ public class FileSystemCrawler extends GenericCrawler implements ICrawler {
     public long getTotalFiles() {
         return this.totalFiles;
     }
+
+    @Override
+    public long getRepositoryId() {
+        return repository.getId();
+    }
 }

@@ -343,4 +343,9 @@ public class SVNCrawler extends GenericCrawler implements ICrawler {
         return this.svnProgressCanceller;
     }
 
+    @Override
+    public long getRepositoryId() {
+        return repository.getId();
+    }
+
 }

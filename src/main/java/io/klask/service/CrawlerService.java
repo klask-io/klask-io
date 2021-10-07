@@ -3,8 +3,10 @@ package io.klask.service;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
+import io.klask.config.SchedulerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
@@ -48,6 +50,9 @@ public class CrawlerService {
     @Inject
     private AsyncCrawler asyncCrawler;
 
+    @Inject
+    private SchedulerConfig schedulerConfig;
+
 
     /**
      * clear all the index
@@ -59,11 +64,17 @@ public class CrawlerService {
         elasticsearchTemplate.refresh(File.class);
     }
 
+    @PostConstruct
+    public void initialize() {
+        resetAllRepo();
+    }
+
     /**
      * reload the list of repositories
      */
     public void resetAllRepo() {
         taskList.clear();
+        schedulerConfig.reload();
         //TODO : for now, we just use a fileSystem crawler
         for (Repository repo : repositoryRepository.findAll()) {
             ICrawler aCrawler;
@@ -96,6 +107,15 @@ public class CrawlerService {
         for (ICrawler job : taskList){
             asyncCrawler.executeCrawler(job);
         }
+    }
+
+    public void executeSpecificCrawler(Repository repository) {
+        log.debug("[executeSpecificCrawler] on repository {}({})", repository.getName(), repository.getId());
+        log.debug("[executeSpecificCrawler] taskList : {}", taskList);
+        taskList.stream()
+            .filter(crawler -> crawler.getRepositoryId() == repository.getId())
+            .findFirst()
+            .ifPresent(job -> asyncCrawler.executeCrawler(job));
     }
 
     public boolean isCrawling() {

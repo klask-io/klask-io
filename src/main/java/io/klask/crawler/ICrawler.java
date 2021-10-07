@@ -28,5 +28,7 @@ public interface ICrawler {
 
     long getTotalFiles();
 
+    long getRepositoryId();
+
 
 }
