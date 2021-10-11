@@ -9,9 +9,9 @@ ENV SPRING_OUTPUT_ANSI_ENABLED=ALWAYS \
 # add source
 ADD . /code/
 # package the application and delete all lib
-RUN apt update && apt install -y automake && \
+RUN apt-get update && apt-get install -y automake && \
     rm -rf /var/lib/apt/lists/* && \
-    apt clean && \
+    apt-get clean && \
     echo '{ "allow_root": true }' > /root/.bowerrc && \
     cd /code/ && \
     ./mvnw clean package -Pprod -DskipTests && \
@@ -26,4 +26,4 @@ EXPOSE 8080
 
 CMD echo "The application will start in ${JHIPSTER_SLEEP}s..." && \
     sleep ${JHIPSTER_SLEEP} && \
-    java ${JAVA_OPTS} -Djava.security.egd=file:/dev/./urandom -jar /app.war
+    exec java ${JAVA_OPTS} -Djava.security.egd=file:/dev/./urandom -jar /app.war
