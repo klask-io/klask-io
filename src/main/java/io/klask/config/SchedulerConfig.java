@@ -47,8 +47,8 @@ public class SchedulerConfig implements SchedulingConfigurer, DisposableBean {
     public void reload(){
         if (executor != null) {
             executor.shutdownNow();
-            executor = Executors.newSingleThreadScheduledExecutor();
         }
+        executor = Executors.newSingleThreadScheduledExecutor();
         if(taskRegistrar!=null)
             configureTasks(this.taskRegistrar); // calling recursively.
     }
