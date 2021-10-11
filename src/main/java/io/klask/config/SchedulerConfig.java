@@ -49,16 +49,18 @@ public class SchedulerConfig implements SchedulingConfigurer, DisposableBean {
             executor.shutdownNow();
         }
         executor = Executors.newSingleThreadScheduledExecutor();
-        if(taskRegistrar!=null)
+        if(taskRegistrar!=null) {
             configureTasks(this.taskRegistrar); // calling recursively.
+        }
     }
 
     public void addRepositoryToSchedule(Repository repository){
+        log.info("[SchedulerConfig/addRepositoryToSchedule] repository to schedule {}", repository);
         if(taskRegistrar!=null && repository != null) {
             String cron = repository.getSchedule();
             if(cron != null && CronSequenceGenerator.isValidExpression(cron)) {
                 Runnable runnableTask = () -> {
-                    log.info("[configureTasks] Repository {} crawler scheduled ({}) at -> {}", repository.getName(), repository.getSchedule(), new Date());
+                    log.info("[SchedulerConfig] Repository {} crawler scheduled ({}) at -> {}", repository.getName(), repository.getSchedule(), new Date());
                     crawlerService.executeSpecificCrawler(repository);
                 };
                 Trigger trigger = new Trigger() {
@@ -66,6 +68,7 @@ public class SchedulerConfig implements SchedulingConfigurer, DisposableBean {
                     public Date nextExecutionTime(TriggerContext triggerContext) {
                         String newCronExpression = repositoryRepository.findOne(repository.getId()).getSchedule();
                         if (!StringUtils.equalsIgnoreCase(newCronExpression, cron)) {
+                            log.debug("Old cron expression = " + cron);
                             log.debug("New cron expression = " + newCronExpression);
                             taskRegistrar.setTriggerTasksList(new ArrayList<TriggerTask>());
                             configureTasks(taskRegistrar); // calling recursively.
@@ -75,13 +78,15 @@ public class SchedulerConfig implements SchedulingConfigurer, DisposableBean {
                             return null; // return null when the cron changed so the trigger will stop.
                         }
                         CronTrigger crontrigger = new CronTrigger(cron);
-                        return crontrigger.nextExecutionTime(triggerContext);
+                        Date nextDate = crontrigger.nextExecutionTime(triggerContext);
+                        log.info("[SchedulerConfig/addRepositoryToSchedule] next execution of repository {} will be {}", repository, nextDate);
+                        return nextDate;
                     }
                 };
                 taskRegistrar.addTriggerTask(runnableTask, trigger);
             }
             else {
-                log.error("Cron expression on repository {}({}) is incorrect", repository.getName(), repository.getId());
+                log.error("[SchedulerConfig/addRepositoryToSchedule] Cron expression on repository {}({}) is incorrect", repository.getName(), repository.getId());
             }
         }
     }
@@ -89,6 +94,7 @@ public class SchedulerConfig implements SchedulingConfigurer, DisposableBean {
     @Override
     public void configureTasks(ScheduledTaskRegistrar taskRegistrar) {
         this.taskRegistrar = taskRegistrar;
+        log.info("[SchedulerConfig/configureTasks] taskRegistrar : {}", taskRegistrar);
         for(Repository repository : repositoryRepository.findAll()) {
             addRepositoryToSchedule(repository);
         }

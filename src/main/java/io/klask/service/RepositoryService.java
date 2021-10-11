@@ -1,5 +1,6 @@
 package io.klask.service;
 
+import io.klask.config.SchedulerConfig;
 import io.klask.domain.Repository;
 import io.klask.repository.RepositoryRepository;
 import io.klask.repository.search.RepositorySearchRepository;
@@ -31,6 +32,9 @@ public class RepositoryService {
     @Inject
     private RepositorySearchRepository repositorySearchRepository;
 
+    @Inject
+    private SchedulerConfig schedulerConfig;
+
     /**
      * Save a repository.
      *
@@ -39,6 +43,8 @@ public class RepositoryService {
      */
     public Repository save(Repository repository) {
         log.debug("Request to save Repository : {}", repository);
+        schedulerConfig.addRepositoryToSchedule(repository);
+
         repository.setPassword(defineRepoPassword(repository));
         Repository result = repositoryRepository.save(repository);
         repositorySearchRepository.save(result);

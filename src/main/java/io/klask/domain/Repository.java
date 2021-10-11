@@ -148,7 +148,7 @@ public class Repository implements Serializable {
             "id=" + id +
             ", path='" + path + "'" +
             ", username='" + username + "'" +
-            ", password='" + password + "'" +
+            ", password='*****'" +
             ", type='" + type + "'" +
             ", name='" + name + "'" +
             ", revision='" + revision + "'" +
