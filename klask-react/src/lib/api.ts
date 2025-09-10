@@ -102,34 +102,36 @@ class ApiClient {
     return this.token;
   }
 
-  // Auth API
-  async login(credentials: LoginRequest): Promise<AuthResponse> {
-    const response = await this.request<AuthResponse>('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
-    
-    this.setToken(response.token);
-    return response;
-  }
+  // Auth API object
+  auth = {
+    login: async (credentials: LoginRequest): Promise<AuthResponse> => {
+      const response = await this.request<AuthResponse>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      });
+      
+      this.setToken(response.token);
+      return response;
+    },
 
-  async register(data: RegisterRequest): Promise<AuthResponse> {
-    const response = await this.request<AuthResponse>('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    
-    this.setToken(response.token);
-    return response;
-  }
+    register: async (data: RegisterRequest): Promise<AuthResponse> => {
+      const response = await this.request<AuthResponse>('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      
+      this.setToken(response.token);
+      return response;
+    },
 
-  async getProfile(): Promise<User> {
-    return this.request<User>('/api/auth/profile');
-  }
+    getProfile: async (): Promise<User> => {
+      return this.request<User>('/api/auth/profile');
+    },
 
-  logout() {
-    this.setToken(null);
-  }
+    logout: () => {
+      this.setToken(null);
+    }
+  };
 
   // Search API
   async search(query: SearchQuery): Promise<SearchResponse> {
@@ -250,10 +252,10 @@ export { ApiClient };
 // Utility functions for common API operations
 export const api = {
   // Auth
-  login: (credentials: LoginRequest) => apiClient.login(credentials),
-  register: (data: RegisterRequest) => apiClient.register(data),
-  getProfile: () => apiClient.getProfile(),
-  logout: () => apiClient.logout(),
+  login: (credentials: LoginRequest) => apiClient.auth.login(credentials),
+  register: (data: RegisterRequest) => apiClient.auth.register(data),
+  getProfile: () => apiClient.auth.getProfile(),
+  logout: () => apiClient.auth.logout(),
 
   // Search
   search: (query: SearchQuery) => apiClient.search(query),

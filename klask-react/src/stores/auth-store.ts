@@ -62,7 +62,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
         });
-        apiClient.logout();
+        apiClient.auth.logout();
       },
 
       refreshUser: async () => {
@@ -71,7 +71,7 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           set({ isLoading: true });
-          const user = await apiClient.getProfile();
+          const user = await apiClient.auth.getProfile();
           set({ user, isAuthenticated: true });
         } catch (error) {
           console.error('Failed to refresh user:', error);
@@ -99,7 +99,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           isLoading: false,
         });
-        apiClient.logout();
+        apiClient.auth.logout();
       },
     }),
     {
