@@ -1,0 +1,325 @@
+import type { 
+  ApiResponse, 
+  User, 
+  Repository, 
+  File, 
+  SearchQuery, 
+  SearchResponse, 
+  LoginRequest, 
+  RegisterRequest, 
+  AuthResponse,
+  CreateRepositoryRequest,
+  PaginatedResponse
+} from '../types';
+
+// API Error class
+export class ApiError extends Error {
+  public status: number;
+  public details?: Record<string, any>;
+
+  constructor(message: string, status: number, details?: Record<string, any>) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.details = details;
+  }
+}
+
+// API Configuration
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+class ApiClient {
+  private baseURL: string;
+  private token: string | null = null;
+
+  constructor(baseURL: string) {
+    this.baseURL = baseURL;
+    this.token = localStorage.getItem('authToken');
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`;
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string>),
+    };
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const config: RequestInit = {
+      ...options,
+      headers,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new ApiError(
+          errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+          response.status,
+          errorData
+        );
+      }
+
+      // Handle empty responses (like 204 No Content)
+      if (response.status === 204) {
+        return {} as T;
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      throw new ApiError(
+        error instanceof Error ? error.message : 'Network error',
+        0,
+        { originalError: error }
+      );
+    }
+  }
+
+  // Authentication Methods
+  setToken(token: string | null) {
+    this.token = token;
+    if (token) {
+      localStorage.setItem('authToken', token);
+    } else {
+      localStorage.removeItem('authToken');
+    }
+  }
+
+  getToken(): string | null {
+    return this.token;
+  }
+
+  // Auth API
+  async login(credentials: LoginRequest): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+    
+    this.setToken(response.token);
+    return response;
+  }
+
+  async register(data: RegisterRequest): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    
+    this.setToken(response.token);
+    return response;
+  }
+
+  async getProfile(): Promise<User> {
+    return this.request<User>('/api/auth/profile');
+  }
+
+  logout() {
+    this.setToken(null);
+  }
+
+  // Search API
+  async search(query: SearchQuery): Promise<SearchResponse> {
+    const params = new URLSearchParams();
+    
+    if (query.query) params.append('q', query.query);
+    if (query.project) params.append('project', query.project);
+    if (query.version) params.append('version', query.version);
+    if (query.extension) params.append('extension', query.extension);
+    if (query.maxResults) params.append('max_results', query.maxResults.toString());
+
+    return this.request<SearchResponse>(`/api/search?${params.toString()}`);
+  }
+
+  async getSearchFilters(): Promise<{
+    projects: string[];
+    versions: string[];
+    extensions: string[];
+  }> {
+    return this.request('/api/search/filters');
+  }
+
+  // File API
+  async getFile(id: string): Promise<File> {
+    return this.request<File>(`/api/files/${id}`);
+  }
+
+  async getFiles(params?: {
+    page?: number;
+    size?: number;
+    project?: string;
+    version?: string;
+    extension?: string;
+  }): Promise<PaginatedResponse<File>> {
+    const searchParams = new URLSearchParams();
+    
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.size) searchParams.append('size', params.size.toString());
+    if (params?.project) searchParams.append('project', params.project);
+    if (params?.version) searchParams.append('version', params.version);
+    if (params?.extension) searchParams.append('extension', params.extension);
+
+    return this.request<PaginatedResponse<File>>(`/api/files?${searchParams.toString()}`);
+  }
+
+  // Repository API
+  async getRepositories(): Promise<Repository[]> {
+    return this.request<Repository[]>('/api/repositories');
+  }
+
+  async getRepository(id: string): Promise<Repository> {
+    return this.request<Repository>(`/api/repositories/${id}`);
+  }
+
+  async createRepository(data: CreateRepositoryRequest): Promise<Repository> {
+    return this.request<Repository>('/api/repositories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateRepository(id: string, data: Partial<CreateRepositoryRequest>): Promise<Repository> {
+    return this.request<Repository>(`/api/repositories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteRepository(id: string): Promise<void> {
+    return this.request<void>(`/api/repositories/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async crawlRepository(id: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/repositories/${id}/crawl`, {
+      method: 'POST',
+    });
+  }
+
+  // Health Check
+  async health(): Promise<{ status: string }> {
+    return this.request<{ status: string }>('/health');
+  }
+
+  // User Management (Admin only)
+  async getUsers(): Promise<User[]> {
+    return this.request<User[]>('/api/admin/users');
+  }
+
+  async createUser(data: RegisterRequest): Promise<User> {
+    return this.request<User>('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<User> {
+    return this.request<User>(`/api/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    return this.request<void>(`/api/admin/users/${id}`, {
+      method: 'DELETE',
+    });
+  }
+}
+
+// Create and export the API client instance
+export const apiClient = new ApiClient(API_BASE_URL);
+
+// Export the class for testing
+export { ApiClient };
+
+// Utility functions for common API operations
+export const api = {
+  // Auth
+  login: (credentials: LoginRequest) => apiClient.login(credentials),
+  register: (data: RegisterRequest) => apiClient.register(data),
+  getProfile: () => apiClient.getProfile(),
+  logout: () => apiClient.logout(),
+
+  // Search
+  search: (query: SearchQuery) => apiClient.search(query),
+  getSearchFilters: () => apiClient.getSearchFilters(),
+
+  // Files
+  getFile: (id: string) => apiClient.getFile(id),
+  getFiles: (params?: Parameters<typeof apiClient.getFiles>[0]) => apiClient.getFiles(params),
+
+  // Repositories
+  getRepositories: () => apiClient.getRepositories(),
+  getRepository: (id: string) => apiClient.getRepository(id),
+  createRepository: (data: CreateRepositoryRequest) => apiClient.createRepository(data),
+  updateRepository: (id: string, data: Partial<CreateRepositoryRequest>) => 
+    apiClient.updateRepository(id, data),
+  deleteRepository: (id: string) => apiClient.deleteRepository(id),
+  crawlRepository: (id: string) => apiClient.crawlRepository(id),
+
+  // Health
+  health: () => apiClient.health(),
+
+  // Admin
+  getUsers: () => apiClient.getUsers(),
+  createUser: (data: RegisterRequest) => apiClient.createUser(data),
+  updateUser: (id: string, data: Partial<User>) => apiClient.updateUser(id, data),
+  deleteUser: (id: string) => apiClient.deleteUser(id),
+};
+
+// Error helper functions
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (isApiError(error)) {
+    return error.message;
+  }
+  
+  if (error instanceof Error) {
+    return error.message;
+  }
+  
+  return 'An unexpected error occurred';
+}
+
+// Token utility functions
+export function decodeToken(token: string): any {
+  try {
+    const payload = token.split('.')[1];
+    const decoded = atob(payload);
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+}
+
+export function isTokenExpired(token: string): boolean {
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.exp) return true;
+  
+  return Date.now() >= decoded.exp * 1000;
+}
+
+export function getTokenExpirationDate(token: string): Date | null {
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.exp) return null;
+  
+  return new Date(decoded.exp * 1000);
+}
