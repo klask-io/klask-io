@@ -1,4 +1,5 @@
 mod api;
+mod auth;
 mod config;
 mod database;
 mod models;
@@ -9,7 +10,10 @@ use anyhow::Result;
 use axum::{routing::get, Router};
 use config::AppConfig;
 use database::Database;
+use services::SearchService;
+use auth::{extractors::AppState, jwt::JwtService};
 use tower_http::cors::CorsLayer;
+use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 use tracing::{info, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -45,8 +49,40 @@ async fn main() -> Result<()> {
         }
     };
 
+    // Initialize search service
+    let search_service = match SearchService::new(&config.search.index_dir) {
+        Ok(service) => {
+            info!("Search service initialized successfully at {}", config.search.index_dir);
+            service
+        }
+        Err(e) => {
+            error!("Failed to initialize search service: {}", e);
+            return Err(e);
+        }
+    };
+
+    // Initialize JWT service
+    let jwt_service = match JwtService::new(&config.auth) {
+        Ok(service) => {
+            info!("JWT service initialized successfully");
+            service
+        }
+        Err(e) => {
+            error!("Failed to initialize JWT service: {}", e);
+            return Err(e);
+        }
+    };
+
+    // Create application state
+    let app_state = AppState {
+        database,
+        search_service: Arc::new(search_service),
+        jwt_service,
+        config: config.clone(),
+    };
+
     // Build application router
-    let app = create_app(database).await?;
+    let app = create_app(app_state).await?;
 
     // Create TCP listener
     let listener = tokio::net::TcpListener::bind(&bind_address).await?;
@@ -59,16 +95,17 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn create_app(database: Database) -> Result<Router> {
+async fn create_app(app_state: AppState) -> Result<Router> {
     let app = Router::new()
         .route("/", get(root_handler))
         .route("/health", get({
-            let db = database.clone();
+            let db = app_state.database.clone();
             move || health_handler(db)
         }))
-        .nest("/api", api::create_router(database).await?)
+        .nest("/api", api::create_router().await?)
         .layer(CorsLayer::permissive())
-        .layer(TraceLayer::new_for_http());
+        .layer(TraceLayer::new_for_http())
+        .with_state(app_state);
 
     Ok(app)
 }

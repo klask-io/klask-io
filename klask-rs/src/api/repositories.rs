@@ -6,9 +6,9 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use uuid::Uuid;
-use crate::database::Database;
+use crate::auth::extractors::{AppState, AuthenticatedUser, AdminUser};
 use crate::models::{Repository, RepositoryType};
 use crate::repositories::RepositoryRepository;
 
@@ -21,20 +21,20 @@ pub struct CreateRepositoryRequest {
     pub branch: Option<String>,
 }
 
-pub async fn create_router(database: Database) -> Result<Router> {
+pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/", get(list_repositories).post(create_repository))
         .route("/:id", get(get_repository))
-        .route("/:id/crawl", post(trigger_crawl))
-        .with_state(database);
+        .route("/:id/crawl", post(trigger_crawl));
 
     Ok(router)
 }
 
 async fn list_repositories(
-    State(database): State<Database>,
+    State(app_state): State<AppState>,
+    _auth_user: AuthenticatedUser, // Require authentication
 ) -> Result<Json<Vec<Repository>>, StatusCode> {
-    let repo_repository = RepositoryRepository::new(database.pool().clone());
+    let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
     
     match repo_repository.list_repositories().await {
         Ok(repositories) => Ok(Json(repositories)),
@@ -43,10 +43,11 @@ async fn list_repositories(
 }
 
 async fn get_repository(
-    State(database): State<Database>,
+    State(app_state): State<AppState>,
     Path(id): Path<Uuid>,
+    _auth_user: AuthenticatedUser, // Require authentication
 ) -> Result<Json<Repository>, StatusCode> {
-    let repo_repository = RepositoryRepository::new(database.pool().clone());
+    let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
     
     match repo_repository.get_repository(id).await {
         Ok(Some(repository)) => Ok(Json(repository)),
@@ -56,10 +57,11 @@ async fn get_repository(
 }
 
 async fn create_repository(
-    State(database): State<Database>,
+    State(app_state): State<AppState>,
+    AdminUser(_admin_user): AdminUser, // Require admin authentication
     Json(payload): Json<CreateRepositoryRequest>,
 ) -> Result<Json<Repository>, StatusCode> {
-    let repo_repository = RepositoryRepository::new(database.pool().clone());
+    let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
     
     let new_repository = Repository {
         id: uuid::Uuid::new_v4(),
@@ -80,10 +82,11 @@ async fn create_repository(
 }
 
 async fn trigger_crawl(
-    State(database): State<Database>,
+    State(app_state): State<AppState>,
     Path(id): Path<Uuid>,
+    AdminUser(_admin_user): AdminUser, // Require admin authentication
 ) -> Result<Json<String>, StatusCode> {
-    let repo_repository = RepositoryRepository::new(database.pool().clone());
+    let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
     
     match repo_repository.update_last_crawled(id).await {
         Ok(_) => Ok(Json("Crawl triggered".to_string())),

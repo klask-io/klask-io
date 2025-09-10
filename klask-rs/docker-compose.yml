@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: klask-postgres
+    environment:
+      POSTGRES_DB: klask_rs
+      POSTGRES_USER: klask
+      POSTGRES_PASSWORD: klask
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U klask -d klask_rs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - klask-network
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: klask-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@klask.io
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    networks:
+      - klask-network
+    profiles:
+      - tools
+
+  # Redis for caching (optional for future use)
+  redis:
+    image: redis:7-alpine
+    container_name: klask-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - klask-network
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  klask-network:
+    driver: bridge

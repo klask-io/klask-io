@@ -2,7 +2,6 @@ use anyhow::Result;
 use sqlx::PgPool;
 use uuid::Uuid;
 use crate::models::File;
-use crate::database::Repository;
 
 pub struct FileRepository {
     pool: PgPool,

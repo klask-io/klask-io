@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
 use uuid::Uuid;
+use std::fmt;
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct User {
@@ -20,4 +21,13 @@ pub struct User {
 pub enum UserRole {
     Admin,
     User,
+}
+
+impl fmt::Display for UserRole {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            UserRole::Admin => write!(f, "Admin"),
+            UserRole::User => write!(f, "User"),
+        }
+    }
 }

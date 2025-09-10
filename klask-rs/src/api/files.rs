@@ -8,7 +8,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::database::Database;
+use crate::auth::extractors::AppState;
 use crate::repositories::FileRepository;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -32,24 +32,23 @@ pub struct FileQueryParams {
     pub extension: Option<String>,
 }
 
-pub async fn create_router(database: Database) -> Result<Router> {
+pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/", get(list_files))
-        .route("/:id", get(get_file))
-        .with_state(database);
+        .route("/:id", get(get_file));
 
     Ok(router)
 }
 
 async fn list_files(
-    State(database): State<Database>,
+    State(app_state): State<AppState>,
     Query(params): Query<FileQueryParams>,
 ) -> Result<Json<Vec<FileResponse>>, StatusCode> {
     let page = params.page.unwrap_or(1);
     let limit = params.limit.unwrap_or(50);
     let offset = (page - 1) * limit;
     
-    let file_repo = FileRepository::new(database.pool().clone());
+    let file_repo = FileRepository::new(app_state.database.pool().clone());
     
     match file_repo.list_files(Some(limit), Some(offset)).await {
         Ok(files) => {
@@ -73,10 +72,10 @@ async fn list_files(
 }
 
 async fn get_file(
-    State(database): State<Database>,
+    State(app_state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<FileResponse>, StatusCode> {
-    let file_repo = FileRepository::new(database.pool().clone());
+    let file_repo = FileRepository::new(app_state.database.pool().clone());
     
     match file_repo.get_file(id).await {
         Ok(Some(file)) => Ok(Json(FileResponse {
