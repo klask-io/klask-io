@@ -42,7 +42,7 @@ const LoginPage: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-primary-600 rounded-lg flex items-center justify-center">
+            <div className="w-16 h-16 bg-blue-600 rounded-lg flex items-center justify-center">
               <MagnifyingGlassIcon className="w-10 h-10 text-white" />
             </div>
           </div>
@@ -53,7 +53,7 @@ const LoginPage: React.FC = () => {
             Or{' '}
             <Link
               to="/register"
-              className="font-medium text-primary-600 hover:text-primary-500"
+              className="font-medium text-blue-600 hover:text-primary-500"
             >
               create a new account
             </Link>
@@ -123,7 +123,7 @@ const LoginPage: React.FC = () => {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                   Remember me
@@ -133,7 +133,7 @@ const LoginPage: React.FC = () => {
               <div className="text-sm">
                 <Link
                   to="/forgot-password"
-                  className="font-medium text-primary-600 hover:text-primary-500"
+                  className="font-medium text-blue-600 hover:text-primary-500"
                 >
                   Forgot your password?
                 </Link>

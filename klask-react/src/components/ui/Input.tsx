@@ -27,7 +27,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
       'pr-10': rightIcon,
       'px-3 py-2': !leftIcon && !rightIcon,
       'border-red-300 focus:border-red-500 focus:ring-red-500': error,
-      'border-secondary-300 focus:border-primary-500 focus:ring-primary-500': !error,
+      'border-secondary-300 focus:border-blue-500 focus:ring-blue-500': !error,
     },
     className
   );
@@ -101,7 +101,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({
     'block w-full px-3 py-2 rounded-lg border shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1',
     {
       'border-red-300 focus:border-red-500 focus:ring-red-500': error,
-      'border-secondary-300 focus:border-primary-500 focus:ring-primary-500': !error,
+      'border-secondary-300 focus:border-blue-500 focus:ring-blue-500': !error,
     },
     className
   );
@@ -155,7 +155,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({
     'block w-full px-3 py-2 rounded-lg border shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1',
     {
       'border-red-300 focus:border-red-500 focus:ring-red-500': error,
-      'border-secondary-300 focus:border-primary-500 focus:ring-primary-500': !error,
+      'border-secondary-300 focus:border-blue-500 focus:ring-blue-500': !error,
     },
     className
   );

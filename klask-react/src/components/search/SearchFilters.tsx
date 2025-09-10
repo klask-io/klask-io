@@ -59,7 +59,7 @@ export const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
             <FunnelIcon className="h-4 w-4" />
             <span>Filters</span>
             {hasActiveFilters && (
-              <span className="bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded-full">
+              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
                 {Object.values(filters).filter(Boolean).length}
               </span>
             )}
@@ -87,7 +87,7 @@ export const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
               <select
                 value={filters.project || ''}
                 onChange={(e) => handleFilterChange('project', e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
               >
                 <option value="">All projects</option>
@@ -107,7 +107,7 @@ export const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
               <select
                 value={filters.version || ''}
                 onChange={(e) => handleFilterChange('version', e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
               >
                 <option value="">All versions</option>
@@ -127,7 +127,7 @@ export const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
               <select
                 value={filters.extension || ''}
                 onChange={(e) => handleFilterChange('extension', e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
               >
                 <option value="">All extensions</option>
@@ -147,7 +147,7 @@ export const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
               <select
                 value={filters.language || ''}
                 onChange={(e) => handleFilterChange('language', e.target.value)}
-                className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={isLoading}
               >
                 <option value="">All languages</option>
@@ -168,13 +168,13 @@ export const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
                   value ? (
                     <span
                       key={key}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-800 text-sm rounded-full"
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
                     >
                       <span className="capitalize">{key}:</span>
                       <span className="font-medium">{value}</span>
                       <button
                         onClick={() => clearFilter(key as keyof SearchFilters)}
-                        className="ml-1 hover:text-primary-600"
+                        className="ml-1 hover:text-blue-600"
                       >
                         <XMarkIcon className="h-3 w-3" />
                       </button>

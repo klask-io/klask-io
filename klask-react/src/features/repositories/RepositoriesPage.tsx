@@ -1,12 +1,389 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
+import { toast } from 'react-hot-toast';
+import { 
+  PlusIcon,
+  FunnelIcon,
+  ArrowPathIcon,
+  TrashIcon,
+  CheckIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import { RepositoryCard } from '../../components/repositories/RepositoryCard';
+import { RepositoryForm } from '../../components/repositories/RepositoryForm';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { 
+  useRepositories, 
+  useCreateRepository, 
+  useUpdateRepository, 
+  useDeleteRepository, 
+  useCrawlRepository,
+  useRepositoryStats,
+  useBulkRepositoryOperations,
+} from '../../hooks/useRepositories';
+import { getErrorMessage } from '../../lib/api';
+import type { Repository, CreateRepositoryRequest } from '../../types';
+
+type FilterType = 'all' | 'enabled' | 'disabled' | 'crawled' | 'not-crawled';
 
 const RepositoriesPage: React.FC = () => {
-  return (
-    <div className="max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Repositories</h1>
-      <div className="bg-white shadow rounded-lg p-6">
-        <p className="text-gray-600">Repository management interface will be implemented here.</p>
+  const [showForm, setShowForm] = useState(false);
+  const [editingRepository, setEditingRepository] = useState<Repository | null>(null);
+  const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [crawlingRepos, setCrawlingRepos] = useState<Set<string>>(new Set());
+
+  const { data: repositories = [], isLoading, error, refetch } = useRepositories();
+  const stats = useRepositoryStats();
+  const createMutation = useCreateRepository();
+  const updateMutation = useUpdateRepository();
+  const deleteMutation = useDeleteRepository();
+  const crawlMutation = useCrawlRepository();
+  const { bulkEnable, bulkDisable, bulkCrawl, bulkDelete } = useBulkRepositoryOperations();
+
+  const filteredRepositories = repositories.filter(repo => {
+    switch (filter) {
+      case 'enabled':
+        return repo.enabled;
+      case 'disabled':
+        return !repo.enabled;
+      case 'crawled':
+        return repo.lastCrawled;
+      case 'not-crawled':
+        return !repo.lastCrawled;
+      default:
+        return true;
+    }
+  });
+
+  const handleCreate = useCallback(async (data: CreateRepositoryRequest) => {
+    try {
+      await createMutation.mutateAsync(data);
+      setShowForm(false);
+      toast.success('Repository created successfully');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, [createMutation]);
+
+  const handleUpdate = useCallback(async (data: CreateRepositoryRequest) => {
+    if (!editingRepository) return;
+    
+    try {
+      await updateMutation.mutateAsync({ 
+        id: editingRepository.id, 
+        data 
+      });
+      setEditingRepository(null);
+      toast.success('Repository updated successfully');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, [editingRepository, updateMutation]);
+
+  const handleDelete = useCallback(async (repository: Repository) => {
+    if (!confirm(`Are you sure you want to delete "${repository.name}"?`)) return;
+    
+    try {
+      await deleteMutation.mutateAsync(repository.id);
+      toast.success('Repository deleted successfully');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, [deleteMutation]);
+
+  const handleCrawl = useCallback(async (repository: Repository) => {
+    setCrawlingRepos(prev => new Set(prev).add(repository.id));
+    
+    try {
+      await crawlMutation.mutateAsync(repository.id);
+      toast.success(`Started crawling "${repository.name}"`);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setCrawlingRepos(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(repository.id);
+        return newSet;
+      });
+    }
+  }, [crawlMutation]);
+
+  const handleToggleEnabled = useCallback(async (repository: Repository) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: repository.id,
+        data: { enabled: !repository.enabled }
+      });
+      toast.success(`Repository ${repository.enabled ? 'disabled' : 'enabled'}`);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, [updateMutation]);
+
+  const handleSelectRepo = useCallback((repoId: string, selected: boolean) => {
+    setSelectedRepos(prev => 
+      selected 
+        ? [...prev, repoId]
+        : prev.filter(id => id !== repoId)
+    );
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedRepos(selectedRepos.length === filteredRepositories.length 
+      ? [] 
+      : filteredRepositories.map(repo => repo.id)
+    );
+  }, [selectedRepos, filteredRepositories]);
+
+  const handleBulkAction = useCallback(async (action: 'enable' | 'disable' | 'crawl' | 'delete') => {
+    if (selectedRepos.length === 0) return;
+
+    const actionText = {
+      enable: 'enable',
+      disable: 'disable', 
+      crawl: 'crawl',
+      delete: 'delete'
+    }[action];
+
+    if (!confirm(`Are you sure you want to ${actionText} ${selectedRepos.length} repositories?`)) {
+      return;
+    }
+
+    try {
+      switch (action) {
+        case 'enable':
+          await bulkEnable.mutateAsync(selectedRepos);
+          toast.success(`Enabled ${selectedRepos.length} repositories`);
+          break;
+        case 'disable':
+          await bulkDisable.mutateAsync(selectedRepos);
+          toast.success(`Disabled ${selectedRepos.length} repositories`);
+          break;
+        case 'crawl':
+          await bulkCrawl.mutateAsync(selectedRepos);
+          toast.success(`Started crawling ${selectedRepos.length} repositories`);
+          break;
+        case 'delete':
+          await bulkDelete.mutateAsync(selectedRepos);
+          toast.success(`Deleted ${selectedRepos.length} repositories`);
+          break;
+      }
+      setSelectedRepos([]);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, [selectedRepos, bulkEnable, bulkDisable, bulkCrawl, bulkDelete]);
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-center min-h-96">
+          <div className="text-center">
+            <LoadingSpinner size="lg" className="mb-4" />
+            <p className="text-gray-500">Loading repositories...</p>
+          </div>
+        </div>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center py-12">
+          <XMarkIcon className="mx-auto h-16 w-16 text-red-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Failed to Load Repositories
+          </h3>
+          <p className="text-gray-500 mb-6">
+            {getErrorMessage(error)}
+          </p>
+          <button onClick={() => refetch()} className="btn-primary">
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="md:flex md:items-center md:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+            Repositories
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage your code repositories and configure crawling settings.
+          </p>
+        </div>
+        <div className="mt-4 md:mt-0">
+          <button
+            onClick={() => setShowForm(true)}
+            className="btn-primary"
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Add Repository
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+            <div className="text-sm text-gray-500">Total Repositories</div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="text-2xl font-bold text-green-600">{stats.enabled}</div>
+            <div className="text-sm text-gray-500">Enabled</div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="text-2xl font-bold text-blue-600">{stats.crawled}</div>
+            <div className="text-sm text-gray-500">Crawled</div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="text-2xl font-bold text-gray-600">
+              {stats.byType.git + stats.byType.gitlab + stats.byType.filesystem}
+            </div>
+            <div className="text-sm text-gray-500">
+              Git: {stats.byType.git} | GitLab: {stats.byType.gitlab} | FS: {stats.byType.filesystem}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters and Bulk Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center space-x-2">
+          <FunnelIcon className="h-5 w-5 text-gray-400" />
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as FilterType)}
+            className="text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="all">All Repositories</option>
+            <option value="enabled">Enabled Only</option>
+            <option value="disabled">Disabled Only</option>
+            <option value="crawled">Crawled</option>
+            <option value="not-crawled">Not Crawled</option>
+          </select>
+          
+          <span className="text-sm text-gray-500">
+            {filteredRepositories.length} repositories
+          </span>
+        </div>
+
+        {/* Bulk Actions */}
+        {selectedRepos.length > 0 && (
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">
+              {selectedRepos.length} selected
+            </span>
+            <button
+              onClick={() => handleBulkAction('enable')}
+              className="text-sm px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200"
+            >
+              Enable
+            </button>
+            <button
+              onClick={() => handleBulkAction('disable')}
+              className="text-sm px-3 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200"
+            >
+              Disable
+            </button>
+            <button
+              onClick={() => handleBulkAction('crawl')}
+              className="text-sm px-3 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+            >
+              Crawl
+            </button>
+            <button
+              onClick={() => handleBulkAction('delete')}
+              className="text-sm px-3 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200"
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Select All */}
+      {filteredRepositories.length > 0 && (
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            checked={selectedRepos.length === filteredRepositories.length}
+            onChange={handleSelectAll}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          />
+          <label className="text-sm text-gray-700">
+            Select all ({filteredRepositories.length})
+          </label>
+        </div>
+      )}
+
+      {/* Repositories Grid */}
+      {filteredRepositories.length === 0 ? (
+        <div className="text-center py-12">
+          <FunnelIcon className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No repositories found
+          </h3>
+          <p className="text-gray-500 mb-6">
+            {filter === 'all' 
+              ? "Get started by adding your first repository."
+              : `No repositories match the "${filter}" filter.`
+            }
+          </p>
+          {filter === 'all' && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="btn-primary"
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Add Repository
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredRepositories.map((repository) => (
+            <div key={repository.id} className="relative">
+              <input
+                type="checkbox"
+                checked={selectedRepos.includes(repository.id)}
+                onChange={(e) => handleSelectRepo(repository.id, e.target.checked)}
+                className="absolute top-4 left-4 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded z-10"
+              />
+              <RepositoryCard
+                repository={repository}
+                onEdit={setEditingRepository}
+                onDelete={handleDelete}
+                onCrawl={handleCrawl}
+                onToggleEnabled={handleToggleEnabled}
+                isLoading={updateMutation.isPending && updateMutation.variables?.id === repository.id}
+                isCrawling={crawlingRepos.has(repository.id)}
+                className="ml-8"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Repository Form Modal */}
+      <RepositoryForm
+        repository={editingRepository || undefined}
+        isOpen={showForm || !!editingRepository}
+        onClose={() => {
+          setShowForm(false);
+          setEditingRepository(null);
+        }}
+        onSubmit={editingRepository ? handleUpdate : handleCreate}
+        isLoading={createMutation.isPending || updateMutation.isPending}
+      />
     </div>
   );
 };

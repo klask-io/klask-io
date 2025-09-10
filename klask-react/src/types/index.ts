@@ -145,6 +145,7 @@ export interface CreateRepositoryRequest {
   url: string;
   repositoryType: RepositoryType;
   branch?: string;
+  enabled?: boolean;
 }
 
 export interface CrawlStatus {

@@ -48,14 +48,14 @@ export const Sidebar: React.FC = () => {
                       className={clsx(
                         'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors',
                         isActive
-                          ? 'bg-primary-50 text-primary-700'
-                          : 'text-gray-700 hover:text-primary-700 hover:bg-gray-50'
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-700 hover:text-blue-700 hover:bg-gray-50'
                       )}
                     >
                       <item.icon
                         className={clsx(
                           'h-6 w-6 shrink-0',
-                          isActive ? 'text-primary-700' : 'text-gray-400 group-hover:text-primary-700'
+                          isActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-blue-700'
                         )}
                         aria-hidden="true"
                       />
@@ -84,14 +84,14 @@ export const Sidebar: React.FC = () => {
                         className={clsx(
                           'group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors',
                           isActive
-                            ? 'bg-primary-50 text-primary-700'
-                            : 'text-gray-700 hover:text-primary-700 hover:bg-gray-50'
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-700 hover:text-blue-700 hover:bg-gray-50'
                         )}
                       >
                         <item.icon
                           className={clsx(
                             'h-6 w-6 shrink-0',
-                            isActive ? 'text-primary-700' : 'text-gray-400 group-hover:text-primary-700'
+                            isActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-blue-700'
                           )}
                           aria-hidden="true"
                         />

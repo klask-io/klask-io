@@ -175,7 +175,7 @@ const FileDetailPage: React.FC = () => {
               <Link
                 to="/search"
                 state={{ initialQuery: searchQuery }}
-                className="inline-flex items-center text-sm text-primary-600 hover:text-primary-700"
+                className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700"
               >
                 <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
                 "{searchQuery}" results
@@ -190,7 +190,7 @@ const FileDetailPage: React.FC = () => {
             onClick={() => setLineNumbersVisible(!lineNumbersVisible)}
             className={`px-3 py-1 text-xs rounded ${
               lineNumbersVisible
-                ? 'bg-primary-100 text-primary-800'
+                ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -201,7 +201,7 @@ const FileDetailPage: React.FC = () => {
             onClick={() => setWrapLines(!wrapLines)}
             className={`px-3 py-1 text-xs rounded ${
               wrapLines
-                ? 'bg-primary-100 text-primary-800'
+                ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -321,11 +321,11 @@ const FileDetailPage: React.FC = () => {
 
       {/* Search Context */}
       {searchResult && (
-        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <div className="bg-blue-50 border border-primary-200 rounded-lg p-4">
           <h3 className="text-sm font-medium text-primary-900 mb-2">
             Search Context
           </h3>
-          <div className="text-sm text-primary-800">
+          <div className="text-sm text-blue-800">
             <p>
               Found in search for "<span className="font-medium">{searchQuery}</span>" 
               with a relevance score of {(searchResult.score * 100).toFixed(1)}%

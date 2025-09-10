@@ -51,7 +51,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           type="text"
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}
-          className="block w-full pl-10 pr-12 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 placeholder-gray-400"
+          className="block w-full pl-10 pr-12 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400"
           placeholder={placeholder}
           autoComplete="off"
           spellCheck={false}

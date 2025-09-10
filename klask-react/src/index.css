@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom CSS for code highlighting and application styles */
 @layer base {
   html {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -16,43 +15,43 @@
 @layer components {
   /* Custom button styles */
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
   }
   
   .btn-secondary {
-    @apply bg-secondary-200 hover:bg-secondary-300 text-secondary-900 font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-offset-2;
+    @apply bg-slate-200 hover:bg-slate-300 text-slate-900 font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2;
   }
   
   .btn-outline {
-    @apply border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
   }
   
   /* Input styles */
   .input-field {
-    @apply block w-full px-3 py-2 border border-secondary-300 rounded-lg shadow-sm placeholder-secondary-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200;
+    @apply block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200;
   }
   
   /* Card styles */
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-secondary-200 p-6;
+    @apply bg-white rounded-lg shadow-sm border border-slate-200 p-6;
   }
   
   .card-header {
-    @apply border-b border-secondary-200 pb-4 mb-4;
+    @apply border-b border-slate-200 pb-4 mb-4;
   }
   
   /* Search result styles */
   .search-result-item {
-    @apply hover:bg-secondary-50 cursor-pointer transition-colors duration-150 border-b border-secondary-100 last:border-b-0;
+    @apply hover:bg-slate-50 cursor-pointer transition-colors duration-150 border-b border-slate-100 last:border-b-0;
   }
   
   /* Filter styles */
   .filter-badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800;
   }
   
   .filter-count {
-    @apply ml-1 bg-primary-200 text-primary-700 rounded-full px-1.5 py-0.5 text-xs;
+    @apply ml-1 bg-blue-200 text-blue-700 rounded-full px-1.5 py-0.5 text-xs;
   }
 }
 

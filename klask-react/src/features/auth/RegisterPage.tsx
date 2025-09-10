@@ -43,7 +43,7 @@ const RegisterPage: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-primary-600 rounded-lg flex items-center justify-center">
+            <div className="w-16 h-16 bg-blue-600 rounded-lg flex items-center justify-center">
               <MagnifyingGlassIcon className="w-10 h-10 text-white" />
             </div>
           </div>
@@ -54,7 +54,7 @@ const RegisterPage: React.FC = () => {
             Or{' '}
             <Link
               to="/login"
-              className="font-medium text-primary-600 hover:text-primary-500"
+              className="font-medium text-blue-600 hover:text-primary-500"
             >
               sign in to your existing account
             </Link>

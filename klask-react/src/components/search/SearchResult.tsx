@@ -142,7 +142,7 @@ export const SearchResult: React.FC<SearchResultProps> = ({
           <div className="absolute top-2 right-2 z-10">
             <button
               onClick={() => onFileClick(result)}
-              className="inline-flex items-center space-x-1 px-2 py-1 text-xs bg-primary-100 text-primary-800 rounded hover:bg-primary-200 transition-colors"
+              className="inline-flex items-center space-x-1 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
             >
               <EyeIcon className="h-3 w-3" />
               <span>View File</span>

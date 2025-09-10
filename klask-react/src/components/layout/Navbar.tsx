@@ -71,13 +71,13 @@ export const Navbar: React.FC = () => {
             
             {/* Logo and brand */}
             <Link to="/search" className="flex items-center ml-2 md:mr-24">
-              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center mr-3">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
                 <MagnifyingGlassIcon className="w-5 h-5 text-white" />
               </div>
               <span className="self-center text-xl font-semibold sm:text-2xl whitespace-nowrap">
                 Klask
               </span>
-              <span className="ml-2 px-2 py-1 text-xs font-medium bg-primary-100 text-primary-800 rounded-full">
+              <span className="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                 v2.0
               </span>
             </Link>
@@ -92,7 +92,7 @@ export const Navbar: React.FC = () => {
                 className={clsx(
                   'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                   item.current
-                    ? 'bg-primary-100 text-primary-700'
+                    ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-700 hover:bg-gray-100'
                 )}
               >
@@ -111,7 +111,7 @@ export const Navbar: React.FC = () => {
                   {isAdmin && (
                     <Menu as="div" className="relative ml-3">
                       <div>
-                        <Menu.Button className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 p-1">
+                        <Menu.Button className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 p-1">
                           <span className="sr-only">Open admin menu</span>
                           <Cog6ToothIcon className="w-5 h-5 text-gray-600" />
                           <ChevronDownIcon className="w-4 h-4 ml-1 text-gray-600" />
@@ -150,7 +150,7 @@ export const Navbar: React.FC = () => {
                   {/* User dropdown */}
                   <Menu as="div" className="relative ml-3">
                     <div>
-                      <Menu.Button className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                      <Menu.Button className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         <span className="sr-only">Open user menu</span>
                         <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                           <UserIcon className="w-5 h-5 text-gray-600" />
