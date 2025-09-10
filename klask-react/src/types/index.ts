@@ -53,35 +53,41 @@ export interface File {
   updatedAt: string;
 }
 
-// Search Types
+// Search Types - matching Rust backend
 export interface SearchQuery {
   query: string;
   project?: string;
   version?: string;
   extension?: string;
   maxResults?: number;
+  offset?: number;
 }
 
 export interface SearchResult {
-  file: File;
-  snippet: string;
+  file_id: string;
+  file_name: string;
+  file_path: string;
+  content_snippet: string;
+  project: string;
+  version: string;
+  extension: string;
   score: number;
-  highlights: string[];
+  line_number?: number;
 }
 
 export interface SearchResponse {
   results: SearchResult[];
   total: number;
-  took: number;
-  page: number;
-  size: number;
+  took?: number;
+  page?: number;
+  size?: number;
 }
 
-// Filter Types
+// Filter Types - Simple strings for now
 export interface SearchFilters {
-  projects: FilterOption[];
-  versions: FilterOption[];
-  extensions: FilterOption[];
+  projects: string[];
+  versions: string[];
+  extensions: string[];
 }
 
 export interface FilterOption {

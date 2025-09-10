@@ -16,6 +16,7 @@
     "@tanstack/react-query": "^5.87.4",
     "@tanstack/react-query-devtools": "^5.87.4",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "@types/react-window": "^1.8.8",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "i18next": "^25.5.2",
@@ -26,7 +27,10 @@
     "react-i18next": "^15.7.3",
     "react-router-dom": "^7.8.2",
     "react-syntax-highlighter": "^15.6.6",
+    "react-window": "^2.1.0",
+    "react-window-infinite-loader": "^1.0.10",
     "tailwind-merge": "^3.3.1",
+    "use-debounce": "^10.0.6",
     "zod": "^4.1.5",
     "zustand": "^5.0.8"
   },

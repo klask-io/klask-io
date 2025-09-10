@@ -1,0 +1,72 @@
+import React, { useState, useCallback } from 'react';
+import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useDebounce } from 'use-debounce';
+
+interface SearchBarProps {
+  value: string;
+  onChange: (value: string) => void;
+  onSearch: (query: string) => void;
+  placeholder?: string;
+  isLoading?: boolean;
+}
+
+export const SearchBar: React.FC<SearchBarProps> = ({
+  value,
+  onChange,
+  onSearch,
+  placeholder = "Search in your codebase...",
+  isLoading = false,
+}) => {
+  const [localValue, setLocalValue] = useState(value);
+  const [debouncedValue] = useDebounce(localValue, 300);
+
+  React.useEffect(() => {
+    if (debouncedValue !== value) {
+      onChange(debouncedValue);
+      onSearch(debouncedValue);
+    }
+  }, [debouncedValue, onChange, onSearch, value]);
+
+  const handleClear = useCallback(() => {
+    setLocalValue('');
+    onChange('');
+    onSearch('');
+  }, [onChange, onSearch]);
+
+  const handleSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    onSearch(localValue);
+  }, [localValue, onSearch]);
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full">
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <MagnifyingGlassIcon 
+            className={`h-5 w-5 ${isLoading ? 'text-primary-500 animate-pulse' : 'text-gray-400'}`} 
+          />
+        </div>
+        
+        <input
+          type="text"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          className="block w-full pl-10 pr-12 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 placeholder-gray-400"
+          placeholder={placeholder}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        
+        {localValue && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-gray-600"
+          >
+            <XMarkIcon className="h-5 w-5 text-gray-400" />
+          </button>
+        )}
+      </div>
+    </form>
+  );
+};
