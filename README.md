@@ -12,6 +12,33 @@
 ## What is klask.io ?
 __klask.io__ is an open source search engine for source code. This application was generated using [JHipster](https://jhipster.github.io).
 
+## 🦀 Modern Rust Version (rust-modernization branch)
+
+We're actively developing a modern version using state-of-the-art technologies:
+
+- **Backend**: Rust + Axum + Tantivy + PostgreSQL
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
+- **Features**: JWT Authentication, Real-time Search, Git Crawling
+
+### Quick Start (Modern Version)
+```bash
+# Clone and switch to modern branch
+git checkout rust-modernization
+
+# Run both frontend and backend
+./start-dev.sh
+
+# Or follow detailed guides:
+# - Development setup: DEVELOPMENT.md
+# - Testing guide: TESTING.md
+```
+
+**Status**: 
+- ✅ Authentication System
+- 🚧 Search Interface (in progress)
+- 📋 Repository Management (planned)
+- 🎨 Syntax Highlighting (planned)
+
 ### Live demo
 http://app.klask.io/
 
