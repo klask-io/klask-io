@@ -14,6 +14,7 @@ use crate::repositories::user_repository::UserRepository;
 pub struct AppState {
     pub database: Database,
     pub search_service: Arc<crate::services::SearchService>,
+    pub crawler_service: Arc<crate::services::crawler::CrawlerService>,
     pub jwt_service: JwtService,
     pub config: crate::config::AppConfig,
 }

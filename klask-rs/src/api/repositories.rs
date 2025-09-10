@@ -88,8 +88,27 @@ async fn trigger_crawl(
 ) -> Result<Json<String>, StatusCode> {
     let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
     
-    match repo_repository.update_last_crawled(id).await {
-        Ok(_) => Ok(Json("Crawl triggered".to_string())),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    // Get the repository to crawl
+    let repository = match repo_repository.get_repository(id).await {
+        Ok(Some(repo)) => repo,
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    
+    // Check if repository is enabled
+    if !repository.enabled {
+        return Err(StatusCode::BAD_REQUEST);
     }
+    
+    // Spawn background task for crawling
+    let crawler_service = app_state.crawler_service.clone();
+    let repo_clone = repository.clone();
+    
+    tokio::spawn(async move {
+        if let Err(e) = crawler_service.crawl_repository(&repo_clone).await {
+            tracing::error!("Failed to crawl repository {}: {}", repo_clone.name, e);
+        }
+    });
+    
+    Ok(Json("Crawl started in background".to_string()))
 }

@@ -10,7 +10,7 @@ use anyhow::Result;
 use axum::{routing::get, Router};
 use config::AppConfig;
 use database::Database;
-use services::SearchService;
+use services::{SearchService, crawler::CrawlerService};
 use auth::{extractors::AppState, jwt::JwtService};
 use tower_http::cors::CorsLayer;
 use std::sync::Arc;
@@ -73,10 +73,24 @@ async fn main() -> Result<()> {
         }
     };
 
+    // Initialize crawler service
+    let search_service_arc = Arc::new(search_service);
+    let crawler_service = match CrawlerService::new(database.pool().clone(), search_service_arc.clone()) {
+        Ok(service) => {
+            info!("Crawler service initialized successfully");
+            service
+        }
+        Err(e) => {
+            error!("Failed to initialize crawler service: {}", e);
+            return Err(e);
+        }
+    };
+
     // Create application state
     let app_state = AppState {
         database,
-        search_service: Arc::new(search_service),
+        search_service: search_service_arc,
+        crawler_service: Arc::new(crawler_service),
         jwt_service,
         config: config.clone(),
     };
