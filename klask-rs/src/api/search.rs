@@ -1,12 +1,13 @@
 use anyhow::Result;
 use axum::{
-    extract::Query,
+    extract::{Query, State},
     http::StatusCode,
     response::Json,
     routing::get,
     Router,
 };
 use serde::{Deserialize, Serialize};
+use crate::database::Database;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
@@ -39,13 +40,16 @@ pub struct SearchResult {
     pub score: f32,
 }
 
-pub async fn create_router() -> Result<Router> {
-    let router = Router::new().route("/", get(search_files));
+pub async fn create_router(database: Database) -> Result<Router> {
+    let router = Router::new()
+        .route("/", get(search_files))
+        .with_state(database);
 
     Ok(router)
 }
 
 async fn search_files(
+    State(_database): State<Database>,
     Query(params): Query<SearchRequest>,
 ) -> Result<Json<SearchResponse>, StatusCode> {
     // TODO: Implement actual search using Tantivy

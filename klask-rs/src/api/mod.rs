@@ -4,13 +4,14 @@ pub mod repositories;
 
 use anyhow::Result;
 use axum::{routing::get, Router};
+use crate::database::Database;
 
-pub async fn create_router() -> Result<Router> {
+pub async fn create_router(database: Database) -> Result<Router> {
     let router = Router::new()
         .route("/status", get(status_handler))
-        .nest("/files", files::create_router().await?)
-        .nest("/search", search::create_router().await?)
-        .nest("/repositories", repositories::create_router().await?);
+        .nest("/files", files::create_router(database.clone()).await?)
+        .nest("/search", search::create_router(database.clone()).await?)
+        .nest("/repositories", repositories::create_router(database.clone()).await?);
 
     Ok(router)
 }

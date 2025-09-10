@@ -1,6 +1,6 @@
 use anyhow::Result;
 use axum::{
-    extract::Path,
+    extract::{Path, State},
     http::StatusCode,
     response::Json,
     routing::{get, post},
@@ -8,24 +8,10 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::database::Database;
+use crate::models::{Repository, RepositoryType};
+use crate::repositories::RepositoryRepository;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Repository {
-    pub id: Uuid,
-    pub name: String,
-    pub url: String,
-    pub repository_type: RepositoryType,
-    pub branch: Option<String>,
-    pub enabled: bool,
-    pub last_crawled: Option<chrono::DateTime<chrono::Utc>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub enum RepositoryType {
-    Git,
-    GitLab,
-    FileSystem,
-}
 
 #[derive(Debug, Deserialize)]
 pub struct CreateRepositoryRequest {
@@ -35,39 +21,72 @@ pub struct CreateRepositoryRequest {
     pub branch: Option<String>,
 }
 
-pub async fn create_router() -> Result<Router> {
+pub async fn create_router(database: Database) -> Result<Router> {
     let router = Router::new()
         .route("/", get(list_repositories).post(create_repository))
         .route("/:id", get(get_repository))
-        .route("/:id/crawl", post(trigger_crawl));
+        .route("/:id/crawl", post(trigger_crawl))
+        .with_state(database);
 
     Ok(router)
 }
 
-async fn list_repositories() -> Result<Json<Vec<Repository>>, StatusCode> {
-    // TODO: Implement actual repository listing from database
-    Ok(Json(vec![]))
+async fn list_repositories(
+    State(database): State<Database>,
+) -> Result<Json<Vec<Repository>>, StatusCode> {
+    let repo_repository = RepositoryRepository::new(database.pool().clone());
+    
+    match repo_repository.list_repositories().await {
+        Ok(repositories) => Ok(Json(repositories)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
-async fn get_repository(Path(id): Path<Uuid>) -> Result<Json<Repository>, StatusCode> {
-    // TODO: Implement actual repository retrieval from database
-    let _ = id;
+async fn get_repository(
+    State(database): State<Database>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Repository>, StatusCode> {
+    let repo_repository = RepositoryRepository::new(database.pool().clone());
     
-    Err(StatusCode::NOT_FOUND)
+    match repo_repository.get_repository(id).await {
+        Ok(Some(repository)) => Ok(Json(repository)),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 async fn create_repository(
+    State(database): State<Database>,
     Json(payload): Json<CreateRepositoryRequest>,
 ) -> Result<Json<Repository>, StatusCode> {
-    // TODO: Implement actual repository creation in database
-    let _ = payload;
+    let repo_repository = RepositoryRepository::new(database.pool().clone());
     
-    Err(StatusCode::NOT_IMPLEMENTED)
+    let new_repository = Repository {
+        id: uuid::Uuid::new_v4(),
+        name: payload.name,
+        url: payload.url,
+        repository_type: payload.repository_type,
+        branch: payload.branch,
+        enabled: true,
+        last_crawled: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    };
+    
+    match repo_repository.create_repository(&new_repository).await {
+        Ok(repository) => Ok(Json(repository)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
-async fn trigger_crawl(Path(id): Path<Uuid>) -> Result<Json<String>, StatusCode> {
-    // TODO: Implement actual crawling trigger
-    let _ = id;
+async fn trigger_crawl(
+    State(database): State<Database>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<String>, StatusCode> {
+    let repo_repository = RepositoryRepository::new(database.pool().clone());
     
-    Ok(Json("Crawl triggered".to_string()))
+    match repo_repository.update_last_crawled(id).await {
+        Ok(_) => Ok(Json("Crawl triggered".to_string())),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
