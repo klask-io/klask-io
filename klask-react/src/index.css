@@ -98,7 +98,7 @@
 
 /* React Syntax Highlighter theme overrides */
 .react-syntax-highlighter-line-number {
-  @apply text-secondary-400 text-xs;
+  @apply text-slate-400 text-xs;
 }
 
 /* Loading animations */
@@ -125,14 +125,14 @@
 /* Dark mode support (for future enhancement) */
 @media (prefers-color-scheme: dark) {
   .dark-mode {
-    @apply bg-secondary-900 text-secondary-100;
+    @apply bg-slate-900 text-slate-100;
   }
   
   .dark-mode .card {
-    @apply bg-secondary-800 border-secondary-700;
+    @apply bg-slate-800 border-slate-700;
   }
   
   .dark-mode .input-field {
-    @apply bg-secondary-800 border-secondary-600 text-secondary-100 placeholder-secondary-400;
+    @apply bg-slate-800 border-slate-600 text-slate-100 placeholder-slate-400;
   }
 }
