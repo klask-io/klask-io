@@ -18,6 +18,7 @@ const SearchPage = React.lazy(() => import('./features/search/SearchPage'));
 const FileDetailPage = React.lazy(() => import('./features/search/FileDetailPage'));
 const RepositoriesPage = React.lazy(() => import('./features/repositories/RepositoriesPage'));
 const RepositoryDetailPage = React.lazy(() => import('./features/repositories/RepositoryDetailPage'));
+const FileBrowserPage = React.lazy(() => import('./features/files/FileBrowserPage'));
 const AdminDashboard = React.lazy(() => import('./features/admin/AdminDashboard'));
 const UserManagement = React.lazy(() => import('./features/admin/UserManagement'));
 const LoginPage = React.lazy(() => import('./features/auth/LoginPage'));
@@ -120,6 +121,16 @@ function App() {
                 element={
                   <Suspense fallback={<LoadingSpinner />}>
                     <RepositoryDetailPage />
+                  </Suspense>
+                } 
+              />
+              
+              {/* File browser routes */}
+              <Route 
+                path="files/:id" 
+                element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <FileBrowserPage />
                   </Suspense>
                 } 
               />
