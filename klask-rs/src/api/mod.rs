@@ -2,6 +2,7 @@ pub mod auth;
 pub mod files;
 pub mod search;
 pub mod repositories;
+pub mod users;
 
 use anyhow::Result;
 use axum::{routing::get, Router};
@@ -13,7 +14,8 @@ pub async fn create_router() -> Result<Router<AppState>> {
         .nest("/auth", auth::create_router().await?)
         .nest("/files", files::create_router().await?)
         .nest("/search", search::create_router().await?)
-        .nest("/repositories", repositories::create_router().await?);
+        .nest("/repositories", repositories::create_router().await?)
+        .nest("/users", users::create_router().await?);
 
     Ok(router)
 }

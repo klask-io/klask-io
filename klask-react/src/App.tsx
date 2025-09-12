@@ -15,9 +15,10 @@ import { Suspense } from 'react';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 
 const SearchPage = React.lazy(() => import('./features/search/SearchPage'));
-const FileDetailPage = React.lazy(() => import('./features/search/FileDetailPage'));
+const FileDetailPage = React.lazy(() => import('./features/files/FileDetailPage'));
 const RepositoriesPage = React.lazy(() => import('./features/repositories/RepositoriesPage'));
 const RepositoryDetailPage = React.lazy(() => import('./features/repositories/RepositoryDetailPage'));
+const FilesPage = React.lazy(() => import('./features/files/FilesPage'));
 const FileBrowserPage = React.lazy(() => import('./features/files/FileBrowserPage'));
 const AdminDashboard = React.lazy(() => import('./features/admin/AdminDashboard'));
 const UserManagement = React.lazy(() => import('./features/admin/UserManagement'));
@@ -98,6 +99,16 @@ function App() {
                   </Suspense>
                 } 
               />
+              
+              {/* Files routes */}
+              <Route 
+                path="files" 
+                element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <FilesPage />
+                  </Suspense>
+                } 
+              />
               <Route 
                 path="files/:id" 
                 element={
@@ -107,27 +118,9 @@ function App() {
                 } 
               />
               
-              {/* Repository routes */}
+              {/* Repository file browser routes */}
               <Route 
-                path="repositories" 
-                element={
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <RepositoriesPage />
-                  </Suspense>
-                } 
-              />
-              <Route 
-                path="repositories/:id" 
-                element={
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <RepositoryDetailPage />
-                  </Suspense>
-                } 
-              />
-              
-              {/* File browser routes */}
-              <Route 
-                path="files/:id" 
+                path="repositories/:id/browse" 
                 element={
                   <Suspense fallback={<LoadingSpinner />}>
                     <FileBrowserPage />
@@ -162,6 +155,26 @@ function App() {
                   <AdminRoute>
                     <Suspense fallback={<LoadingSpinner />}>
                       <UserManagement />
+                    </Suspense>
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="admin/repositories" 
+                element={
+                  <AdminRoute>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <RepositoriesPage />
+                    </Suspense>
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="admin/repositories/:id" 
+                element={
+                  <AdminRoute>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <RepositoryDetailPage />
                     </Suspense>
                   </AdminRoute>
                 } 

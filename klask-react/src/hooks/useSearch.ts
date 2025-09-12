@@ -199,3 +199,31 @@ export const useSearchHistory = () => {
 };
 
 import React from 'react';
+
+// Hook for FilesPage - simple search results
+export const useSearchResults = (
+  query: string,
+  options: {
+    limit?: number;
+    offset?: number;
+    extension?: string;
+    project?: string;
+  } = {}
+) => {
+  const { limit = 50, offset = 0, extension, project } = options;
+
+  const searchQuery: SearchQuery = {
+    query: query || '*', // Default to wildcard for all files
+    maxResults: limit,
+    offset,
+    extension,
+    project,
+  };
+
+  return useQuery({
+    queryKey: ['search', 'results', searchQuery],
+    queryFn: () => apiClient.search(searchQuery),
+    staleTime: 30000, // 30 seconds
+    retry: 2,
+  });
+};

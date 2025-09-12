@@ -19,7 +19,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - klask-network
+      - klask-rs_default
 
   # Optional: pgAdmin for database management
   pgadmin:
@@ -31,10 +31,10 @@ services:
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
       - "8080:80"
-    depends_on:
-      - postgres
+    # depends_on:
+    #   - postgres
     networks:
-      - klask-network
+      - klask-rs_default
     profiles:
       - tools
 
@@ -48,7 +48,7 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
     networks:
-      - klask-network
+      - klask-rs_default
     profiles:
       - tools
 
@@ -57,5 +57,5 @@ volumes:
   redis_data:
 
 networks:
-  klask-network:
-    driver: bridge
+  klask-rs_default:
+    external: true

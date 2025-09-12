@@ -36,12 +36,12 @@ export const Navbar: React.FC = () => {
   const navigation = [
     { name: 'Search', href: '/search', icon: MagnifyingGlassIcon, current: location.pathname.startsWith('/search') },
     { name: 'Files', href: '/files', icon: FolderIcon, current: location.pathname === '/files' },
-    { name: 'Repositories', href: '/repositories', icon: FolderIcon, current: location.pathname.startsWith('/repositories') },
   ];
 
   const adminNavigation = [
     { name: 'Admin Dashboard', href: '/admin' },
-    { name: 'User Management', href: '/admin/users' },
+    { name: 'Repositories', href: '/admin/repositories' },
+    { name: 'Users', href: '/admin/users' },
   ];
 
   return (
@@ -156,7 +156,7 @@ export const Navbar: React.FC = () => {
                           <UserIcon className="w-5 h-5 text-gray-600" />
                         </div>
                         <span className="ml-3 text-gray-700 text-sm font-medium hidden lg:block">
-                          {user?.firstName} {user?.lastName}
+                          {user?.username}
                         </span>
                         <ChevronDownIcon className="w-4 h-4 ml-1 text-gray-600 hidden lg:block" />
                       </Menu.Button>
@@ -172,7 +172,7 @@ export const Navbar: React.FC = () => {
                     >
                       <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                         <div className="px-4 py-2 text-sm text-gray-900 border-b border-gray-100">
-                          <div className="font-medium">{user?.firstName} {user?.lastName}</div>
+                          <div className="font-medium">{user?.username}</div>
                           <div className="text-gray-500">{user?.email}</div>
                         </div>
                         

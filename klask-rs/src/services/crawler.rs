@@ -1,9 +1,8 @@
 use anyhow::{anyhow, Result};
-use crate::models::{Repository, File};
+use crate::models::{Repository, RepositoryType};
 use crate::services::search::SearchService;
 use git2::Repository as GitRepository;
 use sqlx::{Pool, Postgres};
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
@@ -46,15 +45,30 @@ impl CrawlerService {
     }
 
     pub async fn crawl_repository(&self, repository: &Repository) -> Result<()> {
-        info!("Starting crawl for repository: {} ({})", repository.name, repository.url);
+        info!("Starting crawl for repository: {} ({}) - Type: {:?}", 
+              repository.name, repository.url, repository.repository_type);
         
-        let repo_path = self.temp_dir.join(format!("{}-{}", repository.name, repository.id));
+        let repo_path = match repository.repository_type {
+            RepositoryType::FileSystem => {
+                // For filesystem repositories, use the URL as the direct path
+                PathBuf::from(&repository.url)
+            },
+            RepositoryType::Git | RepositoryType::GitLab => {
+                // For Git repositories, use temp directory with cloning
+                let temp_path = self.temp_dir.join(format!("{}-{}", repository.name, repository.id));
+                let _git_repo = self.clone_or_update_repository(repository, &temp_path).await?;
+                temp_path
+            }
+        };
         
-        // Clone or update repository
-        let git_repo = self.clone_or_update_repository(repository, &repo_path).await?;
+        // Validate that the path exists
+        if !repo_path.exists() {
+            return Err(anyhow!("Repository path does not exist: {:?}", repo_path));
+        }
         
-        // Get the current commit hash
-        let _head_commit = git_repo.head()?.target().unwrap();
+        if !repo_path.is_dir() {
+            return Err(anyhow!("Repository path is not a directory: {:?}", repo_path));
+        }
         
         // Process all files in the repository
         let mut progress = CrawlProgress {
@@ -64,6 +78,9 @@ impl CrawlerService {
         };
         
         self.process_repository_files(repository, &repo_path, &mut progress).await?;
+        
+        // Commit the Tantivy index to make changes searchable
+        self.search_service.commit().await?;
         
         // Update repository last_crawled timestamp
         self.update_repository_crawl_time(repository.id).await?;
@@ -141,13 +158,8 @@ impl CrawlerService {
         repo_path: &Path,
         progress: &mut CrawlProgress,
     ) -> Result<()> {
-        // Get existing files from database to track deletions
-        let existing_files = self.get_existing_files(repository.id).await?
-            .into_iter()
-            .map(|f| f.path)
-            .collect::<HashSet<String>>();
-        
-        let mut current_files = HashSet::new();
+        // For Tantivy-only indexing, we don't need to track file deletions
+        // since Tantivy will be rebuilt fresh for each crawl
         
         // Walk through all files in the repository
         for entry in WalkDir::new(repo_path)
@@ -160,7 +172,6 @@ impl CrawlerService {
                 .map_err(|e| anyhow!("Failed to get relative path: {}", e))?;
             
             let relative_path_str = relative_path.to_string_lossy().to_string();
-            current_files.insert(relative_path_str.clone());
             
             // Skip hidden files and directories
             if relative_path_str.starts_with('.') {
@@ -194,13 +205,7 @@ impl CrawlerService {
             }
         }
         
-        // Remove files that no longer exist in the repository
-        let deleted_files: Vec<String> = existing_files.difference(&current_files).cloned().collect();
-        for deleted_file in deleted_files {
-            if let Err(e) = self.remove_file_from_index(repository.id, &deleted_file).await {
-                error!("Failed to remove deleted file from index: {}: {}", deleted_file, e);
-            }
-        }
+        // Files are only indexed in Tantivy - no database cleanup needed
         
         Ok(())
     }
@@ -227,9 +232,6 @@ impl CrawlerService {
             }
         };
         
-        let metadata = file_path.metadata()
-            .map_err(|e| anyhow!("Failed to get file metadata: {}", e))?;
-        
         let extension = file_path.extension()
             .and_then(|ext| ext.to_str())
             .unwrap_or("")
@@ -240,36 +242,22 @@ impl CrawlerService {
             .unwrap_or("")
             .to_string();
         
-        // Create or update file record
-        let file_record = File {
-            id: Uuid::new_v4(),
-            name: file_name,
-            path: relative_path.to_string(),
-            content: content.clone(),
-            project: repository.name.clone(),
-            version: "HEAD".to_string(), // Could be enhanced to use actual commit hash
-            extension,
-            size: metadata.len() as i64,
-            last_modified: chrono::DateTime::from(
-                metadata.modified().unwrap_or(std::time::SystemTime::now())
-            ),
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        };
-        
-        // Save to database
-        self.save_file_to_database(repository.id, &file_record).await?;
-        
-        // Index in search engine if content is available
+        // Index in Tantivy search engine if content is available
         if let Some(content) = content {
+            // Generate a unique ID for Tantivy indexing
+            let file_id = Uuid::new_v4();
+            let version = "HEAD".to_string();
+            
+            debug!("index file {}", relative_path);
+
             self.search_service.index_file(
-                file_record.id,
-                &file_record.name,
-                &file_record.path,
+                file_id,
+                &file_name,
+                relative_path,
                 &content,
-                &file_record.project,
-                &file_record.version,
-                &file_record.extension,
+                &repository.name,
+                &version,
+                &extension,
             ).await?;
         }
         
@@ -293,77 +281,11 @@ impl CrawlerService {
         }
     }
     
-    pub async fn get_existing_files(&self, repository_id: Uuid) -> Result<Vec<File>> {
-        let files = sqlx::query_as::<_, File>(
-            "SELECT * FROM files WHERE project = (SELECT name FROM repositories WHERE id = $1)"
-        )
-        .bind(repository_id)
-        .fetch_all(&self.database)
-        .await
-        .map_err(|e| anyhow!("Failed to fetch existing files: {}", e))?;
-        
-        Ok(files)
-    }
+    // Removed: Files are only indexed in Tantivy, not stored in database
     
-    pub async fn save_file_to_database(&self, _repository_id: Uuid, file: &File) -> Result<()> {
-        sqlx::query(
-            r#"
-            INSERT INTO files (id, name, path, content, project, version, extension, size, last_modified, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            ON CONFLICT (path, project) DO UPDATE SET
-                name = EXCLUDED.name,
-                content = EXCLUDED.content,
-                version = EXCLUDED.version,
-                extension = EXCLUDED.extension,
-                size = EXCLUDED.size,
-                last_modified = EXCLUDED.last_modified,
-                updated_at = EXCLUDED.updated_at
-            "#
-        )
-        .bind(&file.id)
-        .bind(&file.name)
-        .bind(&file.path)
-        .bind(&file.content)
-        .bind(&file.project)
-        .bind(&file.version)
-        .bind(&file.extension)
-        .bind(file.size)
-        .bind(file.last_modified)
-        .bind(file.created_at)
-        .bind(file.updated_at)
-        .execute(&self.database)
-        .await
-        .map_err(|e| anyhow!("Failed to save file to database: {}", e))?;
-        
-        Ok(())
-    }
+    // Removed: Files are only indexed in Tantivy, not stored in database
     
-    async fn remove_file_from_index(&self, repository_id: Uuid, file_path: &str) -> Result<()> {
-        // Remove from database
-        let repository_name = sqlx::query_scalar::<_, String>(
-            "SELECT name FROM repositories WHERE id = $1"
-        )
-        .bind(repository_id)
-        .fetch_one(&self.database)
-        .await
-        .map_err(|e| anyhow!("Failed to get repository name: {}", e))?;
-        
-        sqlx::query(
-            "DELETE FROM files WHERE path = $1 AND project = $2"
-        )
-        .bind(file_path)
-        .bind(&repository_name)
-        .execute(&self.database)
-        .await
-        .map_err(|e| anyhow!("Failed to delete file from database: {}", e))?;
-        
-        // Remove from search index
-        // Note: Tantivy doesn't have a direct delete by field, so we would need to
-        // rebuild the index or implement a deletion strategy
-        debug!("File removed from database: {}", file_path);
-        
-        Ok(())
-    }
+    // Removed: Files are only indexed in Tantivy, index is rebuilt fresh on each crawl
     
     pub async fn update_repository_crawl_time(&self, repository_id: Uuid) -> Result<()> {
         sqlx::query(
@@ -376,5 +298,77 @@ impl CrawlerService {
         .map_err(|e| anyhow!("Failed to update repository crawl time: {}", e))?;
         
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::search::SearchService;
+    use sqlx::PgPool;
+    use std::sync::Arc;
+    use tempfile::TempDir;
+    use std::fs;
+
+    #[tokio::test]
+    async fn test_filesystem_repository_crawling() {
+        // Skip test if DATABASE_URL is not set
+        if std::env::var("DATABASE_URL").is_err() {
+            println!("Skipping test: DATABASE_URL not set");
+            return;
+        }
+        
+        // Create a temporary directory with test files
+        let temp_dir = TempDir::new().unwrap();
+        let test_repo_path = temp_dir.path();
+        
+        // Create test files
+        fs::write(
+            test_repo_path.join("test.rs"), 
+            "fn main() {\n    println!(\"Hello, world!\");\n}"
+        ).unwrap();
+        
+        fs::write(
+            test_repo_path.join("README.md"), 
+            "# Test Repository\nThis is a test repository for testing the crawler."
+        ).unwrap();
+        
+        fs::write(
+            test_repo_path.join("config.json"), 
+            r#"{"name": "test", "version": "1.0.0"}"#
+        ).unwrap();
+        
+        // Initialize services
+        let database = PgPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap();
+        
+        let search_service = Arc::new(SearchService::new("./test_index").unwrap());
+        let crawler_service = CrawlerService::new(database, search_service).unwrap();
+        
+        // Create a test repository
+        let repository = Repository {
+            id: Uuid::new_v4(),
+            name: "test-repo".to_string(),
+            url: test_repo_path.to_string_lossy().to_string(),
+            repository_type: RepositoryType::FileSystem,
+            branch: None,
+            enabled: true,
+            access_token: None,
+            gitlab_namespace: None,
+            is_group: false,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            last_crawled: None,
+        };
+        
+        // Test the crawler
+        let result = crawler_service.crawl_repository(&repository).await;
+        
+        // Assert success
+        assert!(result.is_ok(), "Crawler should succeed: {:?}", result.err());
+        
+        println!("✅ Filesystem repository crawling test passed!");
+        
+        // Clean up test index
+        let _ = std::fs::remove_dir_all("./test_index");
     }
 }

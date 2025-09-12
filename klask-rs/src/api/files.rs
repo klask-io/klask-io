@@ -75,20 +75,57 @@ async fn get_file(
     State(app_state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<FileResponse>, StatusCode> {
-    let file_repo = FileRepository::new(app_state.database.pool().clone());
+    tracing::debug!("Getting file by id: {}", id);
     
-    match file_repo.get_file(id).await {
-        Ok(Some(file)) => Ok(Json(FileResponse {
-            id: file.id,
-            name: file.name,
-            path: file.path,
-            content: file.content,
-            project: file.project,
-            version: file.version,
-            extension: file.extension,
-            size: file.size,
-        })),
-        Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    // Try to get file from Tantivy search index first
+    match app_state.search_service.get_file_by_id(id).await {
+        Ok(Some(search_result)) => {
+            tracing::debug!("Found file in search index: {} (content size: {})", 
+                search_result.file_name, search_result.content_snippet.len());
+            
+            let content_size = search_result.content_snippet.len() as i64;
+            Ok(Json(FileResponse {
+                id,
+                name: search_result.file_name,
+                path: search_result.file_path,
+                content: Some(search_result.content_snippet), // This is the full content from Tantivy
+                project: search_result.project,
+                version: search_result.version,
+                extension: search_result.extension,
+                size: content_size,
+            }))
+        }
+        Ok(None) => {
+            tracing::debug!("File not found in search index, trying database");
+            // Fallback to database if not found in Tantivy
+            let file_repo = FileRepository::new(app_state.database.pool().clone());
+            match file_repo.get_file(id).await {
+                Ok(Some(file)) => {
+                    tracing::debug!("Found file in database: {}", file.name);
+                    Ok(Json(FileResponse {
+                        id: file.id,
+                        name: file.name,
+                        path: file.path,
+                        content: file.content,
+                        project: file.project,
+                        version: file.version,
+                        extension: file.extension,
+                        size: file.size,
+                    }))
+                },
+                Ok(None) => {
+                    tracing::debug!("File not found in database either");
+                    Err(StatusCode::NOT_FOUND)
+                },
+                Err(e) => {
+                    tracing::error!("Database error when fetching file: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                },
+            }
+        }
+        Err(e) => {
+            tracing::error!("Search service error when fetching file: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        },
     }
 }

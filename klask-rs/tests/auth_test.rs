@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use axum_test::TestServer;
 use klask_rs::{api, auth::{extractors::AppState, jwt::JwtService}};
 use klask_rs::{Database, config::AppConfig};
-use klask_rs::services::SearchService;
+use klask_rs::services::{SearchService, crawler::CrawlerService};
 use tempfile::TempDir;
 use serde_json::json;
 use std::sync::Arc;
@@ -41,11 +41,21 @@ async fn create_test_app_state() -> AppState {
     // Create JWT service
     let jwt_service = JwtService::new(&config.auth).expect("Failed to create JWT service");
 
+    // Create shared search service
+    let shared_search_service = Arc::new(search_service);
+
+    // Create crawler service
+    let crawler_service = Arc::new(CrawlerService::new(
+        database.pool().clone(),
+        shared_search_service.clone(),
+    ).expect("Failed to create crawler service"));
+
     AppState {
         database,
-        search_service: Arc::new(search_service),
+        search_service: shared_search_service,
         jwt_service,
         config,
+        crawler_service,
     }
 }
 

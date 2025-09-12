@@ -1,6 +1,4 @@
 import React from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { 
   DocumentTextIcon, 
   FolderIcon,
@@ -23,42 +21,6 @@ export const SearchResult: React.FC<SearchResultProps> = ({
   onFileClick,
   className = '',
 }) => {
-  const getLanguageFromExtension = (extension: string): string => {
-    const languageMap: Record<string, string> = {
-      'js': 'javascript',
-      'jsx': 'jsx',
-      'ts': 'typescript',
-      'tsx': 'tsx',
-      'py': 'python',
-      'java': 'java',
-      'cpp': 'cpp',
-      'c': 'c',
-      'cs': 'csharp',
-      'php': 'php',
-      'rb': 'ruby',
-      'go': 'go',
-      'rs': 'rust',
-      'kt': 'kotlin',
-      'swift': 'swift',
-      'dart': 'dart',
-      'scala': 'scala',
-      'sh': 'bash',
-      'yaml': 'yaml',
-      'yml': 'yaml',
-      'json': 'json',
-      'xml': 'xml',
-      'html': 'html',
-      'css': 'css',
-      'scss': 'scss',
-      'sass': 'sass',
-      'less': 'less',
-      'sql': 'sql',
-      'md': 'markdown',
-      'dockerfile': 'dockerfile',
-    };
-    
-    return languageMap[extension.toLowerCase()] || 'text';
-  };
 
   const highlightQuery = (text: string, query: string): React.JSX.Element => {
     if (!query.trim()) return <>{text}</>;
@@ -80,14 +42,16 @@ export const SearchResult: React.FC<SearchResultProps> = ({
   };
 
   const formatPath = (path: string): { directory: string; filename: string } => {
+    if (!path) {
+      return { directory: '', filename: '' };
+    }
     const parts = path.split('/');
     const filename = parts.pop() || '';
     const directory = parts.join('/');
     return { directory, filename };
   };
 
-  const { directory, filename } = formatPath(result.file_path);
-  const language = getLanguageFromExtension(result.extension);
+  const { directory, filename } = formatPath(result.path);
 
   return (
     <div 
@@ -151,23 +115,21 @@ export const SearchResult: React.FC<SearchResultProps> = ({
           </div>
           
           <div className="overflow-hidden rounded border border-gray-200">
-            <SyntaxHighlighter
-              language={language}
-              style={oneLight}
-              customStyle={{
-                margin: 0,
-                padding: '12px',
-                fontSize: '13px',
-                lineHeight: '1.4',
+            <div 
+              className="p-3 bg-gray-50 text-sm font-mono overflow-auto"
+              style={{
                 maxHeight: '200px',
-                overflow: 'auto',
+                lineHeight: '1.5',
               }}
-              showLineNumbers={false}
-              wrapLines={true}
-              wrapLongLines={true}
-            >
-              {result.content_snippet}
-            </SyntaxHighlighter>
+              dangerouslySetInnerHTML={{
+                __html: result.content_snippet
+                  .replace(/&/g, '&amp;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;')
+                  .replace(/&lt;b&gt;/g, '<mark class="bg-yellow-200 font-semibold">')
+                  .replace(/&lt;\/b&gt;/g, '</mark>')
+              }}
+            />
           </div>
         </div>
         

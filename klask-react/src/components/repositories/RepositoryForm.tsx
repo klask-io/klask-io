@@ -14,14 +14,38 @@ const repositorySchema = z.object({
     .max(100, 'Repository name must be less than 100 characters'),
   url: z
     .string()
-    .min(1, 'Repository URL is required')
-    .url('Please enter a valid URL'),
+    .min(1, 'Repository URL is required'),
   repositoryType: z.enum(['Git', 'GitLab', 'FileSystem'] as const),
   branch: z
     .string()
     .optional()
     .refine((val) => !val || val.length >= 1, 'Branch name cannot be empty if provided'),
+  accessToken: z
+    .string()
+    .optional(),
+  gitlabNamespace: z
+    .string()
+    .optional(),
+  isGroup: z.boolean().optional().default(false),
   enabled: z.boolean().optional().default(true),
+}).refine((data) => {
+  // For Git and GitLab, validate as URL
+  if (data.repositoryType === 'Git' || data.repositoryType === 'GitLab') {
+    try {
+      new URL(data.url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  // For FileSystem, validate as path (allow any non-empty string that looks like a path)
+  if (data.repositoryType === 'FileSystem') {
+    return data.url.length > 0 && (data.url.startsWith('/') || data.url.match(/^[a-zA-Z]:[\\\/]/));
+  }
+  return true;
+}, {
+  message: 'Please enter a valid URL for Git/GitLab repositories or a valid file path for FileSystem repositories',
+  path: ['url'],
 });
 
 type RepositoryFormData = z.infer<typeof repositorySchema>;
@@ -207,7 +231,7 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
               </label>
               <input
                 {...register('url')}
-                type="url"
+                type={watchedType === 'FileSystem' ? 'text' : 'url'}
                 className={`input-field ${errors.url ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
                 placeholder={getPlaceholderUrl(watchedType)}
               />
@@ -241,6 +265,58 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
                   Leave empty to use the default branch
                 </p>
               </div>
+            )}
+
+            {/* Access Token (for GitLab) */}
+            {watchedType === 'GitLab' && (
+              <>
+                <div>
+                  <label htmlFor="accessToken" className="block text-sm font-medium text-gray-700 mb-1">
+                    Access Token (Required for private repositories)
+                  </label>
+                  <input
+                    {...register('accessToken')}
+                    type="password"
+                    className={`input-field ${errors.accessToken ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                    placeholder="glpat-..."
+                  />
+                  {errors.accessToken && (
+                    <p className="mt-1 text-sm text-red-600">{errors.accessToken.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Create a personal access token with 'read_repository' scope in GitLab settings
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="gitlabNamespace" className="block text-sm font-medium text-gray-700 mb-1">
+                    GitLab Namespace (Optional)
+                  </label>
+                  <input
+                    {...register('gitlabNamespace')}
+                    type="text"
+                    className={`input-field ${errors.gitlabNamespace ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                    placeholder="username or group-name"
+                  />
+                  {errors.gitlabNamespace && (
+                    <p className="mt-1 text-sm text-red-600">{errors.gitlabNamespace.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Enter a namespace to automatically discover and import all accessible repositories
+                  </p>
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    {...register('isGroup')}
+                    type="checkbox"
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="isGroup" className="ml-2 block text-sm text-gray-900">
+                    This is a GitLab group (will import all projects in the group)
+                  </label>
+                </div>
+              </>
             )}
 
             {/* Enabled Toggle */}

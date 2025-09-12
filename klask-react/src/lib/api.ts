@@ -9,6 +9,9 @@ import type {
   RegisterRequest, 
   AuthResponse,
   CreateRepositoryRequest,
+  CreateUserRequest,
+  UpdateUserRequest,
+  UserStats,
   PaginatedResponse
 } from '../types';
 
@@ -26,7 +29,7 @@ export class ApiError extends Error {
 }
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 class ApiClient {
   private baseURL: string;
@@ -212,35 +215,58 @@ class ApiClient {
     });
   }
 
-  // Health Check
-  async health(): Promise<{ status: string }> {
-    return this.request<{ status: string }>('/health');
-  }
-
-  // User Management (Admin only)
+  // User Management API
   async getUsers(): Promise<User[]> {
-    return this.request<User[]>('/api/admin/users');
+    return this.request<User[]>('/api/users');
   }
 
-  async createUser(data: RegisterRequest): Promise<User> {
-    return this.request<User>('/api/admin/users', {
+  async getUser(id: string): Promise<User> {
+    return this.request<User>(`/api/users/${id}`);
+  }
+
+  async createUser(data: CreateUserRequest): Promise<User> {
+    return this.request<User>('/api/users', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateUser(id: string, data: Partial<User>): Promise<User> {
-    return this.request<User>(`/api/admin/users/${id}`, {
+  async updateUser(id: string, data: UpdateUserRequest): Promise<User> {
+    return this.request<User>(`/api/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
+  async updateUserRole(id: string, role: string): Promise<User> {
+    return this.request<User>(`/api/users/${id}/role`, {
+      method: 'PUT',
+      body: JSON.stringify(role),
+    });
+  }
+
+  async updateUserStatus(id: string, active: boolean): Promise<User> {
+    return this.request<User>(`/api/users/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(active),
+    });
+  }
+
   async deleteUser(id: string): Promise<void> {
-    return this.request<void>(`/api/admin/users/${id}`, {
+    return this.request<void>(`/api/users/${id}`, {
       method: 'DELETE',
     });
   }
+
+  async getUserStats(): Promise<UserStats> {
+    return this.request<UserStats>('/api/users/stats');
+  }
+
+  // Health Check
+  async health(): Promise<{ status: string }> {
+    return this.request<{ status: string }>('/health');
+  }
+
 }
 
 // Create and export the API client instance
@@ -277,11 +303,15 @@ export const api = {
   // Health
   health: () => apiClient.health(),
 
-  // Admin
+  // User Management
   getUsers: () => apiClient.getUsers(),
-  createUser: (data: RegisterRequest) => apiClient.createUser(data),
-  updateUser: (id: string, data: Partial<User>) => apiClient.updateUser(id, data),
+  getUser: (id: string) => apiClient.getUser(id),
+  createUser: (data: CreateUserRequest) => apiClient.createUser(data),
+  updateUser: (id: string, data: UpdateUserRequest) => apiClient.updateUser(id, data),
+  updateUserRole: (id: string, role: string) => apiClient.updateUserRole(id, role),
+  updateUserStatus: (id: string, active: boolean) => apiClient.updateUserStatus(id, active),
   deleteUser: (id: string) => apiClient.deleteUser(id),
+  getUserStats: () => apiClient.getUserStats(),
 };
 
 // Error helper functions
@@ -296,6 +326,36 @@ export function getErrorMessage(error: unknown): string {
   
   if (error instanceof Error) {
     return error.message;
+  }
+  
+  // Handle TanStack Query error objects
+  if (error && typeof error === 'object') {
+    if ('message' in error && typeof error.message === 'string') {
+      return error.message;
+    }
+    
+    // Try to extract message from nested error objects
+    if ('error' in error && error.error instanceof Error) {
+      return error.error.message;
+    }
+    
+    // Handle response error objects
+    if ('response' in error && error.response && typeof error.response === 'object') {
+      const response = error.response as any;
+      if (response.data && typeof response.data === 'object' && response.data.message) {
+        return response.data.message;
+      }
+      if (response.statusText) {
+        return response.statusText;
+      }
+    }
+    
+    // Safely convert object to string without causing conversion errors
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'An unexpected error occurred';
+    }
   }
   
   return 'An unexpected error occurred';

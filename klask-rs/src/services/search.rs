@@ -5,9 +5,12 @@ use std::sync::Arc;
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::{Schema, Field, FAST, STORED, TEXT, Value};
-use tantivy::{doc, Index, IndexReader, IndexWriter};
+use tantivy::snippet::{Snippet, SnippetGenerator};
+use tantivy::{doc, DocAddress, Index, IndexReader, IndexWriter};
 use tokio::sync::RwLock;
 use uuid::Uuid;
+
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
@@ -20,6 +23,12 @@ pub struct SearchResult {
     pub extension: String,
     pub score: f32,
     pub line_number: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResultsWithTotal {
+    pub results: Vec<SearchResult>,
+    pub total: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -80,12 +89,12 @@ impl SearchService {
         let mut schema_builder = Schema::builder();
         
         // File metadata fields  
-        schema_builder.add_text_field("file_id", STORED | FAST);
+        schema_builder.add_text_field("file_id", TEXT | STORED | FAST);
         schema_builder.add_text_field("file_name", TEXT | STORED);
         schema_builder.add_text_field("file_path", TEXT | STORED);
         
         // Content field with custom analyzer for code search
-        schema_builder.add_text_field("content", TEXT);
+        schema_builder.add_text_field("content", TEXT | STORED);
         
         // Filter fields
         schema_builder.add_text_field("project", TEXT | STORED | FAST);
@@ -139,7 +148,7 @@ impl SearchService {
         Ok(())
     }
 
-    pub async fn search(&self, search_query: SearchQuery) -> Result<Vec<SearchResult>> {
+    pub async fn search(&self, search_query: SearchQuery) -> Result<SearchResultsWithTotal> {
         let searcher = self.reader.searcher();
         
         // Build query parser for content search
@@ -153,7 +162,11 @@ impl SearchService {
         let query = query_parser.parse_query(&search_query.query)
             .map_err(|e| anyhow!("Failed to parse query '{}': {}", search_query.query, e))?;
 
-        // Execute search
+        // First, get total count without limit/offset
+        let total_count = searcher.search(&query, &TopDocs::with_limit(1000000))?;
+        let total = total_count.len() as u64;
+
+        // Execute search with pagination
         let top_docs = searcher.search(
             &query, 
             &TopDocs::with_limit(search_query.limit).and_offset(search_query.offset)
@@ -221,8 +234,8 @@ impl SearchService {
                 }
             }
 
-            // Generate content snippet (simplified version)
-            let content_snippet = self.generate_snippet(&search_query.query, &retrieved_doc)?;
+            // Generate content snippet and extract line number
+            let (content_snippet, line_number) = self.generate_snippet_with_line_number(&search_query.query, &retrieved_doc)?;
 
             results.push(SearchResult {
                 file_id,
@@ -233,11 +246,14 @@ impl SearchService {
                 version,
                 extension,
                 score,
-                line_number: None, // TODO: Implement line number extraction
+                line_number,
             });
         }
 
-        Ok(results)
+        Ok(SearchResultsWithTotal {
+            results,
+            total,
+        })
     }
 
     fn generate_snippet(&self, query: &str, doc: &tantivy::TantivyDocument) -> Result<String> {
@@ -265,6 +281,47 @@ impl SearchService {
         }
     }
 
+    fn generate_snippet_with_line_number(&self, query: &str, doc: &tantivy::TantivyDocument) -> Result<(String, Option<u32>)> {
+        // Parse the query to get the actual Tantivy query object
+        let query_parser = QueryParser::for_index(&self.index, vec![
+            self.fields.content,
+            self.fields.file_name,
+            self.fields.file_path,
+        ]);
+        
+        let parsed_query = query_parser.parse_query(query)
+            .map_err(|e| anyhow!("Failed to parse query for snippet: {}", e))?;
+        
+        // Create snippet generator with 150 character fragment size
+        let mut snippet_generator = SnippetGenerator::create(&self.reader.searcher(), &*parsed_query, self.fields.content)?;
+        snippet_generator.set_max_num_chars(200);
+        
+        // Generate the snippet with HTML highlighting
+        let snippet = snippet_generator.snippet_from_doc(doc);
+        let highlighted_html = snippet.to_html();
+        
+        // Extract line number if we have content
+        let line_number = if let Some(content) = doc.get_first(self.fields.content).and_then(|v| v.as_str()) {
+            // Find the first highlighted term position to calculate line number
+            let query_terms: Vec<&str> = query.split_whitespace().collect();
+            let mut first_match_line = None;
+            
+            for term in query_terms {
+                if let Some(pos) = content.to_lowercase().find(&term.to_lowercase()) {
+                    let line_num = content[..pos].chars().filter(|&c| c == '\n').count() as u32 + 1;
+                    if first_match_line.is_none() || line_num < first_match_line.unwrap() {
+                        first_match_line = Some(line_num);
+                    }
+                }
+            }
+            first_match_line
+        } else {
+            None
+        };
+        
+        Ok((highlighted_html, line_number))
+    }
+
     pub async fn delete_file(&self, file_id: Uuid) -> Result<()> {
         let writer = self.writer.write().await;
         let term = tantivy::Term::from_field_text(self.fields.file_id, &file_id.to_string());
@@ -287,6 +344,84 @@ impl SearchService {
             total_documents: num_docs,
             index_size_bytes: 0, // TODO: Calculate actual index size
         })
+    }
+
+    pub async fn get_file_by_id(&self, file_id: Uuid) -> Result<Option<SearchResult>> {
+        let searcher = self.reader.searcher();
+        debug!("Getting file by id: {}", file_id);
+        
+        // Get all documents and search for matching file_id
+        let all_docs_query = tantivy::query::AllQuery;
+        let top_docs = searcher.search(&all_docs_query, &TopDocs::with_limit(10000))?;
+        debug!("Found {} total documents", top_docs.len());
+        
+        for (score, doc_address) in top_docs {
+            let retrieved_doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
+            
+            // Check if this document has the matching file_id
+            if let Some(doc_file_id_str) = retrieved_doc
+                .get_first(self.fields.file_id)
+                .and_then(|v| v.as_str()) {
+                
+                if let Ok(doc_file_id) = Uuid::parse_str(doc_file_id_str) {
+                    if doc_file_id == file_id {
+                        debug!("Found matching document for file_id: {}", file_id);
+                        
+                        let file_name = retrieved_doc
+                            .get_first(self.fields.file_name)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+
+                        let file_path = retrieved_doc
+                            .get_first(self.fields.file_path)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+
+                        let content = retrieved_doc
+                            .get_first(self.fields.content)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+
+                        let project = retrieved_doc
+                            .get_first(self.fields.project)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+
+                        let version = retrieved_doc
+                            .get_first(self.fields.version)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+
+                        let extension = retrieved_doc
+                            .get_first(self.fields.extension)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        
+                        return Ok(Some(SearchResult {
+                            file_id,
+                            file_name,
+                            file_path,
+                            content_snippet: content, // Return full content instead of snippet
+                            project,
+                            version,
+                            extension,
+                            score,
+                            line_number: None,
+                        }));
+                    }
+                }
+            }
+        }
+        
+        // If no matching document found
+        debug!("No document found with file_id: {}", file_id);
+        Ok(None)
     }
 }
 

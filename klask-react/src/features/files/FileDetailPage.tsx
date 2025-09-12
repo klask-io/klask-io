@@ -3,6 +3,7 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight, oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import toast from 'react-hot-toast';
 import { 
   ArrowLeftIcon,
   DocumentTextIcon,
@@ -83,9 +84,10 @@ const FileDetailPage: React.FC = () => {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      // TODO: Show success toast
+      toast.success('Copied to clipboard!');
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
+      toast.error('Failed to copy to clipboard');
     }
   };
 
@@ -341,3 +343,5 @@ const FileDetailPage: React.FC = () => {
     </div>
   );
 };
+
+export default FileDetailPage;

@@ -18,12 +18,12 @@ export const Sidebar: React.FC = () => {
   const navigation = [
     { name: 'Search', href: '/search', icon: MagnifyingGlassIcon },
     { name: 'Files', href: '/files', icon: DocumentTextIcon },
-    { name: 'Repositories', href: '/repositories', icon: FolderIcon },
   ];
 
   const adminNavigation = [
     { name: 'Admin Dashboard', href: '/admin', icon: Cog6ToothIcon },
-    { name: 'User Management', href: '/admin/users', icon: UsersIcon },
+    { name: 'Repositories', href: '/admin/repositories', icon: FolderIcon },
+    { name: 'Users', href: '/admin/users', icon: UsersIcon },
   ];
 
   return (

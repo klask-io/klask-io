@@ -58,6 +58,9 @@ impl TestSetup {
             repository_type: RepositoryType::Git,
             branch: Some("main".to_string()),
             enabled: true,
+            access_token: None,
+            gitlab_namespace: None,
+            is_group: false,
             last_crawled: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -66,8 +69,8 @@ impl TestSetup {
         // Insert repository into database
         sqlx::query(
             r#"
-            INSERT INTO repositories (id, name, url, repository_type, branch, enabled, last_crawled, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO repositories (id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             "#
         )
         .bind(&repository.id)
@@ -76,6 +79,9 @@ impl TestSetup {
         .bind(&repository.repository_type)
         .bind(&repository.branch)
         .bind(repository.enabled)
+        .bind(&repository.access_token)
+        .bind(&repository.gitlab_namespace)
+        .bind(repository.is_group)
         .bind(repository.last_crawled)
         .bind(repository.created_at)
         .bind(repository.updated_at)
@@ -282,6 +288,9 @@ async fn test_error_handling() -> Result<()> {
         repository_type: RepositoryType::Git,
         branch: None,
         enabled: true,
+        access_token: None,
+        gitlab_namespace: None,
+        is_group: false,
         last_crawled: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),

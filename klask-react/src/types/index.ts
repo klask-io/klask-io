@@ -4,8 +4,6 @@ export interface User {
   id: string;
   username: string;
   email: string;
-  firstName: string;
-  lastName: string;
   role: UserRole;
   active: boolean;
   createdAt: string;
@@ -106,8 +104,6 @@ export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
 }
 
 export interface AuthResponse {
@@ -139,6 +135,29 @@ export interface PaginatedResponse<T> {
 }
 
 
+// User Management Types
+export interface CreateUserRequest {
+  username: string;
+  email: string;
+  password: string;
+  role?: UserRole;
+  active?: boolean;
+}
+
+export interface UpdateUserRequest {
+  username?: string;
+  email?: string;
+  role?: UserRole;
+  active?: boolean;
+}
+
+export interface UserStats {
+  total: number;
+  active: number;
+  admins: number;
+  users: number;
+}
+
 // Repository Management Types
 export interface CreateRepositoryRequest {
   name: string;
@@ -146,6 +165,9 @@ export interface CreateRepositoryRequest {
   repositoryType: RepositoryType;
   branch?: string;
   enabled?: boolean;
+  accessToken?: string;
+  gitlabNamespace?: string;
+  isGroup?: boolean;
 }
 
 export interface CrawlStatus {

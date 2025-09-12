@@ -90,6 +90,17 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
     }
   };
 
+  const formatCreatedAt = (date: string | null | undefined) => {
+    if (!date) return 'Unknown time ago';
+    try {
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return 'Unknown time ago';
+      return formatDistanceToNow(dateObj, { addSuffix: true });
+    } catch {
+      return 'Unknown time ago';
+    }
+  };
+
   return (
     <div className={`bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}>
       <div className="p-6">
@@ -217,7 +228,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
           
           <div className="flex items-center space-x-2">
             <span className="text-xs text-gray-500">
-              Created {formatDistanceToNow(new Date(repository.createdAt), { addSuffix: true })}
+              Created {formatCreatedAt(repository.createdAt)}
             </span>
           </div>
         </div>
