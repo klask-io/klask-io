@@ -162,6 +162,10 @@ class ApiClient {
     return this.request<File>(`/api/files/${id}`);
   }
 
+  async getFileByDocAddress(docAddress: string): Promise<File> {
+    return this.request<File>(`/api/files/doc/${docAddress}`);
+  }
+
   async getFiles(params?: {
     page?: number;
     size?: number;
@@ -289,6 +293,7 @@ export const api = {
 
   // Files
   getFile: (id: string) => apiClient.getFile(id),
+  getFileByDocAddress: (docAddress: string) => apiClient.getFileByDocAddress(docAddress),
   getFiles: (params?: Parameters<typeof apiClient.getFiles>[0]) => apiClient.getFiles(params),
 
   // Repositories

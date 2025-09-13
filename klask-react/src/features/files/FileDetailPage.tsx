@@ -22,7 +22,7 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import type { SearchResult } from '../../types';
 
 const FileDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, docAddress } = useParams<{ id?: string; docAddress?: string }>();
   const location = useLocation();
   const [isDarkTheme, setIsDarkTheme] = useState(false);
   const [lineNumbersVisible, setLineNumbersVisible] = useState(true);
@@ -32,15 +32,19 @@ const FileDetailPage: React.FC = () => {
   const searchQuery = location.state?.searchQuery as string;
   const searchResult = location.state?.searchResult as SearchResult;
 
+  // Determine which parameter to use for the query
+  const fileIdentifier = docAddress || id;
+  const useDocAddress = !!docAddress;
+
   const {
     data: file,
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ['file', id],
-    queryFn: () => apiClient.getFile(id!),
-    enabled: !!id,
+    queryKey: ['file', fileIdentifier, useDocAddress],
+    queryFn: () => useDocAddress ? apiClient.getFileByDocAddress(docAddress!) : apiClient.getFile(id!),
+    enabled: !!fileIdentifier,
     retry: 2,
   });
 

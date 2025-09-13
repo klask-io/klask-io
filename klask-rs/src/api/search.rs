@@ -35,6 +35,7 @@ pub struct SearchResponse {
 pub struct SearchResult {
     pub id: String,
     pub file_id: String,
+    pub doc_address: String,
     pub name: String,
     pub path: String,
     pub content_snippet: String,
@@ -83,6 +84,7 @@ async fn search_files(
                 .map(|r| SearchResult {
                     id: r.file_id.to_string(),
                     file_id: r.file_id.to_string(),
+                    doc_address: r.doc_address,
                     name: r.file_name,
                     path: r.file_path,
                     content_snippet: r.content_snippet,

@@ -49,7 +49,7 @@ const SearchPage: React.FC = () => {
   }, [addToHistory]);
 
   const handleFileClick = useCallback((result: SearchResult) => {
-    navigate(`/files/${result.file_id}`, {
+    navigate(`/files/doc/${result.doc_address}`, {
       state: { 
         searchQuery: query,
         searchResult: result 

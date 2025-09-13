@@ -15,6 +15,7 @@ use tracing::{debug, error, info, warn};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub file_id: Uuid,
+    pub doc_address: String, // Format: "segment_ord:doc_id"
     pub file_name: String,
     pub file_path: String,
     pub content_snippet: String,
@@ -237,8 +238,12 @@ impl SearchService {
             // Generate content snippet and extract line number
             let (content_snippet, line_number) = self.generate_snippet_with_line_number(&search_query.query, &retrieved_doc)?;
 
+            // Format DocAddress as "segment_ord:doc_id"
+            let doc_address_str = format!("{}:{}", doc_address.segment_ord, doc_address.doc_id);
+
             results.push(SearchResult {
                 file_id,
+                doc_address: doc_address_str,
                 file_name,
                 file_path,
                 content_snippet,
@@ -346,6 +351,88 @@ impl SearchService {
         })
     }
 
+    pub async fn get_file_by_doc_address(&self, doc_address_str: &str) -> Result<Option<SearchResult>> {
+        // Parse "segment_ord:doc_id" format
+        let parts: Vec<&str> = doc_address_str.split(':').collect();
+        if parts.len() != 2 {
+            return Err(anyhow!("Invalid doc_address format, expected 'segment_ord:doc_id'"));
+        }
+        
+        let segment_ord: u32 = parts[0].parse()
+            .map_err(|_| anyhow!("Invalid segment_ord in doc_address: {}", parts[0]))?;
+        let doc_id: u32 = parts[1].parse()
+            .map_err(|_| anyhow!("Invalid doc_id in doc_address: {}", parts[1]))?;
+            
+        let doc_address = tantivy::DocAddress::new(segment_ord, doc_id);
+        let searcher = self.reader.searcher();
+        
+        // Try to get the document directly using DocAddress
+        match searcher.doc::<tantivy::TantivyDocument>(doc_address) {
+            Ok(retrieved_doc) => {
+                let file_id_str = retrieved_doc
+                    .get_first(self.fields.file_id)
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow!("Missing file_id in document"))?;
+                
+                let file_id = Uuid::parse_str(file_id_str)
+                    .map_err(|_| anyhow!("Invalid UUID format in file_id: {}", file_id_str))?;
+
+                let file_name = retrieved_doc
+                    .get_first(self.fields.file_name)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let file_path = retrieved_doc
+                    .get_first(self.fields.file_path)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let content = retrieved_doc
+                    .get_first(self.fields.content)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let project = retrieved_doc
+                    .get_first(self.fields.project)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let version = retrieved_doc
+                    .get_first(self.fields.version)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let extension = retrieved_doc
+                    .get_first(self.fields.extension)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                
+                Ok(Some(SearchResult {
+                    file_id,
+                    doc_address: doc_address_str.to_string(),
+                    file_name,
+                    file_path,
+                    content_snippet: content,
+                    project,
+                    version,
+                    extension,
+                    score: 1.0,
+                    line_number: None,
+                }))
+            }
+            Err(_) => {
+                // Document not found at this address
+                Ok(None)
+            }
+        }
+    }
+
     pub async fn get_file_by_id(&self, file_id: Uuid) -> Result<Option<SearchResult>> {
         let searcher = self.reader.searcher();
         debug!("Getting file by id: {}", file_id);
@@ -403,8 +490,12 @@ impl SearchService {
                             .unwrap_or("")
                             .to_string();
                         
+                        // Format DocAddress as "segment_ord:doc_id"
+                        let doc_address_str = format!("{}:{}", doc_address.segment_ord, doc_address.doc_id);
+                        
                         return Ok(Some(SearchResult {
                             file_id,
+                            doc_address: doc_address_str,
                             file_name,
                             file_path,
                             content_snippet: content, // Return full content instead of snippet

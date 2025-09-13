@@ -117,6 +117,14 @@ function App() {
                   </Suspense>
                 } 
               />
+              <Route 
+                path="files/doc/:docAddress" 
+                element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <FileDetailPage />
+                  </Suspense>
+                } 
+              />
               
               {/* Repository file browser routes */}
               <Route 
