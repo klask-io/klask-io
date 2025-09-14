@@ -63,7 +63,7 @@ export function useProgress({
     }
   }, [enabled]);
 
-  // Poll repository progress
+  // Poll repository progress with intelligent interval
   useEffect(() => {
     if (!repositoryId || !enabled) return;
 
@@ -73,22 +73,35 @@ export function useProgress({
       await refreshProgress();
     };
 
+    const scheduleNextPoll = () => {
+      // Intelligent polling: fast when crawling, slow when idle
+      const isCurrentlyActive = progress && !['completed', 'failed', 'cancelled'].includes(progress.status.toLowerCase());
+      const smartInterval = isCurrentlyActive ? pollingInterval : Math.max(pollingInterval * 5, 10000); // 2s -> 10s when idle
+      
+      intervalId = setTimeout(async () => {
+        if (!document.hidden) {
+          await pollProgress();
+        }
+        scheduleNextPoll();
+      }, smartInterval);
+    };
+
     // Initial fetch
     pollProgress();
 
-    // Set up polling only if we have a repository ID and it's enabled
+    // Start intelligent polling
     if (pollingInterval > 0) {
-      intervalId = setInterval(pollProgress, pollingInterval);
+      scheduleNextPoll();
     }
 
     return () => {
       if (intervalId) {
-        clearInterval(intervalId);
+        clearTimeout(intervalId);
       }
     };
-  }, [repositoryId, pollingInterval, enabled, refreshProgress]);
+  }, [repositoryId, pollingInterval, enabled, refreshProgress, progress?.status]);
 
-  // Poll active progress
+  // Poll active progress with intelligent interval
   useEffect(() => {
     if (!enabled) return;
 
@@ -98,20 +111,34 @@ export function useProgress({
       await refreshActiveProgress();
     };
 
+    const scheduleNextPoll = () => {
+      // Intelligent polling: fast when crawls are active, slow when idle
+      const hasActiveCrawls = activeProgress.length > 0;
+      const smartInterval = hasActiveCrawls ? pollingInterval : Math.max(pollingInterval * 7.5, 15000); // 2s -> 15s when idle
+      
+      intervalId = setTimeout(async () => {
+        // Don't poll when tab is not visible (save resources)
+        if (!document.hidden) {
+          await pollActiveProgress();
+        }
+        scheduleNextPoll(); // Schedule next poll
+      }, smartInterval);
+    };
+
     // Initial fetch
     pollActiveProgress();
 
-    // Set up polling
+    // Start intelligent polling
     if (pollingInterval > 0) {
-      intervalId = setInterval(pollActiveProgress, pollingInterval);
+      scheduleNextPoll();
     }
 
     return () => {
       if (intervalId) {
-        clearInterval(intervalId);
+        clearTimeout(intervalId);
       }
     };
-  }, [pollingInterval, enabled, refreshActiveProgress]);
+  }, [pollingInterval, enabled, refreshActiveProgress, activeProgress.length]);
 
   return {
     progress,
