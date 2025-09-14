@@ -264,7 +264,7 @@ export const useRepositoryProgress = (repositoryId: string) => {
     queryKey: ['repositories', repositoryId, 'progress'],
     queryFn: () => apiClient.getRepositoryProgress(repositoryId),
     enabled: !!repositoryId,
-    refetchInterval: 2000, // Refetch every 2 seconds
+    refetchInterval: 1000, // Refetch every 1 second
     staleTime: 1000, // Consider data stale after 1 second
     retry: 2,
   });

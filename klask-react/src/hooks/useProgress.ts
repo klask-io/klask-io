@@ -4,7 +4,7 @@ import type { CrawlProgressInfo } from '../types';
 
 export interface UseProgressOptions {
   repositoryId?: string;
-  pollingInterval?: number; // ms, default 2000 (2 seconds)
+  pollingInterval?: number; // ms, default 1000 (1 second)
   enabled?: boolean;
 }
 
@@ -19,7 +19,7 @@ export interface UseProgressReturn {
 
 export function useProgress({
   repositoryId,
-  pollingInterval = 2000,
+  pollingInterval = 1000,
   enabled = true
 }: UseProgressOptions = {}): UseProgressReturn {
   const [progress, setProgress] = useState<CrawlProgressInfo | null>(null);
@@ -150,7 +150,7 @@ export function useProgress({
       if (!isMounted) return;
       
       // Smart polling: fast when active, slow when idle
-      const interval = hasActiveCrawls ? pollingInterval : 15000; // 2s when active, 15s when idle
+      const interval = hasActiveCrawls ? pollingInterval : 15000; // 1s when active, 15s when idle
       
       intervalId = setTimeout(async () => {
         if (!document.hidden) {
