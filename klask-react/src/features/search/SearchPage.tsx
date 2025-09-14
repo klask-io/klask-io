@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { SearchBar } from '../../components/search/SearchBar';
 import { SearchFiltersComponent, type SearchFilters } from '../../components/search/SearchFilters';
 import { SearchResults } from '../../components/search/SearchResults';
@@ -15,11 +15,34 @@ import {
 
 const SearchPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<SearchFilters>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
   
   const { history, addToHistory, clearHistory } = useSearchHistory();
+  
+  // Initialize query from location state (when returning from file view)
+  useEffect(() => {
+    const initialQuery = location.state?.initialQuery as string;
+    const searchFilters = location.state?.filters as SearchFilters;
+    const advanced = location.state?.showAdvanced as boolean;
+    
+    if (initialQuery) {
+      setQuery(initialQuery);
+    }
+    if (searchFilters) {
+      setFilters(searchFilters);
+    }
+    if (advanced !== undefined) {
+      setShowAdvanced(advanced);
+    }
+    
+    // Clear the location state to avoid re-applying on refresh
+    if (initialQuery || searchFilters || advanced !== undefined) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [location.state]);
   
   const {
     data: availableFilters,
@@ -52,14 +75,21 @@ const SearchPage: React.FC = () => {
     navigate(`/files/doc/${result.doc_address}`, {
       state: { 
         searchQuery: query,
-        searchResult: result 
+        searchResult: result,
+        // Preserve search state for return navigation
+        searchState: {
+          initialQuery: query,
+          filters: filters,
+          showAdvanced: showAdvanced
+        }
       }
     });
-  }, [navigate, query]);
+  }, [navigate, query, filters, showAdvanced]);
 
   const handleHistoryClick = useCallback((historicalQuery: string) => {
-    setQuery(historicalQuery);
-    handleSearch(historicalQuery);
+    console.log('Recent search clicked:', historicalQuery);
+    setQuery(historicalQuery); // Set query immediately
+    handleSearch(historicalQuery); // And also call handleSearch
   }, [handleSearch]);
 
   const handleLoadMore = useCallback(() => {

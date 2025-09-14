@@ -9,6 +9,7 @@ use crate::auth::{claims::TokenClaims, errors::AuthError, jwt::JwtService};
 use crate::models::user::{User, UserRole};
 use crate::database::Database;
 use crate::repositories::user_repository::UserRepository;
+use crate::services::progress::ProgressTracker;
 
 // Application state that will be shared across handlers
 #[derive(Clone)]
@@ -16,6 +17,8 @@ pub struct AppState {
     pub database: Database,
     pub search_service: Arc<crate::services::SearchService>,
     pub crawler_service: Arc<crate::services::crawler::CrawlerService>,
+    pub progress_tracker: Arc<ProgressTracker>,
+    pub scheduler_service: Option<Arc<crate::services::scheduler::SchedulerService>>,
     pub jwt_service: JwtService,
     pub config: crate::config::AppConfig,
 }

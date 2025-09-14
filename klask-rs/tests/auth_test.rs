@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use axum_test::TestServer;
 use klask_rs::{api, auth::{extractors::AppState, jwt::JwtService}};
 use klask_rs::{Database, config::AppConfig};
-use klask_rs::services::{SearchService, crawler::CrawlerService};
+use klask_rs::services::{SearchService, crawler::CrawlerService, progress::ProgressTracker};
 use tempfile::TempDir;
 use serde_json::json;
 use std::sync::Arc;
@@ -44,10 +44,14 @@ async fn create_test_app_state() -> AppState {
     // Create shared search service
     let shared_search_service = Arc::new(search_service);
 
+    // Create progress tracker
+    let progress_tracker = Arc::new(ProgressTracker::new());
+
     // Create crawler service
     let crawler_service = Arc::new(CrawlerService::new(
         database.pool().clone(),
         shared_search_service.clone(),
+        progress_tracker.clone(),
     ).expect("Failed to create crawler service"));
 
     AppState {
@@ -56,6 +60,7 @@ async fn create_test_app_state() -> AppState {
         jwt_service,
         config,
         crawler_service,
+        progress_tracker,
     }
 }
 

@@ -3,6 +3,7 @@ use anyhow::Result;
 use klask_rs::models::*;
 use klask_rs::services::crawler::CrawlerService;
 use klask_rs::services::search::{SearchService, SearchQuery};
+use klask_rs::services::progress::ProgressTracker;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::{info, warn, error};
@@ -26,8 +27,11 @@ async fn main() -> Result<()> {
     search_service.clear_index().await?;
     info!("Cleared existing search index");
     
+    // Initialize progress tracker
+    let progress_tracker = Arc::new(ProgressTracker::new());
+    
     // Initialize crawler service  
-    let crawler_service = CrawlerService::new(pool.clone(), search_service.clone())?;
+    let crawler_service = CrawlerService::new(pool.clone(), search_service.clone(), progress_tracker.clone())?;
     
     // Create a test repository entry for /home/jeremie/temp/
     let test_repo = Repository {
@@ -43,6 +47,12 @@ async fn main() -> Result<()> {
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
         last_crawled: None,
+        // Scheduling fields
+        auto_crawl_enabled: false,
+        cron_schedule: None,
+        next_crawl_at: None,
+        crawl_frequency_hours: None,
+        max_crawl_duration_minutes: Some(60),
     };
     
     info!("Starting crawler for test repository: {}", test_repo.url);
@@ -72,15 +82,15 @@ async fn main() -> Result<()> {
     
     match search_service.search(search_query).await {
         Ok(results) => {
-            info!("✅ Search completed! Found {} results", results.len());
+            info!("✅ Search completed! Found {} results", results.results.len());
             
-            if results.is_empty() {
+            if results.results.is_empty() {
                 warn!("⚠️  No results found for 'server' - this indicates the commit fix may not be working");
                 return Ok(());
             }
             
             // Display results
-            for (i, result) in results.iter().enumerate() {
+            for (i, result) in results.results.iter().enumerate() {
                 info!("Result {}: {}", i + 1, result.file_path);
                 info!("  Project: {}", result.project);
                 info!("  Extension: {}", result.extension);

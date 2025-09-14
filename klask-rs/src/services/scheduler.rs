@@ -1,6 +1,6 @@
-use std::{collections::HashMap, sync::Arc, time::Duration, str::FromStr};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use anyhow::Result;
-use chrono::{DateTime, Utc, TimeZone};
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use tokio_cron_scheduler::{JobScheduler, Job};
 use tracing::{error, info, warn, debug};

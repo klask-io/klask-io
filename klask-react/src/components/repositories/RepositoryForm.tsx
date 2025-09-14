@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { XMarkIcon, FolderIcon, GlobeAltIcon, ServerIcon } from '@heroicons/react/24/outline';
 import type { Repository, RepositoryType } from '../../types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { CronScheduleForm } from './CronScheduleForm';
 
 const repositorySchema = z.object({
   name: z
@@ -28,6 +29,11 @@ const repositorySchema = z.object({
     .optional(),
   isGroup: z.boolean().optional().default(false),
   enabled: z.boolean().optional().default(true),
+  // Scheduling fields
+  autoCrawlEnabled: z.boolean().optional().default(false),
+  cronSchedule: z.string().optional(),
+  crawlFrequencyHours: z.number().optional(),
+  maxCrawlDurationMinutes: z.number().optional().default(60),
 }).refine((data) => {
   // For Git and GitLab, validate as URL
   if (data.repositoryType === 'Git' || data.repositoryType === 'GitLab') {
@@ -70,6 +76,14 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
   const isEditing = !!repository;
   const formTitle = title || (isEditing ? 'Edit Repository' : 'Add Repository');
 
+  // Scheduling state
+  const [schedulingData, setSchedulingData] = useState({
+    autoCrawlEnabled: repository?.autoCrawlEnabled || false,
+    cronSchedule: repository?.cronSchedule,
+    crawlFrequencyHours: repository?.crawlFrequencyHours,
+    maxCrawlDurationMinutes: repository?.maxCrawlDurationMinutes || 60,
+  });
+
   const {
     register,
     handleSubmit,
@@ -84,12 +98,18 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
       repositoryType: repository.repositoryType,
       branch: repository.branch || '',
       enabled: repository.enabled,
+      autoCrawlEnabled: repository.autoCrawlEnabled,
+      cronSchedule: repository.cronSchedule,
+      crawlFrequencyHours: repository.crawlFrequencyHours,
+      maxCrawlDurationMinutes: repository.maxCrawlDurationMinutes,
     } : {
       name: '',
       url: '',
       repositoryType: 'Git',
       branch: '',
       enabled: true,
+      autoCrawlEnabled: false,
+      maxCrawlDurationMinutes: 60,
     },
   });
 
@@ -97,29 +117,50 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
 
   React.useEffect(() => {
     if (repository) {
-      reset({
+      const formData = {
         name: repository.name,
         url: repository.url,
         repositoryType: repository.repositoryType,
         branch: repository.branch || '',
         enabled: repository.enabled,
+        autoCrawlEnabled: repository.autoCrawlEnabled,
+        cronSchedule: repository.cronSchedule,
+        crawlFrequencyHours: repository.crawlFrequencyHours,
+        maxCrawlDurationMinutes: repository.maxCrawlDurationMinutes,
+      };
+      reset(formData);
+      setSchedulingData({
+        autoCrawlEnabled: repository.autoCrawlEnabled,
+        cronSchedule: repository.cronSchedule,
+        crawlFrequencyHours: repository.crawlFrequencyHours,
+        maxCrawlDurationMinutes: repository.maxCrawlDurationMinutes || 60,
       });
     } else {
-      reset({
+      const formData = {
         name: '',
         url: '',
-        repositoryType: 'Git',
+        repositoryType: 'Git' as RepositoryType,
         branch: '',
         enabled: true,
+        autoCrawlEnabled: false,
+        maxCrawlDurationMinutes: 60,
+      };
+      reset(formData);
+      setSchedulingData({
+        autoCrawlEnabled: false,
+        cronSchedule: undefined,
+        crawlFrequencyHours: undefined,
+        maxCrawlDurationMinutes: 60,
       });
     }
   }, [repository, reset]);
 
   const handleFormSubmit = (data: RepositoryFormData) => {
-    // Clean up branch field if empty
+    // Clean up branch field if empty and merge scheduling data
     const cleanedData = {
       ...data,
       branch: data.branch?.trim() || undefined,
+      ...schedulingData,
     };
     onSubmit(cleanedData);
   };
@@ -329,6 +370,18 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
               <label htmlFor="enabled" className="ml-2 block text-sm text-gray-900">
                 Enable this repository for crawling
               </label>
+            </div>
+
+            {/* Scheduling Section */}
+            <div className="border-t pt-6">
+              <h4 className="text-md font-medium text-gray-900 mb-4">Automatic Crawling Schedule</h4>
+              <CronScheduleForm
+                autoCrawlEnabled={schedulingData.autoCrawlEnabled}
+                cronSchedule={schedulingData.cronSchedule}
+                crawlFrequencyHours={schedulingData.crawlFrequencyHours}
+                maxCrawlDurationMinutes={schedulingData.maxCrawlDurationMinutes}
+                onScheduleChange={setSchedulingData}
+              />
             </div>
 
             {/* Actions */}

@@ -27,6 +27,12 @@ export interface Repository {
   lastCrawled?: string;
   createdAt: string;
   updatedAt: string;
+  // Scheduling fields
+  autoCrawlEnabled: boolean;
+  cronSchedule?: string;
+  nextCrawlAt?: string;
+  crawlFrequencyHours?: number;
+  maxCrawlDurationMinutes?: number;
 }
 
 export const RepositoryType = {
@@ -169,6 +175,10 @@ export interface CreateRepositoryRequest {
   accessToken?: string;
   gitlabNamespace?: string;
   isGroup?: boolean;
+  autoCrawlEnabled?: boolean;
+  cronSchedule?: string;
+  crawlFrequencyHours?: number;
+  maxCrawlDurationMinutes?: number;
 }
 
 export interface CrawlStatus {
@@ -178,6 +188,43 @@ export interface CrawlStatus {
   message?: string;
   startedAt?: string;
   completedAt?: string;
+}
+
+export interface CrawlProgressInfo {
+  repository_id: string;
+  repository_name: string;
+  status: 'starting' | 'cloning' | 'processing' | 'indexing' | 'completed' | 'failed';
+  progress_percentage: number;
+  files_processed: number;
+  files_total?: number;
+  files_indexed: number;
+  current_file?: string;
+  error_message?: string;
+  started_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+// Scheduling Types
+export interface ScheduleRepositoryRequest {
+  autoCrawlEnabled: boolean;
+  cronSchedule?: string;
+  crawlFrequencyHours?: number;
+  maxCrawlDurationMinutes?: number;
+}
+
+export interface SchedulerStatus {
+  isRunning: boolean;
+  scheduledRepositoriesCount: number;
+  autoCrawlEnabledCount: number;
+  nextRuns: NextScheduledRun[];
+}
+
+export interface NextScheduledRun {
+  repositoryId: string;
+  repositoryName: string;
+  nextRunAt?: string;
+  scheduleExpression?: string;
 }
 
 // UI State Types

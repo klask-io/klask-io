@@ -4,7 +4,7 @@ use klask_rs::{
     config::AppConfig,
     database::Database,
     models::{Repository, RepositoryType},
-    services::{SearchService, crawler::{CrawlerService, CrawlProgress}},
+    services::{SearchService, crawler::{CrawlerService, CrawlProgress}, progress::ProgressTracker},
 };
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
@@ -36,10 +36,14 @@ impl TestSetup {
         // Create search service with temp directory
         let search_service = Arc::new(SearchService::new(index_path.to_str().unwrap())?);
         
+        // Create progress tracker
+        let progress_tracker = Arc::new(ProgressTracker::new());
+        
         // Create crawler service
         let crawler_service = Arc::new(CrawlerService::new(
             database.pool().clone(),
             search_service.clone(),
+            progress_tracker,
         )?);
         
         Ok(TestSetup {

@@ -10,7 +10,7 @@ use anyhow::Result;
 use axum::{routing::get, Router};
 use config::AppConfig;
 use database::Database;
-use services::{SearchService, crawler::CrawlerService};
+use services::{SearchService, crawler::CrawlerService, progress::ProgressTracker};
 use auth::{extractors::AppState, jwt::JwtService};
 use tower_http::cors::CorsLayer;
 use std::sync::Arc;
@@ -73,9 +73,13 @@ async fn main() -> Result<()> {
         }
     };
 
+    // Initialize progress tracker
+    let progress_tracker = Arc::new(ProgressTracker::new());
+    info!("Progress tracker initialized successfully");
+
     // Initialize crawler service
     let search_service_arc = Arc::new(search_service);
-    let crawler_service = match CrawlerService::new(database.pool().clone(), search_service_arc.clone()) {
+    let crawler_service = match CrawlerService::new(database.pool().clone(), search_service_arc.clone(), progress_tracker.clone()) {
         Ok(service) => {
             info!("Crawler service initialized successfully");
             service
@@ -91,6 +95,8 @@ async fn main() -> Result<()> {
         database,
         search_service: search_service_arc,
         crawler_service: Arc::new(crawler_service),
+        progress_tracker,
+        scheduler_service: None, // Not implemented yet
         jwt_service,
         config: config.clone(),
     };

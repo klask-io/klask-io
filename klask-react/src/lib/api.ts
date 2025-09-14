@@ -18,7 +18,10 @@ import type {
   RepositoryStats,
   ContentStats,
   SearchStats,
-  RecentActivity
+  RecentActivity,
+  CrawlProgressInfo,
+  ScheduleRepositoryRequest,
+  SchedulerStatus
 } from '../types';
 
 // API Error class
@@ -225,6 +228,25 @@ class ApiClient {
     });
   }
 
+  async getRepositoryProgress(id: string): Promise<CrawlProgressInfo | null> {
+    return this.request<CrawlProgressInfo | null>(`/api/repositories/${id}/progress`);
+  }
+
+  async getActiveProgress(): Promise<CrawlProgressInfo[]> {
+    return this.request<CrawlProgressInfo[]>('/api/repositories/progress/active');
+  }
+
+  async updateRepositorySchedule(id: string, data: ScheduleRepositoryRequest): Promise<Repository> {
+    return this.request<Repository>(`/api/repositories/${id}/schedule`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSchedulerStatus(): Promise<SchedulerStatus> {
+    return this.request<SchedulerStatus>('/api/scheduler/status');
+  }
+
   // User Management API
   async getUsers(): Promise<User[]> {
     return this.request<User[]>('/api/users');
@@ -339,6 +361,11 @@ export const api = {
     apiClient.updateRepository(id, data),
   deleteRepository: (id: string) => apiClient.deleteRepository(id),
   crawlRepository: (id: string) => apiClient.crawlRepository(id),
+  getRepositoryProgress: (id: string) => apiClient.getRepositoryProgress(id),
+  getActiveProgress: () => apiClient.getActiveProgress(),
+  updateRepositorySchedule: (id: string, data: ScheduleRepositoryRequest) => 
+    apiClient.updateRepositorySchedule(id, data),
+  getSchedulerStatus: () => apiClient.getSchedulerStatus(),
 
   // Health
   health: () => apiClient.health(),

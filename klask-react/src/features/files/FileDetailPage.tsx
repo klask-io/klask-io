@@ -31,6 +31,7 @@ const FileDetailPage: React.FC = () => {
   // Get search context from navigation state
   const searchQuery = location.state?.searchQuery as string;
   const searchResult = location.state?.searchResult as SearchResult;
+  const searchState = location.state?.searchState;
 
   // Determine which parameter to use for the query
   const fileIdentifier = docAddress || id;
@@ -146,7 +147,7 @@ const FileDetailPage: React.FC = () => {
             {searchQuery && (
               <Link 
                 to="/search" 
-                state={{ initialQuery: searchQuery }}
+                state={searchState || { initialQuery: searchQuery }}
                 className="btn-secondary"
               >
                 Return to Results
@@ -180,7 +181,7 @@ const FileDetailPage: React.FC = () => {
               <ChevronRightIcon className="h-4 w-4 text-gray-400" />
               <Link
                 to="/search"
-                state={{ initialQuery: searchQuery }}
+                state={searchState || { initialQuery: searchQuery }}
                 className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700"
               >
                 <MagnifyingGlassIcon className="h-4 w-4 mr-1" />

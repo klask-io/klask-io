@@ -143,6 +143,45 @@ impl SearchService {
         Ok(())
     }
 
+    /// Upsert a file - delete existing and add new version if it exists, otherwise just add
+    pub async fn upsert_file(
+        &self,
+        file_id: Uuid,
+        file_name: &str,
+        file_path: &str,
+        content: &str,
+        project: &str,
+        version: &str,
+        extension: &str,
+    ) -> Result<()> {
+        let writer = self.writer.write().await;
+        
+        // Delete existing document with the same file_id
+        let term = tantivy::Term::from_field_text(self.fields.file_id, &file_id.to_string());
+        writer.delete_term(term);
+        
+        // Add the new document
+        let doc = doc!(
+            self.fields.file_id => file_id.to_string(),
+            self.fields.file_name => file_name,
+            self.fields.file_path => file_path,
+            self.fields.content => content,
+            self.fields.project => project,
+            self.fields.version => version,
+            self.fields.extension => extension,
+        );
+
+        writer.add_document(doc)?;
+        Ok(())
+    }
+
+    /// Check if a document exists by file_id (lightweight check)
+    pub async fn document_exists(&self, file_id: Uuid) -> Result<bool> {
+        // Use the existing get_file_by_id method but only check if result is Some
+        let result = self.get_file_by_id(file_id).await?;
+        Ok(result.is_some())
+    }
+
     pub async fn commit(&self) -> Result<()> {
         let mut writer = self.writer.write().await;
         writer.commit()?;
@@ -434,6 +473,8 @@ impl SearchService {
     }
 
     pub async fn get_file_by_id(&self, file_id: Uuid) -> Result<Option<SearchResult>> {
+        // Reload the reader to see the latest changes
+        self.reader.reload()?;
         let searcher = self.reader.searcher();
         debug!("Getting file by id: {}", file_id);
         
@@ -516,6 +557,8 @@ impl SearchService {
     }
 
     pub fn get_document_count(&self) -> Result<u64> {
+        // Reload the reader to see the latest changes
+        self.reader.reload()?;
         let searcher = self.reader.searcher();
         Ok(searcher.num_docs() as u64)
     }

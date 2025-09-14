@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use axum_test::TestServer;
 use klask_rs::{api, Database};
-use klask_rs::services::{SearchService, crawler::CrawlerService};
+use klask_rs::services::{SearchService, crawler::CrawlerService, progress::ProgressTracker};
 use klask_rs::auth::{extractors::AppState, jwt::JwtService};
 use klask_rs::config::{AppConfig, AuthConfig};
 use tempfile::TempDir;
@@ -38,9 +38,12 @@ async fn create_test_app_state() -> Option<AppState> {
         // Create shared search service
         let shared_search_service = Arc::new(search_service);
         
+        // Create progress tracker
+        let progress_tracker = Arc::new(ProgressTracker::new());
+        
         // Create crawler service
         let crawler_service = Arc::new(
-            CrawlerService::new(database.pool().clone(), shared_search_service.clone())
+            CrawlerService::new(database.pool().clone(), shared_search_service.clone(), progress_tracker.clone())
                 .unwrap()
         );
         
@@ -50,6 +53,7 @@ async fn create_test_app_state() -> Option<AppState> {
             jwt_service,
             config,
             crawler_service,
+            progress_tracker,
         })
     } else {
         None

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { apiClient } from '../lib/api';
 import type { SearchQuery, SearchResponse } from '../types';
@@ -197,8 +198,6 @@ export const useSearchHistory = () => {
     clearHistory,
   };
 };
-
-import React from 'react';
 
 // Hook for FilesPage - simple search results
 export const useSearchResults = (

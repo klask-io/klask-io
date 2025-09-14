@@ -24,6 +24,12 @@ async fn main() -> Result<()> {
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
         last_crawled: None,
+        // Scheduling fields
+        auto_crawl_enabled: false,
+        cron_schedule: None,
+        next_crawl_at: None,
+        crawl_frequency_hours: None,
+        max_crawl_duration_minutes: Some(60),
     };
     
     // Initialize crawler service (database is optional for this direct indexing)

@@ -44,13 +44,37 @@ pub struct UpdateRepositoryRequest {
     pub gitlab_namespace: Option<String>,
     #[serde(alias = "isGroup")]
     pub is_group: Option<bool>,
+    // Scheduling fields
+    #[serde(alias = "autoCrawlEnabled")]
+    pub auto_crawl_enabled: Option<bool>,
+    #[serde(alias = "cronSchedule")]
+    pub cron_schedule: Option<String>,
+    #[serde(alias = "crawlFrequencyHours")]
+    pub crawl_frequency_hours: Option<i32>,
+    #[serde(alias = "maxCrawlDurationMinutes")]
+    pub max_crawl_duration_minutes: Option<i32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ScheduleRepositoryRequest {
+    #[serde(alias = "autoCrawlEnabled")]
+    pub auto_crawl_enabled: bool,
+    #[serde(alias = "cronSchedule")]
+    pub cron_schedule: Option<String>,
+    #[serde(alias = "crawlFrequencyHours")]
+    pub crawl_frequency_hours: Option<i32>,
+    #[serde(alias = "maxCrawlDurationMinutes")]
+    pub max_crawl_duration_minutes: Option<i32>,
 }
 
 pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/", get(list_repositories).post(create_repository))
         .route("/:id", get(get_repository).put(update_repository).delete(delete_repository))
-        .route("/:id/crawl", post(trigger_crawl));
+        .route("/:id/crawl", post(trigger_crawl))
+        .route("/:id/schedule", put(update_repository_schedule))
+        .route("/:id/progress", get(get_repository_progress))
+        .route("/progress/active", get(get_active_progress));
 
     Ok(router)
 }
@@ -191,12 +215,12 @@ async fn update_repository(
         last_crawled: existing_repository.last_crawled, // Preserve existing value
         created_at: existing_repository.created_at, // Preserve existing value
         updated_at: chrono::Utc::now(), // Will be set by the database
-        // Scheduling fields - preserve existing values
-        auto_crawl_enabled: existing_repository.auto_crawl_enabled,
-        cron_schedule: existing_repository.cron_schedule,
+        // Scheduling fields - update if provided, otherwise preserve existing values
+        auto_crawl_enabled: payload.auto_crawl_enabled.unwrap_or(existing_repository.auto_crawl_enabled),
+        cron_schedule: payload.cron_schedule.or(existing_repository.cron_schedule),
         next_crawl_at: existing_repository.next_crawl_at,
-        crawl_frequency_hours: existing_repository.crawl_frequency_hours,
-        max_crawl_duration_minutes: existing_repository.max_crawl_duration_minutes,
+        crawl_frequency_hours: payload.crawl_frequency_hours.or(existing_repository.crawl_frequency_hours),
+        max_crawl_duration_minutes: payload.max_crawl_duration_minutes.or(existing_repository.max_crawl_duration_minutes),
     };
     
     match repo_repository.update_repository(id, &updated_repository).await {
@@ -254,6 +278,67 @@ async fn delete_repository(
             }
         },
         Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn get_repository_progress(
+    State(app_state): State<AppState>,
+    Path(id): Path<Uuid>,
+    _admin_user: AdminUser, // Require admin authentication
+) -> Result<Json<Option<crate::services::progress::CrawlProgressInfo>>, StatusCode> {
+    let progress = app_state.progress_tracker.get_progress(id).await;
+    Ok(Json(progress))
+}
+
+async fn get_active_progress(
+    State(app_state): State<AppState>,
+    _admin_user: AdminUser, // Require admin authentication
+) -> Result<Json<Vec<crate::services::progress::CrawlProgressInfo>>, StatusCode> {
+    let active_progress = app_state.progress_tracker.get_all_active_progress().await;
+    Ok(Json(active_progress))
+}
+
+async fn update_repository_schedule(
+    State(app_state): State<AppState>,
+    Path(id): Path<Uuid>,
+    _admin_user: AdminUser, // Require admin authentication
+    Json(payload): Json<ScheduleRepositoryRequest>,
+) -> Result<Json<Repository>, StatusCode> {
+    let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
+    
+    // Get existing repository
+    let existing_repository = match repo_repository.get_repository(id).await {
+        Ok(Some(repo)) => repo,
+        Ok(None) => return Err(StatusCode::NOT_FOUND),
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    
+    // Update repository with new scheduling configuration
+    let updated_repository = Repository {
+        id,
+        name: existing_repository.name,
+        url: existing_repository.url,
+        repository_type: existing_repository.repository_type,
+        branch: existing_repository.branch,
+        enabled: existing_repository.enabled,
+        access_token: existing_repository.access_token,
+        gitlab_namespace: existing_repository.gitlab_namespace,
+        is_group: existing_repository.is_group,
+        last_crawled: existing_repository.last_crawled,
+        created_at: existing_repository.created_at,
+        updated_at: chrono::Utc::now(),
+        // Update scheduling fields
+        auto_crawl_enabled: payload.auto_crawl_enabled,
+        cron_schedule: payload.cron_schedule,
+        next_crawl_at: None, // Will be calculated by scheduler
+        crawl_frequency_hours: payload.crawl_frequency_hours,
+        max_crawl_duration_minutes: payload.max_crawl_duration_minutes,
+    };
+    
+    // Update repository in database
+    match repo_repository.update_repository(id, &updated_repository).await {
+        Ok(repository) => Ok(Json(repository)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

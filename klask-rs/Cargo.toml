@@ -68,6 +68,9 @@ rand = "0.8"
 cron = "0.12"
 tokio-cron-scheduler = "0.10"
 
+# Cryptographic hashing for deterministic IDs
+sha2 = "0.10"
+
 [dev-dependencies]
 # Testing
 tokio-test = "0.4"

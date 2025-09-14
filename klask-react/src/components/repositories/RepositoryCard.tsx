@@ -14,9 +14,12 @@ import {
   XCircleIcon,
   ClockIcon,
   ExclamationTriangleIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline';
 import type { Repository } from '../../types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { CrawlProgressBar } from '../ui/ProgressBar';
+import { useActiveProgress, isRepositoryCrawling, getRepositoryProgressFromActive } from '../../hooks/useProgress';
 
 interface RepositoryCardProps {
   repository: Repository;
@@ -40,6 +43,14 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
   className = '',
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const { activeProgress } = useActiveProgress();
+  
+  // Check if this repository is currently crawling
+  const isCurrentlyCrawling = isRepositoryCrawling(repository.id, activeProgress);
+  const crawlProgress = getRepositoryProgressFromActive(repository.id, activeProgress);
+  
+  // Override the isCrawling prop with real-time data
+  const actuallyIsCrawling = isCurrentlyCrawling || isCrawling;
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -98,6 +109,17 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
       return formatDistanceToNow(dateObj, { addSuffix: true });
     } catch {
       return 'Unknown time ago';
+    }
+  };
+
+  const formatNextCrawl = (date: string | null | undefined) => {
+    if (!date) return null;
+    try {
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return null;
+      return formatDistanceToNow(dateObj, { addSuffix: true });
+    } catch {
+      return null;
     }
   };
 
@@ -173,11 +195,11 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                       onCrawl(repository);
                       setShowMenu(false);
                     }}
-                    disabled={!repository.enabled || isCrawling}
+                    disabled={!repository.enabled || actuallyIsCrawling}
                     className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ArrowPathIcon className={`h-4 w-4 mr-3 ${isCrawling ? 'animate-spin' : ''}`} />
-                    {isCrawling ? 'Crawling...' : 'Crawl Now'}
+                    <ArrowPathIcon className={`h-4 w-4 mr-3 ${actuallyIsCrawling ? 'animate-spin' : ''}`} />
+                    {actuallyIsCrawling ? 'Crawling...' : 'Crawl Now'}
                   </button>
                   
                   <hr className="my-1" />
@@ -216,6 +238,12 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                 {repository.branch}
               </span>
             )}
+            {repository.autoCrawlEnabled && (
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded flex items-center space-x-1">
+                <BoltIcon className="h-3 w-3" />
+                <span>Auto-crawl</span>
+              </span>
+            )}
           </div>
         </div>
 
@@ -226,12 +254,34 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
             <span>Last crawled: {formatLastCrawled(repository.lastCrawled)}</span>
           </div>
           
+          {repository.autoCrawlEnabled && repository.nextCrawlAt && (
+            <div className="flex items-center space-x-2 text-green-600">
+              <BoltIcon className="h-4 w-4 flex-shrink-0" />
+              <span>Next crawl: {formatNextCrawl(repository.nextCrawlAt)}</span>
+            </div>
+          )}
+          
           <div className="flex items-center space-x-2">
             <span className="text-xs text-gray-500">
               Created {formatCreatedAt(repository.createdAt)}
             </span>
           </div>
         </div>
+
+        {/* Progress Bar - Show when crawling */}
+        {crawlProgress && actuallyIsCrawling && (
+          <div className="mt-4">
+            <CrawlProgressBar
+              repositoryName={crawlProgress.repository_name}
+              status={crawlProgress.status}
+              progress={crawlProgress.progress_percentage}
+              filesProcessed={crawlProgress.files_processed}
+              filesTotal={crawlProgress.files_total}
+              filesIndexed={crawlProgress.files_indexed}
+              currentFile={crawlProgress.current_file}
+            />
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
@@ -261,11 +311,11 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
 
           <button
             onClick={() => onCrawl(repository)}
-            disabled={!repository.enabled || isCrawling || isLoading}
+            disabled={!repository.enabled || actuallyIsCrawling || isLoading}
             className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <ArrowPathIcon className={`h-3 w-3 mr-1 ${isCrawling ? 'animate-spin' : ''}`} />
-            {isCrawling ? 'Crawling' : 'Crawl'}
+            <ArrowPathIcon className={`h-3 w-3 mr-1 ${actuallyIsCrawling ? 'animate-spin' : ''}`} />
+            {actuallyIsCrawling ? 'Crawling' : 'Crawl'}
           </button>
         </div>
       </div>

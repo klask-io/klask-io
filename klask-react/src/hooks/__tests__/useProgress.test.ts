@@ -1,0 +1,551 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import React from 'react';
+import {
+  useProgress,
+  useRepositoryProgress,
+  useActiveProgress,
+  isRepositoryCrawling,
+  getRepositoryProgressFromActive,
+} from '../useProgress';
+import { api } from '../../lib/api';
+import type { CrawlProgressInfo } from '../../types';
+
+// Mock the API
+vi.mock('../../lib/api', () => ({
+  api: {
+    getRepositoryProgress: vi.fn(),
+    getActiveProgress: vi.fn(),
+  },
+}));
+
+const mockApi = api as any;
+
+describe('useProgress', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
+  const mockProgressInfo: CrawlProgressInfo = {
+    repository_id: 'repo-1',
+    repository_name: 'Test Repo',
+    status: 'processing',
+    progress_percentage: 50.0,
+    files_processed: 50,
+    files_total: 100,
+    files_indexed: 25,
+    current_file: 'src/main.rs',
+    error_message: null,
+    started_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:01:00Z',
+    completed_at: null,
+  };
+
+  describe('useProgress hook', () => {
+    it('should fetch repository progress when repositoryId is provided', async () => {
+      mockApi.getRepositoryProgress.mockResolvedValue(mockProgressInfo);
+
+      const { result } = renderHook(() =>
+        useProgress({ repositoryId: 'repo-1', pollingInterval: 1000 })
+      );
+
+      expect(result.current.isLoading).toBe(true);
+
+      await waitFor(() => {
+        expect(result.current.progress).toEqual(mockProgressInfo);
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(mockApi.getRepositoryProgress).toHaveBeenCalledWith('repo-1');
+    });
+
+    it('should fetch active progress', async () => {
+      const mockActiveProgress = [mockProgressInfo];
+      mockApi.getActiveProgress.mockResolvedValue(mockActiveProgress);
+
+      const { result } = renderHook(() =>
+        useProgress({ pollingInterval: 1000 })
+      );
+
+      await waitFor(() => {
+        expect(result.current.activeProgress).toEqual(mockActiveProgress);
+      });
+
+      expect(mockApi.getActiveProgress).toHaveBeenCalled();
+    });
+
+    it('should poll progress at specified interval', async () => {
+      mockApi.getRepositoryProgress.mockResolvedValue(mockProgressInfo);
+
+      const { result } = renderHook(() =>
+        useProgress({ repositoryId: 'repo-1', pollingInterval: 1000 })
+      );
+
+      // Wait for initial call
+      await waitFor(() => {
+        expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
+      });
+
+      // Advance timer and check for second call
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      await waitFor(() => {
+        expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('should not poll when disabled', async () => {
+      mockApi.getRepositoryProgress.mockResolvedValue(mockProgressInfo);
+
+      renderHook(() =>
+        useProgress({ repositoryId: 'repo-1', enabled: false, pollingInterval: 1000 })
+      );
+
+      // Advance timer
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(mockApi.getRepositoryProgress).not.toHaveBeenCalled();
+    });
+
+    it('should not poll when pollingInterval is 0', async () => {
+      mockApi.getRepositoryProgress.mockResolvedValue(mockProgressInfo);
+
+      renderHook(() =>
+        useProgress({ repositoryId: 'repo-1', pollingInterval: 0 })
+      );
+
+      // Wait for initial call
+      await waitFor(() => {
+        expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
+      });
+
+      // Advance timer - should not trigger additional calls
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle API errors', async () => {
+      const mockError = new Error('API Error');
+      mockApi.getRepositoryProgress.mockRejectedValue(mockError);
+
+      const { result } = renderHook(() =>
+        useProgress({ repositoryId: 'repo-1', pollingInterval: 1000 })
+      );
+
+      await waitFor(() => {
+        expect(result.current.error).toBe('API Error');
+        expect(result.current.isLoading).toBe(false);
+      });
+    });
+
+    it('should clear previous error on successful fetch', async () => {
+      const mockError = new Error('API Error');
+      mockApi.getRepositoryProgress
+        .mockRejectedValueOnce(mockError)
+        .mockResolvedValueOnce(mockProgressInfo);
+
+      const { result } = renderHook(() =>
+        useProgress({ repositoryId: 'repo-1', pollingInterval: 1000 })
+      );
+
+      // Wait for error
+      await waitFor(() => {
+        expect(result.current.error).toBe('API Error');
+      });
+
+      // Trigger next poll
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      await waitFor(() => {
+        expect(result.current.error).toBe(null);
+        expect(result.current.progress).toEqual(mockProgressInfo);
+      });
+    });
+
+    it('should refresh progress manually', async () => {
+      mockApi.getRepositoryProgress.mockResolvedValue(mockProgressInfo);
+
+      const { result } = renderHook(() =>
+        useProgress({ repositoryId: 'repo-1', pollingInterval: 0 }) // Disable automatic polling
+      );
+
+      // Wait for initial call
+      await waitFor(() => {
+        expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
+      });
+
+      // Call refresh manually
+      await act(async () => {
+        await result.current.refreshProgress();
+      });
+
+      expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(2);
+    });
+
+    it('should refresh active progress manually', async () => {
+      const mockActiveProgress = [mockProgressInfo];
+      mockApi.getActiveProgress.mockResolvedValue(mockActiveProgress);
+
+      const { result } = renderHook(() =>
+        useProgress({ pollingInterval: 0 }) // Disable automatic polling
+      );
+
+      // Wait for initial call
+      await waitFor(() => {
+        expect(mockApi.getActiveProgress).toHaveBeenCalledTimes(1);
+      });
+
+      // Call refresh manually
+      await act(async () => {
+        await result.current.refreshActiveProgress();
+      });
+
+      expect(mockApi.getActiveProgress).toHaveBeenCalledTimes(2);
+    });
+
+    it('should cleanup polling on unmount', async () => {
+      mockApi.getRepositoryProgress.mockResolvedValue(mockProgressInfo);
+
+      const { unmount } = renderHook(() =>
+        useProgress({ repositoryId: 'repo-1', pollingInterval: 1000 })
+      );
+
+      // Wait for initial call
+      await waitFor(() => {
+        expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
+      });
+
+      unmount();
+
+      // Advance timer after unmount
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      // Should not make additional calls
+      expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('useRepositoryProgress hook', () => {
+    it('should return only repository-specific progress', async () => {
+      mockApi.getRepositoryProgress.mockResolvedValue(mockProgressInfo);
+
+      const { result } = renderHook(() =>
+        useRepositoryProgress('repo-1', { pollingInterval: 1000 })
+      );
+
+      await waitFor(() => {
+        expect(result.current.progress).toEqual(mockProgressInfo);
+      });
+
+      // Should not have activeProgress methods
+      expect(result.current).not.toHaveProperty('activeProgress');
+      expect(result.current).not.toHaveProperty('refreshActiveProgress');
+    });
+  });
+
+  describe('useActiveProgress hook', () => {
+    it('should return only active progress data', async () => {
+      const mockActiveProgress = [mockProgressInfo];
+      mockApi.getActiveProgress.mockResolvedValue(mockActiveProgress);
+
+      const { result } = renderHook(() =>
+        useActiveProgress({ pollingInterval: 1000 })
+      );
+
+      await waitFor(() => {
+        expect(result.current.activeProgress).toEqual(mockActiveProgress);
+      });
+
+      // Should not have repository-specific methods
+      expect(result.current).not.toHaveProperty('progress');
+      expect(result.current).not.toHaveProperty('refreshProgress');
+    });
+  });
+});
+
+describe('Progress utility functions', () => {
+  const mockProgress1: CrawlProgressInfo = {
+    repository_id: 'repo-1',
+    repository_name: 'Repo 1',
+    status: 'processing',
+    progress_percentage: 50,
+    files_processed: 50,
+    files_total: 100,
+    files_indexed: 25,
+    current_file: null,
+    error_message: null,
+    started_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:01:00Z',
+    completed_at: null,
+  };
+
+  const mockProgress2: CrawlProgressInfo = {
+    repository_id: 'repo-2',
+    repository_name: 'Repo 2',
+    status: 'completed',
+    progress_percentage: 100,
+    files_processed: 200,
+    files_total: 200,
+    files_indexed: 200,
+    current_file: null,
+    error_message: null,
+    started_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:02:00Z',
+    completed_at: '2024-01-01T00:02:00Z',
+  };
+
+  const mockProgress3: CrawlProgressInfo = {
+    repository_id: 'repo-3',
+    repository_name: 'Repo 3',
+    status: 'failed',
+    progress_percentage: 25,
+    files_processed: 25,
+    files_total: 100,
+    files_indexed: 10,
+    current_file: null,
+    error_message: 'Connection timeout',
+    started_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:01:30Z',
+    completed_at: '2024-01-01T00:01:30Z',
+  };
+
+  const activeProgress = [mockProgress1, mockProgress2, mockProgress3];
+
+  describe('isRepositoryCrawling', () => {
+    it('should return true for repositories that are crawling', () => {
+      expect(isRepositoryCrawling('repo-1', activeProgress)).toBe(true);
+    });
+
+    it('should return false for completed repositories', () => {
+      expect(isRepositoryCrawling('repo-2', activeProgress)).toBe(false);
+    });
+
+    it('should return false for failed repositories', () => {
+      expect(isRepositoryCrawling('repo-3', activeProgress)).toBe(false);
+    });
+
+    it('should return false for non-existent repositories', () => {
+      expect(isRepositoryCrawling('repo-404', activeProgress)).toBe(false);
+    });
+
+    it('should handle empty active progress', () => {
+      expect(isRepositoryCrawling('repo-1', [])).toBe(false);
+    });
+
+    it('should handle different status cases', () => {
+      const progressWithDifferentStatuses: CrawlProgressInfo[] = [
+        { ...mockProgress1, status: 'starting' },
+        { ...mockProgress1, repository_id: 'repo-2', status: 'cloning' },
+        { ...mockProgress1, repository_id: 'repo-3', status: 'indexing' },
+        { ...mockProgress1, repository_id: 'repo-4', status: 'COMPLETED' }, // uppercase
+        { ...mockProgress1, repository_id: 'repo-5', status: 'FAILED' }, // uppercase
+      ];
+
+      expect(isRepositoryCrawling('repo-1', progressWithDifferentStatuses)).toBe(true);
+      expect(isRepositoryCrawling('repo-2', progressWithDifferentStatuses)).toBe(true);
+      expect(isRepositoryCrawling('repo-3', progressWithDifferentStatuses)).toBe(true);
+      expect(isRepositoryCrawling('repo-4', progressWithDifferentStatuses)).toBe(false);
+      expect(isRepositoryCrawling('repo-5', progressWithDifferentStatuses)).toBe(false);
+    });
+  });
+
+  describe('getRepositoryProgressFromActive', () => {
+    it('should return progress for existing repository', () => {
+      const result = getRepositoryProgressFromActive('repo-1', activeProgress);
+      expect(result).toEqual(mockProgress1);
+    });
+
+    it('should return null for non-existent repository', () => {
+      const result = getRepositoryProgressFromActive('repo-404', activeProgress);
+      expect(result).toBe(null);
+    });
+
+    it('should return null for empty active progress', () => {
+      const result = getRepositoryProgressFromActive('repo-1', []);
+      expect(result).toBe(null);
+    });
+
+    it('should return first match if multiple repositories have same ID', () => {
+      const duplicateProgress = [
+        mockProgress1,
+        { ...mockProgress1, status: 'completed' }, // Duplicate with different status
+      ];
+
+      const result = getRepositoryProgressFromActive('repo-1', duplicateProgress);
+      expect(result).toEqual(mockProgress1);
+    });
+  });
+});
+
+describe('Progress hook integration tests', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
+  it('should handle repository and active progress together', async () => {
+    const mockRepoProgress: CrawlProgressInfo = {
+      repository_id: 'repo-1',
+      repository_name: 'Test Repo',
+      status: 'processing',
+      progress_percentage: 75,
+      files_processed: 75,
+      files_total: 100,
+      files_indexed: 60,
+      current_file: 'src/lib.rs',
+      error_message: null,
+      started_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:02:00Z',
+      completed_at: null,
+    };
+
+    const mockActiveProgress = [
+      mockRepoProgress,
+      {
+        repository_id: 'repo-2',
+        repository_name: 'Other Repo',
+        status: 'starting',
+        progress_percentage: 0,
+        files_processed: 0,
+        files_total: null,
+        files_indexed: 0,
+        current_file: null,
+        error_message: null,
+        started_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        completed_at: null,
+      },
+    ];
+
+    mockApi.getRepositoryProgress.mockResolvedValue(mockRepoProgress);
+    mockApi.getActiveProgress.mockResolvedValue(mockActiveProgress);
+
+    const { result } = renderHook(() =>
+      useProgress({ repositoryId: 'repo-1', pollingInterval: 2000 })
+    );
+
+    await waitFor(() => {
+      expect(result.current.progress).toEqual(mockRepoProgress);
+      expect(result.current.activeProgress).toEqual(mockActiveProgress);
+    });
+
+    // Test that both are polled independently
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    await waitFor(() => {
+      expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(2);
+      expect(mockApi.getActiveProgress).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('should handle mixed success and failure scenarios', async () => {
+    const mockRepoProgress: CrawlProgressInfo = {
+      repository_id: 'repo-1',
+      repository_name: 'Test Repo',
+      status: 'processing',
+      progress_percentage: 25,
+      files_processed: 25,
+      files_total: 100,
+      files_indexed: 20,
+      current_file: 'src/main.rs',
+      error_message: null,
+      started_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:01:00Z',
+      completed_at: null,
+    };
+
+    mockApi.getRepositoryProgress.mockResolvedValue(mockRepoProgress);
+    mockApi.getActiveProgress.mockRejectedValue(new Error('Network error'));
+
+    const { result } = renderHook(() =>
+      useProgress({ repositoryId: 'repo-1', pollingInterval: 1000 })
+    );
+
+    await waitFor(() => {
+      expect(result.current.progress).toEqual(mockRepoProgress);
+      expect(result.current.error).toBe('Network error');
+      expect(result.current.activeProgress).toEqual([]);
+    });
+  });
+
+  it('should update polling interval when changed', async () => {
+    const mockProgress: CrawlProgressInfo = {
+      repository_id: 'repo-1',
+      repository_name: 'Test Repo',
+      status: 'processing',
+      progress_percentage: 50,
+      files_processed: 50,
+      files_total: 100,
+      files_indexed: 40,
+      current_file: null,
+      error_message: null,
+      started_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:01:00Z',
+      completed_at: null,
+    };
+
+    mockApi.getRepositoryProgress.mockResolvedValue(mockProgress);
+
+    const { result, rerender } = renderHook(
+      ({ interval }) => useProgress({ repositoryId: 'repo-1', pollingInterval: interval }),
+      { initialProps: { interval: 1000 } }
+    );
+
+    // Wait for initial call
+    await waitFor(() => {
+      expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
+    });
+
+    // Advance by initial interval
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    await waitFor(() => {
+      expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(2);
+    });
+
+    // Change interval
+    rerender({ interval: 2000 });
+
+    // Advance by old interval - should not trigger
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(2);
+
+    // Advance by new interval - should trigger
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    await waitFor(() => {
+      expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(3);
+    });
+  });
+});
