@@ -9,6 +9,8 @@ description = "Modern Rust-based code search engine"
 # Web framework and async runtime
 axum = "0.7"
 tokio = { version = "1.0", features = ["full"] }
+tokio-stream = "0.1"
+futures = "0.3"
 tower = "0.5"
 tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
 
@@ -52,12 +54,19 @@ mime_guess = "2.0"
 
 # HTTP client for API calls
 reqwest = { version = "0.12", features = ["json"] }
+
+# OpenSSL with vendored feature to compile from source
+openssl = { version = "0.10", features = ["vendored"] }
 urlencoding = "2.1"
 
 # Encryption for tokens
 aes-gcm = "0.10"
 base64 = "0.22"
 rand = "0.8"
+
+# Scheduling and cron jobs
+cron = "0.12"
+tokio-cron-scheduler = "0.10"
 
 [dev-dependencies]
 # Testing

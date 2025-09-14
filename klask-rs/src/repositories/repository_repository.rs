@@ -14,7 +14,7 @@ impl RepositoryRepository {
 
     pub async fn create_repository(&self, repository: &Repository) -> Result<Repository> {
         let result = sqlx::query_as::<_, Repository>(
-            "INSERT INTO repositories (id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at"
+            "INSERT INTO repositories (id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes"
         )
         .bind(repository.id)
         .bind(&repository.name)
@@ -25,6 +25,11 @@ impl RepositoryRepository {
         .bind(&repository.access_token)
         .bind(&repository.gitlab_namespace)
         .bind(repository.is_group)
+        .bind(repository.auto_crawl_enabled)
+        .bind(&repository.cron_schedule)
+        .bind(repository.next_crawl_at)
+        .bind(repository.crawl_frequency_hours)
+        .bind(repository.max_crawl_duration_minutes)
         .fetch_one(&self.pool)
         .await?;
 
@@ -33,7 +38,7 @@ impl RepositoryRepository {
 
     pub async fn get_repository(&self, id: Uuid) -> Result<Option<Repository>> {
         let repository = sqlx::query_as::<_, Repository>(
-            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at FROM repositories WHERE id = $1"
+            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes FROM repositories WHERE id = $1"
         )
         .bind(id)
         .fetch_optional(&self.pool)
@@ -44,7 +49,7 @@ impl RepositoryRepository {
 
     pub async fn list_repositories(&self) -> Result<Vec<Repository>> {
         let repositories = sqlx::query_as::<_, Repository>(
-            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at FROM repositories ORDER BY created_at DESC"
+            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes FROM repositories ORDER BY created_at DESC"
         )
         .fetch_all(&self.pool)
         .await?;
@@ -65,7 +70,7 @@ impl RepositoryRepository {
 
     pub async fn update_repository(&self, id: Uuid, repository: &Repository) -> Result<Repository> {
         let result = sqlx::query_as::<_, Repository>(
-            "UPDATE repositories SET name = $2, url = $3, repository_type = $4, branch = $5, enabled = $6, access_token = $7, gitlab_namespace = $8, is_group = $9, updated_at = NOW() WHERE id = $1 RETURNING id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at"
+            "UPDATE repositories SET name = $2, url = $3, repository_type = $4, branch = $5, enabled = $6, access_token = $7, gitlab_namespace = $8, is_group = $9, auto_crawl_enabled = $10, cron_schedule = $11, next_crawl_at = $12, crawl_frequency_hours = $13, max_crawl_duration_minutes = $14, updated_at = NOW() WHERE id = $1 RETURNING id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes"
         )
         .bind(id)
         .bind(&repository.name)
@@ -76,6 +81,11 @@ impl RepositoryRepository {
         .bind(&repository.access_token)
         .bind(&repository.gitlab_namespace)
         .bind(repository.is_group)
+        .bind(repository.auto_crawl_enabled)
+        .bind(&repository.cron_schedule)
+        .bind(repository.next_crawl_at)
+        .bind(repository.crawl_frequency_hours)
+        .bind(repository.max_crawl_duration_minutes)
         .fetch_one(&self.pool)
         .await?;
 
@@ -89,5 +99,38 @@ impl RepositoryRepository {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn find_all(&self) -> Result<Vec<Repository>> {
+        self.list_repositories().await
+    }
+
+    pub async fn find_by_id(&self, id: Uuid) -> Result<Option<Repository>> {
+        self.get_repository(id).await
+    }
+
+    pub async fn update_schedule(&self, id: Uuid, auto_crawl_enabled: bool, cron_schedule: Option<String>, crawl_frequency_hours: Option<i32>, max_crawl_duration_minutes: Option<i32>) -> Result<()> {
+        sqlx::query(
+            "UPDATE repositories SET auto_crawl_enabled = $2, cron_schedule = $3, crawl_frequency_hours = $4, max_crawl_duration_minutes = $5, updated_at = NOW() WHERE id = $1"
+        )
+        .bind(id)
+        .bind(auto_crawl_enabled)
+        .bind(cron_schedule)
+        .bind(crawl_frequency_hours)
+        .bind(max_crawl_duration_minutes)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn find_scheduled_repositories(&self) -> Result<Vec<Repository>> {
+        let repositories = sqlx::query_as::<_, Repository>(
+            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes FROM repositories WHERE auto_crawl_enabled = true ORDER BY next_crawl_at ASC"
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(repositories)
     }
 }

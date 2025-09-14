@@ -25,6 +25,17 @@ pub struct Repository {
     pub created_at: chrono::DateTime<chrono::Utc>,
     #[serde(rename = "updatedAt")]
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    // Scheduling fields
+    #[serde(rename = "autoCrawlEnabled")]
+    pub auto_crawl_enabled: bool,
+    #[serde(rename = "cronSchedule")]
+    pub cron_schedule: Option<String>,
+    #[serde(rename = "nextCrawlAt")]
+    pub next_crawl_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(rename = "crawlFrequencyHours")]
+    pub crawl_frequency_hours: Option<i32>,
+    #[serde(rename = "maxCrawlDurationMinutes")]
+    pub max_crawl_duration_minutes: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Type)]
