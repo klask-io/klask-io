@@ -3,12 +3,10 @@ import { toast } from 'react-hot-toast';
 import { 
   PlusIcon,
   FunnelIcon,
-  ArrowPathIcon,
-  TrashIcon,
-  CheckIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { RepositoryCard } from '../../components/repositories/RepositoryCard';
+import { SelectableRepositoryCard } from '../../components/repositories/SelectableRepositoryCard';
+import { Checkbox } from '../../components/ui/Checkbox';
 import { RepositoryForm } from '../../components/repositories/RepositoryForm';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { 
@@ -312,16 +310,34 @@ const RepositoriesPage: React.FC = () => {
 
       {/* Select All */}
       {filteredRepositories.length > 0 && (
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={selectedRepos.length === filteredRepositories.length}
-            onChange={handleSelectAll}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <label className="text-sm text-gray-700">
-            Select all ({filteredRepositories.length})
-          </label>
+        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                checked={selectedRepos.length === filteredRepositories.length}
+                indeterminate={selectedRepos.length > 0 && selectedRepos.length < filteredRepositories.length}
+                onChange={(e) => handleSelectAll()}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                id="select-all"
+              />
+              <label htmlFor="select-all" className="text-sm text-gray-700 cursor-pointer">
+                Select all repositories ({filteredRepositories.length})
+              </label>
+            </div>
+            
+            {selectedRepos.length > 0 && (
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <span className="font-medium">{selectedRepos.length} selected</span>
+                <button
+                  onClick={() => setSelectedRepos([])}
+                  className="text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Clear selection
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -351,24 +367,18 @@ const RepositoriesPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRepositories.map((repository) => (
-            <div key={repository.id} className="relative">
-              <input
-                type="checkbox"
-                checked={selectedRepos.includes(repository.id)}
-                onChange={(e) => handleSelectRepo(repository.id, e.target.checked)}
-                className="absolute top-4 left-4 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded z-10"
-              />
-              <RepositoryCard
-                repository={repository}
-                onEdit={setEditingRepository}
-                onDelete={handleDelete}
-                onCrawl={handleCrawl}
-                onToggleEnabled={handleToggleEnabled}
-                isLoading={updateMutation.isPending && updateMutation.variables?.id === repository.id}
-                isCrawling={crawlingRepos.has(repository.id)}
-                className="ml-8"
-              />
-            </div>
+            <SelectableRepositoryCard
+              key={repository.id}
+              repository={repository}
+              selected={selectedRepos.includes(repository.id)}
+              onSelect={(selected) => handleSelectRepo(repository.id, selected)}
+              onEdit={setEditingRepository}
+              onDelete={handleDelete}
+              onCrawl={handleCrawl}
+              onToggleEnabled={handleToggleEnabled}
+              isLoading={updateMutation.isPending && updateMutation.variables?.id === repository.id}
+              isCrawling={crawlingRepos.has(repository.id)}
+            />
           ))}
         </div>
       )}
