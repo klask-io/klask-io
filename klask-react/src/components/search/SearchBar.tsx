@@ -25,14 +25,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   // Sync localValue with prop value when it changes externally (for recent searches)
   React.useEffect(() => {
     if (value !== prevValue.current) {
-      console.log('SearchBar: External value change detected:', value);
       isExternalChange.current = true;
       setLocalValue(value);
       prevValue.current = value;
       
       // For external changes, don't use debounce - call directly
       if (value && value.trim()) {
-        console.log('SearchBar: Triggering search for external value:', value);
         onChange(value);
         onSearch(value);
       }
@@ -43,7 +41,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   React.useEffect(() => {
     // Only apply debounce if it's not an external change and if the debounced value matches what user typed
     if (!isExternalChange.current && debouncedValue !== value && debouncedValue === localValue) {
-      console.log('SearchBar: Debounced change from user typing:', debouncedValue);
       onChange(debouncedValue);
       onSearch(debouncedValue);
     }
