@@ -15,6 +15,7 @@ use auth::{extractors::AppState, jwt::JwtService};
 use tower_http::cors::CorsLayer;
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::time::Instant;
 use tokio::sync::RwLock;
 use tower_http::trace::TraceLayer;
 use tracing::{info, error};
@@ -31,6 +32,9 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Capture startup time
+    let startup_time = Instant::now();
+    
     // Load configuration
     let config = AppConfig::new()?;
     let bind_address = format!("{}:{}", config.server.host, config.server.port);
@@ -102,6 +106,7 @@ async fn main() -> Result<()> {
         jwt_service,
         config: config.clone(),
         crawl_tasks: Arc::new(RwLock::new(HashMap::new())),
+        startup_time,
     };
 
     // Build application router

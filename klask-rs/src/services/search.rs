@@ -48,6 +48,7 @@ pub struct SearchService {
     writer: Arc<RwLock<IndexWriter>>,
     schema: Schema,
     fields: SearchFields,
+    index_dir: std::path::PathBuf,
 }
 
 #[derive(Clone)]
@@ -83,6 +84,7 @@ impl SearchService {
             writer,
             schema,
             fields,
+            index_dir: index_dir.as_ref().to_path_buf(),
         })
     }
 
@@ -561,6 +563,58 @@ impl SearchService {
         self.reader.reload()?;
         let searcher = self.reader.searcher();
         Ok(searcher.num_docs() as u64)
+    }
+
+    /// Calculate the total size of a directory recursively in bytes
+    fn calculate_directory_size(dir_path: &Path) -> Result<u64> {
+        let mut total_size = 0u64;
+        
+        if !dir_path.exists() {
+            debug!("Directory does not exist: {:?}", dir_path);
+            return Ok(0);
+        }
+        
+        if !dir_path.is_dir() {
+            debug!("Path is not a directory: {:?}", dir_path);
+            return Ok(0);
+        }
+        
+        let read_dir = std::fs::read_dir(dir_path)
+            .map_err(|e| anyhow!("Failed to read directory {:?}: {}", dir_path, e))?;
+        
+        for entry_result in read_dir {
+            let entry = entry_result
+                .map_err(|e| anyhow!("Failed to read directory entry in {:?}: {}", dir_path, e))?;
+            
+            let path = entry.path();
+            let metadata = entry.metadata()
+                .map_err(|e| anyhow!("Failed to get metadata for {:?}: {}", path, e))?;
+            
+            if metadata.is_file() {
+                total_size = total_size.saturating_add(metadata.len());
+            } else if metadata.is_dir() {
+                // Recursively calculate subdirectory size
+                let subdir_size = Self::calculate_directory_size(&path)?;
+                total_size = total_size.saturating_add(subdir_size);
+            }
+        }
+        
+        Ok(total_size)
+    }
+
+    /// Get the search index size in megabytes
+    pub fn get_index_size_mb(&self) -> f64 {
+        match Self::calculate_directory_size(&self.index_dir) {
+            Ok(size_bytes) => {
+                let size_mb = size_bytes as f64 / 1_048_576.0; // Convert bytes to MB
+                debug!("Index directory size: {} bytes ({:.2} MB)", size_bytes, size_mb);
+                size_mb
+            }
+            Err(e) => {
+                warn!("Failed to calculate index size for {:?}: {}", self.index_dir, e);
+                0.0
+            }
+        }
     }
 }
 

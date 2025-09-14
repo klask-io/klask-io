@@ -5,6 +5,7 @@ use axum::{
 };
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::time::Instant;
 use uuid::Uuid;
 use tokio::sync::RwLock;
 use tracing::{debug, error, warn};
@@ -25,6 +26,7 @@ pub struct AppState {
     pub jwt_service: JwtService,
     pub config: crate::config::AppConfig,
     pub crawl_tasks: Arc<RwLock<HashMap<Uuid, tokio::task::JoinHandle<()>>>>,
+    pub startup_time: Instant,
 }
 
 #[derive(Debug, Clone)]
