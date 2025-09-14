@@ -14,6 +14,7 @@ pub enum CrawlStatus {
     Indexing,
     Completed,
     Failed,
+    Cancelled,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,7 +54,7 @@ impl CrawlProgressInfo {
 
     pub fn update_status(&mut self, status: CrawlStatus) {
         match &status {
-            CrawlStatus::Completed | CrawlStatus::Failed => {
+            CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled => {
                 self.completed_at = Some(Utc::now());
                 self.progress_percentage = 100.0;
             }
@@ -157,7 +158,7 @@ impl ProgressTracker {
     pub async fn get_all_active_progress(&self) -> Vec<CrawlProgressInfo> {
         let map = self.progress_map.read().await;
         map.values()
-            .filter(|p| !matches!(p.status, CrawlStatus::Completed | CrawlStatus::Failed))
+            .filter(|p| !matches!(p.status, CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled))
             .cloned()
             .collect()
     }
@@ -168,7 +169,7 @@ impl ProgressTracker {
         map.retain(|_, progress| {
             // Keep active crawls and recent completed ones
             match progress.status {
-                CrawlStatus::Completed | CrawlStatus::Failed => {
+                CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled => {
                     progress.completed_at.map_or(true, |completed| completed > cutoff)
                 }
                 _ => true, // Keep all active crawls
@@ -176,9 +177,25 @@ impl ProgressTracker {
         });
     }
 
+    // Cancel a crawl
+    pub async fn cancel_crawl(&self, repository_id: Uuid) {
+        let mut map = self.progress_map.write().await;
+        if let Some(progress) = map.get_mut(&repository_id) {
+            progress.update_status(CrawlStatus::Cancelled);
+        }
+    }
+
     // Remove completed crawl from tracking
     pub async fn remove_progress(&self, repository_id: Uuid) {
         let mut map = self.progress_map.write().await;
         map.remove(&repository_id);
+    }
+
+    // Check if a repository is currently being crawled
+    pub async fn is_crawling(&self, repository_id: Uuid) -> bool {
+        let map = self.progress_map.read().await;
+        map.get(&repository_id)
+            .map(|progress| !matches!(progress.status, CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled))
+            .unwrap_or(false)
     }
 }

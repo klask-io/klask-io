@@ -228,6 +228,12 @@ class ApiClient {
     });
   }
 
+  async stopCrawlRepository(id: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/repositories/${id}/crawl`, {
+      method: 'DELETE',
+    });
+  }
+
   async getRepositoryProgress(id: string): Promise<CrawlProgressInfo | null> {
     return this.request<CrawlProgressInfo | null>(`/api/repositories/${id}/progress`);
   }
@@ -361,6 +367,7 @@ export const api = {
     apiClient.updateRepository(id, data),
   deleteRepository: (id: string) => apiClient.deleteRepository(id),
   crawlRepository: (id: string) => apiClient.crawlRepository(id),
+  stopCrawlRepository: (id: string) => apiClient.stopCrawlRepository(id),
   getRepositoryProgress: (id: string) => apiClient.getRepositoryProgress(id),
   getActiveProgress: () => apiClient.getActiveProgress(),
   updateRepositorySchedule: (id: string, data: ScheduleRepositoryRequest) => 

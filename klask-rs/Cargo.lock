@@ -1986,6 +1986,7 @@ dependencies = [
  "tokio-cron-scheduler",
  "tokio-stream",
  "tokio-test",
+ "tokio-util",
  "tower",
  "tower-http 0.5.2",
  "tracing",

@@ -15,17 +15,21 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   BoltIcon,
+  StopCircleIcon,
 } from '@heroicons/react/24/outline';
 import type { Repository } from '../../types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { CrawlProgressBar } from '../ui/ProgressBar';
-import { useActiveProgress, isRepositoryCrawling, getRepositoryProgressFromActive } from '../../hooks/useProgress';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { useActiveProgress, useStopCrawl } from '../../hooks/useRepositories';
+import { isRepositoryCrawling, getRepositoryProgressFromActive } from '../../hooks/useProgress';
 
 interface RepositoryCardProps {
   repository: Repository;
   onEdit: (repository: Repository) => void;
   onDelete: (repository: Repository) => void;
   onCrawl: (repository: Repository) => void;
+  onStopCrawl?: (repository: Repository) => void;
   onToggleEnabled: (repository: Repository) => void;
   isLoading?: boolean;
   isCrawling?: boolean;
@@ -37,13 +41,16 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onEdit,
   onDelete,
   onCrawl,
+  onStopCrawl,
   onToggleEnabled,
   isLoading = false,
   isCrawling = false,
   className = '',
 }) => {
   const [showMenu, setShowMenu] = useState(false);
-  const { activeProgress } = useActiveProgress();
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const { data: activeProgress = [] } = useActiveProgress();
+  const stopCrawlMutation = useStopCrawl();
   
   // Check if this repository is currently crawling
   const isCurrentlyCrawling = isRepositoryCrawling(repository.id, activeProgress);
@@ -90,6 +97,24 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
   const handleMenuClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowMenu(!showMenu);
+  };
+
+  const handleStopCrawlClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    setShowStopConfirm(true);
+  };
+
+  const handleConfirmStopCrawl = async () => {
+    try {
+      await stopCrawlMutation.mutateAsync(repository.id);
+      if (onStopCrawl) {
+        onStopCrawl(repository);
+      }
+      setShowStopConfirm(false);
+    } catch (error) {
+      console.error('Failed to stop crawl:', error);
+    }
   };
 
   const formatLastCrawled = (date: string | null | undefined) => {
@@ -190,17 +215,32 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     )}
                   </button>
                   
-                  <button
-                    onClick={() => {
-                      onCrawl(repository);
-                      setShowMenu(false);
-                    }}
-                    disabled={!repository.enabled || actuallyIsCrawling}
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ArrowPathIcon className={`h-4 w-4 mr-3 ${actuallyIsCrawling ? 'animate-spin' : ''}`} />
-                    {actuallyIsCrawling ? 'Crawling...' : 'Crawl Now'}
-                  </button>
+                  {actuallyIsCrawling ? (
+                    <button
+                      onClick={handleStopCrawlClick}
+                      disabled={stopCrawlMutation.isPending}
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {stopCrawlMutation.isPending ? (
+                        <LoadingSpinner size="sm" className="mr-3" />
+                      ) : (
+                        <StopCircleIcon className="h-4 w-4 mr-3" />
+                      )}
+                      {stopCrawlMutation.isPending ? 'Stopping...' : 'Stop Crawl'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        onCrawl(repository);
+                        setShowMenu(false);
+                      }}
+                      disabled={!repository.enabled}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ArrowPathIcon className="h-4 w-4 mr-3" />
+                      Crawl Now
+                    </button>
+                  )}
                   
                   <hr className="my-1" />
                   
@@ -309,14 +349,29 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
             </button>
           </div>
 
-          <button
-            onClick={() => onCrawl(repository)}
-            disabled={!repository.enabled || actuallyIsCrawling || isLoading}
-            className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <ArrowPathIcon className={`h-3 w-3 mr-1 ${actuallyIsCrawling ? 'animate-spin' : ''}`} />
-            {actuallyIsCrawling ? 'Crawling' : 'Crawl'}
-          </button>
+          {actuallyIsCrawling ? (
+            <button
+              onClick={handleStopCrawlClick}
+              disabled={stopCrawlMutation.isPending || isLoading}
+              className="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {stopCrawlMutation.isPending ? (
+                <LoadingSpinner size="sm" className="h-3 w-3 mr-1" />
+              ) : (
+                <StopCircleIcon className="h-3 w-3 mr-1" />
+              )}
+              {stopCrawlMutation.isPending ? 'Stopping' : 'Stop'}
+            </button>
+          ) : (
+            <button
+              onClick={() => onCrawl(repository)}
+              disabled={!repository.enabled || isLoading}
+              className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ArrowPathIcon className="h-3 w-3 mr-1" />
+              Crawl
+            </button>
+          )}
         </div>
       </div>
 
@@ -327,6 +382,19 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
           onClick={() => setShowMenu(false)}
         />
       )}
+
+      {/* Stop crawl confirmation dialog */}
+      <ConfirmDialog
+        isOpen={showStopConfirm}
+        onClose={() => setShowStopConfirm(false)}
+        onConfirm={handleConfirmStopCrawl}
+        title="Stop Crawl"
+        message={`Are you sure you want to stop the crawl for "${repository.name}"? This will cancel the current operation and any progress will be lost.`}
+        confirmText="Stop Crawl"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={stopCrawlMutation.isPending}
+      />
     </div>
   );
 };

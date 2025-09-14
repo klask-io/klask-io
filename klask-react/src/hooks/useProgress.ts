@@ -163,7 +163,7 @@ export function isRepositoryCrawling(repositoryId: string, activeProgress: Crawl
   return activeProgress.some(
     progress => 
       progress.repository_id === repositoryId && 
-      !['completed', 'failed'].includes(progress.status.toLowerCase())
+      !['completed', 'failed', 'cancelled'].includes(progress.status.toLowerCase())
   );
 }
 

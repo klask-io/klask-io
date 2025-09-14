@@ -6,6 +6,9 @@ use sha2::{Sha256, Digest};
 use sqlx::{Pool, Postgres};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::collections::HashMap;
+use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 use walkdir::WalkDir;
@@ -15,6 +18,7 @@ pub struct CrawlerService {
     search_service: Arc<SearchService>,
     progress_tracker: Arc<ProgressTracker>,
     pub temp_dir: PathBuf,
+    cancellation_tokens: Arc<RwLock<HashMap<Uuid, CancellationToken>>>,
 }
 
 pub struct CrawlProgress {
@@ -44,6 +48,7 @@ impl CrawlerService {
             search_service,
             progress_tracker,
             temp_dir,
+            cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
@@ -87,10 +92,24 @@ impl CrawlerService {
         info!("Starting crawl for repository: {} ({}) - Type: {:?}", 
               repository.name, repository.url, repository.repository_type);
         
+        // Create cancellation token for this crawl
+        let cancellation_token = CancellationToken::new();
+        {
+            let mut tokens = self.cancellation_tokens.write().await;
+            tokens.insert(repository.id, cancellation_token.clone());
+        }
+        
         // Start tracking progress
         self.progress_tracker.start_crawl(repository.id, repository.name.clone()).await;
         self.progress_tracker.update_status(repository.id, crate::services::progress::CrawlStatus::Starting).await;
         
+        // Check for cancellation before starting main work
+        if cancellation_token.is_cancelled() {
+            self.progress_tracker.cancel_crawl(repository.id).await;
+            self.cleanup_cancellation_token(repository.id).await;
+            return Ok(());
+        }
+
         let repo_path = match repository.repository_type {
             RepositoryType::FileSystem => {
                 // For filesystem repositories, use the URL as the direct path
@@ -99,22 +118,39 @@ impl CrawlerService {
             RepositoryType::Git | RepositoryType::GitLab => {
                 // For Git repositories, use temp directory with cloning
                 self.progress_tracker.update_status(repository.id, crate::services::progress::CrawlStatus::Cloning).await;
+                
+                // Check for cancellation before cloning
+                if cancellation_token.is_cancelled() {
+                    self.progress_tracker.cancel_crawl(repository.id).await;
+                    self.cleanup_cancellation_token(repository.id).await;
+                    return Ok(());
+                }
+                
                 let temp_path = self.temp_dir.join(format!("{}-{}", repository.name, repository.id));
                 let _git_repo = self.clone_or_update_repository(repository, &temp_path).await?;
                 temp_path
             }
         };
         
+        // Check for cancellation after path setup
+        if cancellation_token.is_cancelled() {
+            self.progress_tracker.cancel_crawl(repository.id).await;
+            self.cleanup_cancellation_token(repository.id).await;
+            return Ok(());
+        }
+
         // Validate that the path exists
         if !repo_path.exists() {
             let error_msg = format!("Repository path does not exist: {:?}", repo_path);
             self.progress_tracker.set_error(repository.id, error_msg.clone()).await;
+            self.cleanup_cancellation_token(repository.id).await;
             return Err(anyhow!(error_msg));
         }
         
         if !repo_path.is_dir() {
             let error_msg = format!("Repository path is not a directory: {:?}", repo_path);
             self.progress_tracker.set_error(repository.id, error_msg.clone()).await;
+            self.cleanup_cancellation_token(repository.id).await;
             return Err(anyhow!(error_msg));
         }
         
@@ -128,8 +164,22 @@ impl CrawlerService {
             errors: Vec::new(),
         };
         
-        self.process_repository_files(repository, &repo_path, &mut progress).await?;
+        // Check for cancellation before processing
+        if cancellation_token.is_cancelled() {
+            self.progress_tracker.cancel_crawl(repository.id).await;
+            self.cleanup_cancellation_token(repository.id).await;
+            return Ok(());
+        }
         
+        self.process_repository_files(repository, &repo_path, &mut progress, &cancellation_token).await?;
+        
+        // Check for cancellation before indexing
+        if cancellation_token.is_cancelled() {
+            self.progress_tracker.cancel_crawl(repository.id).await;
+            self.cleanup_cancellation_token(repository.id).await;
+            return Ok(());
+        }
+
         // Update status to indexing
         self.progress_tracker.update_status(repository.id, crate::services::progress::CrawlStatus::Indexing).await;
         
@@ -141,6 +191,9 @@ impl CrawlerService {
         
         // Complete the progress tracking
         self.progress_tracker.complete_crawl(repository.id).await;
+        
+        // Clean up cancellation token
+        self.cleanup_cancellation_token(repository.id).await;
         
         info!(
             "Crawl completed for repository: {}. Files processed: {}, Files indexed: {}, Errors: {}",
@@ -214,6 +267,7 @@ impl CrawlerService {
         repository: &Repository,
         repo_path: &Path,
         progress: &mut CrawlProgress,
+        cancellation_token: &CancellationToken,
     ) -> Result<()> {
         // For Tantivy-only indexing, we don't need to track file deletions
         // since Tantivy will be rebuilt fresh for each crawl
@@ -259,6 +313,11 @@ impl CrawlerService {
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())
         {
+            // Check for cancellation at the start of each file processing
+            if cancellation_token.is_cancelled() {
+                info!("Crawl cancelled for repository: {}", repository.name);
+                return Ok(());
+            }
             let file_path = entry.path();
             let relative_path = file_path.strip_prefix(repo_path)
                 .map_err(|e| anyhow!("Failed to get relative path: {}", e))?;
@@ -410,6 +469,31 @@ impl CrawlerService {
         .map_err(|e| anyhow!("Failed to update repository crawl time: {}", e))?;
         
         Ok(())
+    }
+
+    /// Cancel an ongoing crawl for a repository
+    pub async fn cancel_crawl(&self, repository_id: Uuid) -> Result<bool> {
+        let tokens = self.cancellation_tokens.read().await;
+        if let Some(token) = tokens.get(&repository_id) {
+            token.cancel();
+            info!("Cancellation requested for repository: {}", repository_id);
+            Ok(true)
+        } else {
+            warn!("No active crawl found for repository: {}", repository_id);
+            Ok(false)
+        }
+    }
+
+    /// Check if a repository is currently being crawled
+    pub async fn is_crawling(&self, repository_id: Uuid) -> bool {
+        let tokens = self.cancellation_tokens.read().await;
+        tokens.contains_key(&repository_id)
+    }
+
+    /// Clean up cancellation token after crawl completion or cancellation
+    async fn cleanup_cancellation_token(&self, repository_id: Uuid) {
+        let mut tokens = self.cancellation_tokens.write().await;
+        tokens.remove(&repository_id);
     }
 }
 

@@ -43,5 +43,51 @@ export const registerSchema = z.object({
   path: ['confirmPassword'],
 });
 
+export const createUserSchema = z.object({
+  username: z
+    .string()
+    .min(1, 'Username is required')
+    .min(3, 'Username must be at least 3 characters')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens'),
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address'),
+  password: z
+    .string()
+    .min(1, 'Password is required')
+    .min(8, 'Password must be at least 8 characters')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'Password must contain at least one lowercase letter, one uppercase letter, and one number'
+    ),
+  role: z.enum(['Admin', 'User'] as const).default('User'),
+  active: z.boolean().default(true),
+});
+
+export const updateUserSchema = z.object({
+  username: z
+    .string()
+    .min(3, 'Username must be at least 3 characters')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens')
+    .optional(),
+  email: z
+    .string()
+    .email('Please enter a valid email address')
+    .optional(),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'Password must contain at least one lowercase letter, one uppercase letter, and one number'
+    )
+    .optional(),
+  role: z.enum(['Admin', 'User'] as const).optional(),
+  active: z.boolean().optional(),
+});
+
 export type LoginForm = z.infer<typeof loginSchema>;
 export type RegisterForm = z.infer<typeof registerSchema>;
+export type CreateUserForm = z.infer<typeof createUserSchema>;
+export type UpdateUserForm = z.infer<typeof updateUserSchema>;

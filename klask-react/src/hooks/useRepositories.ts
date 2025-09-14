@@ -94,9 +94,36 @@ export const useCrawlRepository = () => {
       // Refetch the specific repository to get updated lastCrawled timestamp
       queryClient.invalidateQueries({ queryKey: ['repositories', repositoryId] });
       queryClient.invalidateQueries({ queryKey: ['repositories'] });
+      queryClient.invalidateQueries({ queryKey: ['repositories', 'progress', 'active'] });
     },
-    onError: (error) => {
-      console.error('Failed to crawl repository:', getErrorMessage(error));
+    onError: (error: any) => {
+      if (error.status === 409) {
+        console.warn('Repository is already being crawled');
+      } else {
+        console.error('Failed to crawl repository:', getErrorMessage(error));
+      }
+    },
+  });
+};
+
+// Stop crawl repository mutation
+export const useStopCrawl = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (id: string) => apiClient.stopCrawlRepository(id),
+    onSuccess: (_, repositoryId) => {
+      // Invalidate progress queries to reflect the stopped status
+      queryClient.invalidateQueries({ queryKey: ['repositories', repositoryId, 'progress'] });
+      queryClient.invalidateQueries({ queryKey: ['repositories', 'progress', 'active'] });
+      queryClient.invalidateQueries({ queryKey: ['repositories', repositoryId] });
+    },
+    onError: (error: any) => {
+      if (error.status === 404) {
+        console.warn('No active crawl found for repository');
+      } else {
+        console.error('Failed to stop crawl:', getErrorMessage(error));
+      }
     },
   });
 };
@@ -162,11 +189,37 @@ export const useBulkRepositoryOperations = () => {
   
   const bulkCrawl = useMutation({
     mutationFn: async (repositoryIds: string[]) => {
-      const promises = repositoryIds.map(id => apiClient.crawlRepository(id));
-      return Promise.all(promises);
+      const results = await Promise.allSettled(
+        repositoryIds.map(async id => {
+          try {
+            return await apiClient.crawlRepository(id);
+          } catch (error: any) {
+            // If the error is a conflict (409), it means the repository is already being crawled
+            if (error.status === 409) {
+              throw new Error(`Repository is already being crawled`);
+            }
+            throw error;
+          }
+        })
+      );
+      
+      const successful = results.filter(result => result.status === 'fulfilled').length;
+      const failed = results.filter(result => result.status === 'rejected').length;
+      const alreadyCrawling = results.filter(result => 
+        result.status === 'rejected' && 
+        result.reason?.message?.includes('already being crawled')
+      ).length;
+      
+      return {
+        successful,
+        failed,
+        alreadyCrawling,
+        total: repositoryIds.length
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['repositories'] });
+      queryClient.invalidateQueries({ queryKey: ['repositories', 'progress', 'active'] });
     },
   });
   
@@ -189,3 +242,27 @@ export const useBulkRepositoryOperations = () => {
 };
 
 import React from 'react';
+import type { CrawlProgressInfo } from '../types';
+
+// Hook to track active crawl progress
+export const useActiveProgress = () => {
+  return useQuery({
+    queryKey: ['repositories', 'progress', 'active'],
+    queryFn: () => apiClient.getActiveProgress(),
+    refetchInterval: 2000, // Refetch every 2 seconds
+    staleTime: 1000, // Consider data stale after 1 second
+    retry: 2,
+  });
+};
+
+// Hook to get progress for a specific repository
+export const useRepositoryProgress = (repositoryId: string) => {
+  return useQuery({
+    queryKey: ['repositories', repositoryId, 'progress'],
+    queryFn: () => apiClient.getRepositoryProgress(repositoryId),
+    enabled: !!repositoryId,
+    refetchInterval: 2000, // Refetch every 2 seconds
+    staleTime: 1000, // Consider data stale after 1 second
+    retry: 2,
+  });
+};

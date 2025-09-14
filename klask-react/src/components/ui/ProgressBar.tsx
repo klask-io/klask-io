@@ -90,6 +90,8 @@ export const CrawlProgressBar: React.FC<CrawlProgressBarProps> = ({
         return 'success';
       case 'failed':
         return 'error';
+      case 'cancelled':
+        return 'warning';
       case 'starting':
       case 'cloning':
       case 'processing':
@@ -114,6 +116,8 @@ export const CrawlProgressBar: React.FC<CrawlProgressBarProps> = ({
         return 'Crawl completed';
       case 'failed':
         return 'Crawl failed';
+      case 'cancelled':
+        return 'Crawl cancelled';
       default:
         return status;
     }

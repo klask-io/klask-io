@@ -17,6 +17,7 @@ import {
   useCrawlRepository,
   useRepositoryStats,
   useBulkRepositoryOperations,
+  useActiveProgress,
 } from '../../hooks/useRepositories';
 import { getErrorMessage } from '../../lib/api';
 import type { Repository, CreateRepositoryRequest } from '../../types';
@@ -31,12 +32,29 @@ const RepositoriesPage: React.FC = () => {
   const [crawlingRepos, setCrawlingRepos] = useState<Set<string>>(new Set());
 
   const { data: repositories = [], isLoading, error, refetch } = useRepositories();
+  const { data: activeProgress = [] } = useActiveProgress();
   const stats = useRepositoryStats();
   const createMutation = useCreateRepository();
   const updateMutation = useUpdateRepository();
   const deleteMutation = useDeleteRepository();
   const crawlMutation = useCrawlRepository();
   const { bulkEnable, bulkDisable, bulkCrawl, bulkDelete } = useBulkRepositoryOperations();
+
+  // Helper to check if repository is currently crawling
+  const isRepositoryCrawling = useCallback((repositoryId: string) => {
+    return activeProgress.some(progress => progress.repository_id === repositoryId) ||
+           crawlingRepos.has(repositoryId);
+  }, [activeProgress, crawlingRepos]);
+
+  // Helper to get selected repositories that are not crawling
+  const selectedReposNotCrawling = useCallback(() => {
+    return selectedRepos.filter(repoId => !isRepositoryCrawling(repoId));
+  }, [selectedRepos, isRepositoryCrawling]);
+
+  // Helper to get selected repositories that are crawling
+  const selectedReposCrawling = useCallback(() => {
+    return selectedRepos.filter(repoId => isRepositoryCrawling(repoId));
+  }, [selectedRepos, isRepositoryCrawling]);
 
   const filteredRepositories = repositories.filter(repo => {
     switch (filter) {
@@ -90,13 +108,23 @@ const RepositoriesPage: React.FC = () => {
   }, [deleteMutation]);
 
   const handleCrawl = useCallback(async (repository: Repository) => {
+    // Check if already crawling
+    if (isRepositoryCrawling(repository.id)) {
+      toast.error(`Repository "${repository.name}" is already being crawled`);
+      return;
+    }
+
     setCrawlingRepos(prev => new Set(prev).add(repository.id));
     
     try {
       await crawlMutation.mutateAsync(repository.id);
       toast.success(`Started crawling "${repository.name}"`);
-    } catch (error) {
-      toast.error(getErrorMessage(error));
+    } catch (error: any) {
+      if (error.status === 409) {
+        toast.error(`Repository "${repository.name}" is already being crawled`);
+      } else {
+        toast.error(getErrorMessage(error));
+      }
     } finally {
       setCrawlingRepos(prev => {
         const newSet = new Set(prev);
@@ -104,7 +132,7 @@ const RepositoriesPage: React.FC = () => {
         return newSet;
       });
     }
-  }, [crawlMutation]);
+  }, [crawlMutation, isRepositoryCrawling]);
 
   const handleToggleEnabled = useCallback(async (repository: Repository) => {
     try {
@@ -143,8 +171,29 @@ const RepositoriesPage: React.FC = () => {
       delete: 'delete'
     }[action];
 
-    if (!confirm(`Are you sure you want to ${actionText} ${selectedRepos.length} repositories?`)) {
-      return;
+    // For crawl action, warn if some repositories are already being crawled
+    if (action === 'crawl') {
+      const crawlingCount = selectedReposCrawling().length;
+      const availableCount = selectedReposNotCrawling().length;
+      
+      if (crawlingCount > 0) {
+        if (availableCount === 0) {
+          toast.error(`All selected repositories are already being crawled`);
+          return;
+        }
+        
+        if (!confirm(`${crawlingCount} repositories are already being crawled. Continue with crawling the remaining ${availableCount} repositories?`)) {
+          return;
+        }
+      } else {
+        if (!confirm(`Are you sure you want to ${actionText} ${selectedRepos.length} repositories?`)) {
+          return;
+        }
+      }
+    } else {
+      if (!confirm(`Are you sure you want to ${actionText} ${selectedRepos.length} repositories?`)) {
+        return;
+      }
     }
 
     try {
@@ -158,8 +207,18 @@ const RepositoriesPage: React.FC = () => {
           toast.success(`Disabled ${selectedRepos.length} repositories`);
           break;
         case 'crawl':
-          await bulkCrawl.mutateAsync(selectedRepos);
-          toast.success(`Started crawling ${selectedRepos.length} repositories`);
+          const reposToProcess = action === 'crawl' ? selectedReposNotCrawling() : selectedRepos;
+          const result = await bulkCrawl.mutateAsync(reposToProcess);
+          
+          if (result.successful > 0) {
+            toast.success(`Started crawling ${result.successful} repositories`);
+          }
+          if (result.alreadyCrawling > 0) {
+            toast.info(`${result.alreadyCrawling} repositories were already being crawled`);
+          }
+          if (result.failed > 0) {
+            toast.error(`Failed to crawl ${result.failed} repositories`);
+          }
           break;
         case 'delete':
           await bulkDelete.mutateAsync(selectedRepos);
@@ -170,7 +229,7 @@ const RepositoriesPage: React.FC = () => {
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
-  }, [selectedRepos, bulkEnable, bulkDisable, bulkCrawl, bulkDelete]);
+  }, [selectedRepos, selectedReposCrawling, selectedReposNotCrawling, bulkEnable, bulkDisable, bulkCrawl, bulkDelete]);
 
   if (isLoading) {
     return (
@@ -277,9 +336,16 @@ const RepositoriesPage: React.FC = () => {
         {/* Bulk Actions */}
         {selectedRepos.length > 0 && (
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">
-              {selectedRepos.length} selected
-            </span>
+            <div className="flex flex-col">
+              <span className="text-sm text-gray-600">
+                {selectedRepos.length} selected
+              </span>
+              {selectedReposCrawling().length > 0 && (
+                <span className="text-xs text-amber-600">
+                  ({selectedReposCrawling().length} currently crawling)
+                </span>
+              )}
+            </div>
             <button
               onClick={() => handleBulkAction('enable')}
               className="text-sm px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200"
@@ -294,9 +360,19 @@ const RepositoriesPage: React.FC = () => {
             </button>
             <button
               onClick={() => handleBulkAction('crawl')}
-              className="text-sm px-3 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+              disabled={selectedReposNotCrawling().length === 0}
+              className={`text-sm px-3 py-1 rounded ${
+                selectedReposNotCrawling().length === 0
+                  ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+              }`}
+              title={selectedReposNotCrawling().length === 0 
+                ? 'All selected repositories are already being crawled' 
+                : `Crawl ${selectedReposNotCrawling().length} repositories`
+              }
             >
-              Crawl
+              Crawl {selectedReposNotCrawling().length > 0 && selectedReposCrawling().length > 0 && 
+                `(${selectedReposNotCrawling().length})`}
             </button>
             <button
               onClick={() => handleBulkAction('delete')}
@@ -377,7 +453,7 @@ const RepositoriesPage: React.FC = () => {
               onCrawl={handleCrawl}
               onToggleEnabled={handleToggleEnabled}
               isLoading={updateMutation.isPending && updateMutation.variables?.id === repository.id}
-              isCrawling={crawlingRepos.has(repository.id)}
+              isCrawling={isRepositoryCrawling(repository.id)}
             />
           ))}
         </div>

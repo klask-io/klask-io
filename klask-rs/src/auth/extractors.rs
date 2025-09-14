@@ -4,6 +4,9 @@ use axum::{
     http::request::Parts,
 };
 use std::sync::Arc;
+use std::collections::HashMap;
+use uuid::Uuid;
+use tokio::sync::RwLock;
 use tracing::{debug, error, warn};
 use crate::auth::{claims::TokenClaims, errors::AuthError, jwt::JwtService};
 use crate::models::user::{User, UserRole};
@@ -21,6 +24,7 @@ pub struct AppState {
     pub scheduler_service: Option<Arc<crate::services::scheduler::SchedulerService>>,
     pub jwt_service: JwtService,
     pub config: crate::config::AppConfig,
+    pub crawl_tasks: Arc<RwLock<HashMap<Uuid, tokio::task::JoinHandle<()>>>>,
 }
 
 #[derive(Debug, Clone)]

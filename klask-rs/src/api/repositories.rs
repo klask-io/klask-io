@@ -71,7 +71,7 @@ pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/", get(list_repositories).post(create_repository))
         .route("/:id", get(get_repository).put(update_repository).delete(delete_repository))
-        .route("/:id/crawl", post(trigger_crawl))
+        .route("/:id/crawl", post(trigger_crawl).delete(stop_crawl))
         .route("/:id/schedule", put(update_repository_schedule))
         .route("/:id/progress", get(get_repository_progress))
         .route("/progress/active", get(get_active_progress));
@@ -236,6 +236,11 @@ async fn trigger_crawl(
 ) -> Result<Json<String>, StatusCode> {
     let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
     
+    // Check if repository is already being crawled
+    if app_state.progress_tracker.is_crawling(id).await {
+        return Err(StatusCode::CONFLICT);
+    }
+    
     // Get the repository to crawl
     let repository = match repo_repository.get_repository(id).await {
         Ok(Some(repo)) => repo,
@@ -248,17 +253,73 @@ async fn trigger_crawl(
         return Err(StatusCode::BAD_REQUEST);
     }
     
+    // Double-check if repository is still not being crawled (race condition protection)
+    if app_state.progress_tracker.is_crawling(id).await {
+        return Err(StatusCode::CONFLICT);
+    }
+    
     // Spawn background task for crawling
     let crawler_service = app_state.crawler_service.clone();
+    let progress_tracker = app_state.progress_tracker.clone();
+    let crawl_tasks = app_state.crawl_tasks.clone();
     let repo_clone = repository.clone();
+    let repo_id = id;
     
-    tokio::spawn(async move {
+    let task_handle = tokio::spawn(async move {
         if let Err(e) = crawler_service.crawl_repository(&repo_clone).await {
             tracing::error!("Failed to crawl repository {}: {}", repo_clone.name, e);
+            progress_tracker.set_error(repo_id, e.to_string()).await;
         }
+        
+        // Remove the task handle when done
+        let mut tasks = crawl_tasks.write().await;
+        tasks.remove(&repo_id);
     });
     
+    // Store the task handle
+    {
+        let mut tasks = app_state.crawl_tasks.write().await;
+        tasks.insert(id, task_handle);
+    }
+    
     Ok(Json("Crawl started in background".to_string()))
+}
+
+async fn stop_crawl(
+    State(app_state): State<AppState>,
+    Path(id): Path<Uuid>,
+    AdminUser(_admin_user): AdminUser, // Require admin authentication
+) -> Result<Json<String>, StatusCode> {
+    // Check if repository is currently being crawled
+    if !app_state.progress_tracker.is_crawling(id).await {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    
+    // Cancel the crawl using the crawler service
+    match app_state.crawler_service.cancel_crawl(id).await {
+        Ok(true) => {
+            // Cancel the progress tracking
+            app_state.progress_tracker.cancel_crawl(id).await;
+            
+            // Abort the task if it exists
+            if let Some(task_handle) = {
+                let mut tasks = app_state.crawl_tasks.write().await;
+                tasks.remove(&id)
+            } {
+                task_handle.abort();
+            }
+            
+            Ok(Json("Crawl stopped successfully".to_string()))
+        },
+        Ok(false) => {
+            // Crawl not found or already finished
+            Err(StatusCode::NOT_FOUND)
+        },
+        Err(_) => {
+            // Error stopping crawl
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
 
 async fn delete_repository(

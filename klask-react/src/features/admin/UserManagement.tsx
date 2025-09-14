@@ -10,6 +10,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { UserForm } from '../../components/admin/UserForm';
 import { 
   useUsers, 
   useCreateUser, 
@@ -450,31 +451,17 @@ const UserManagement: React.FC = () => {
         </div>
       )}
 
-      {/* User Form Modal - Placeholder for now */}
-      {(showForm || editingUser) && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">
-              {editingUser ? 'Edit User' : 'Add New User'}
-            </h2>
-            <p className="text-gray-600 mb-4">User form will be implemented here.</p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  setEditingUser(null);
-                }}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-              <button className="btn-primary">
-                {editingUser ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* User Form Modal */}
+      <UserForm
+        user={editingUser || undefined}
+        isOpen={showForm || !!editingUser}
+        onClose={() => {
+          setShowForm(false);
+          setEditingUser(null);
+        }}
+        onSubmit={editingUser ? handleUpdate : handleCreate}
+        isLoading={createMutation.isPending || updateMutation.isPending}
+      />
     </div>
   );
 };

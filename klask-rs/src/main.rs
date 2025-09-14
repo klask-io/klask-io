@@ -14,6 +14,8 @@ use services::{SearchService, crawler::CrawlerService, progress::ProgressTracker
 use auth::{extractors::AppState, jwt::JwtService};
 use tower_http::cors::CorsLayer;
 use std::sync::Arc;
+use std::collections::HashMap;
+use tokio::sync::RwLock;
 use tower_http::trace::TraceLayer;
 use tracing::{info, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -99,6 +101,7 @@ async fn main() -> Result<()> {
         scheduler_service: None, // Not implemented yet
         jwt_service,
         config: config.clone(),
+        crawl_tasks: Arc::new(RwLock::new(HashMap::new())),
     };
 
     // Build application router
