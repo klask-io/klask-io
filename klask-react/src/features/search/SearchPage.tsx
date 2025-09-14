@@ -28,18 +28,24 @@ const SearchPage: React.FC = () => {
     const searchFilters = location.state?.filters as SearchFilters;
     const advanced = location.state?.showAdvanced as boolean;
     
+    console.log('Initialization useEffect triggered with:', { initialQuery, searchFilters, advanced });
+    
     if (initialQuery) {
+      console.log('Setting initial query from location state:', initialQuery);
       setQuery(initialQuery);
     }
     if (searchFilters) {
+      console.log('Setting initial filters from location state:', searchFilters);
       setFilters(searchFilters);
     }
     if (advanced !== undefined) {
+      console.log('Setting initial advanced from location state:', advanced);
       setShowAdvanced(advanced);
     }
     
     // Clear the location state to avoid re-applying on refresh
     if (initialQuery || searchFilters || advanced !== undefined) {
+      console.log('Clearing location state');
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [location.state]);
@@ -60,9 +66,15 @@ const SearchPage: React.FC = () => {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
+    refetch,
   } = useAdvancedSearch(query, filters as Record<string, string | undefined>, {
     enabled: !!query.trim(),
   });
+
+  // Debug logs
+  console.log('SearchPage: current query state:', query);
+  console.log('SearchPage: results count:', results.length);
+  console.log('SearchPage: isLoading:', isLoading);
 
   const handleSearch = useCallback((searchQuery: string) => {
     setQuery(searchQuery);
@@ -88,9 +100,22 @@ const SearchPage: React.FC = () => {
 
   const handleHistoryClick = useCallback((historicalQuery: string) => {
     console.log('Recent search clicked:', historicalQuery);
-    setQuery(historicalQuery); // Set query immediately
-    handleSearch(historicalQuery); // And also call handleSearch
-  }, [handleSearch]);
+    console.log('Setting query to:', historicalQuery);
+    
+    // Set query immediately and add to history
+    setQuery(historicalQuery);
+    if (historicalQuery.trim()) {
+      addToHistory(historicalQuery.trim());
+    }
+    
+    // Force a manual refetch of the search query to bypass any debounce issues
+    setTimeout(() => {
+      console.log('Forcing search refetch for:', historicalQuery);
+      if (refetch) {
+        refetch();
+      }
+    }, 50); // Give time for setQuery to take effect
+  }, [addToHistory, refetch]);
 
   const handleLoadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -139,8 +164,14 @@ const SearchPage: React.FC = () => {
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <SearchBar
           value={query}
-          onChange={setQuery}
-          onSearch={handleSearch}
+          onChange={(newQuery) => {
+            console.log('SearchBar onChange called with:', newQuery);
+            setQuery(newQuery);
+          }}
+          onSearch={(searchQuery) => {
+            console.log('SearchBar onSearch called with:', searchQuery);
+            handleSearch(searchQuery);
+          }}
           placeholder="Search functions, classes, variables, comments..."
           isLoading={isLoading || isFetching}
         />
