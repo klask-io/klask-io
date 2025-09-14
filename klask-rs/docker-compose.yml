@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     container_name: klask-postgres
@@ -19,7 +20,57 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - klask-rs_default
+      - klask-network
+    restart: unless-stopped
+
+  # Klask Backend (Rust)
+  klask-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: klask-backend
+    environment:
+      - DATABASE_URL=postgres://klask:klask@postgres:5432/klask_rs
+      - RUST_LOG=info
+      - PORT=3000
+      - HOST=0.0.0.0
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-default-encryption-key-change-me}
+    ports:
+      - "3000:3000"
+    volumes:
+      - klask_data:/app/data
+      - klask_index:/app/index
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - klask-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Klask Frontend (React)
+  klask-frontend:
+    build:
+      context: ../klask-react
+      dockerfile: Dockerfile
+    container_name: klask-frontend
+    ports:
+      - "80:8080"
+    depends_on:
+      - klask-backend
+    networks:
+      - klask-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # Optional: pgAdmin for database management
   pgadmin:
@@ -31,12 +82,13 @@ services:
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
       - "8080:80"
-    # depends_on:
-    #   - postgres
+    depends_on:
+      - postgres
     networks:
-      - klask-rs_default
+      - klask-network
     profiles:
       - tools
+    restart: unless-stopped
 
   # Redis for caching (optional for future use)
   redis:
@@ -48,14 +100,17 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
     networks:
-      - klask-rs_default
+      - klask-network
     profiles:
       - tools
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
+  klask_data:
+  klask_index:
 
 networks:
-  klask-rs_default:
-    external: true
+  klask-network:
+    driver: bridge
