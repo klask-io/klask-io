@@ -3,7 +3,7 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::Json,
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,7 @@ use chrono::{DateTime, Utc};
 use tracing::{debug, error, info};
 use crate::auth::extractors::{AppState, AdminUser};
 use crate::repositories::{UserRepository, RepositoryRepository, FileRepository, user_repository::UserStats};
+use crate::services::seeding::{SeedingService, SeedingStats};
 
 #[derive(Debug, Serialize)]
 pub struct SystemStats {
@@ -118,7 +119,10 @@ pub async fn create_router() -> Result<Router<AppState>> {
         .route("/repositories/stats", get(get_repository_stats))
         .route("/content/stats", get(get_content_stats))
         .route("/search/stats", get(get_search_stats))
-        .route("/activity/recent", get(get_recent_activity));
+        .route("/activity/recent", get(get_recent_activity))
+        .route("/seed", post(seed_database))
+        .route("/seed/clear", post(clear_seed_data))
+        .route("/seed/stats", get(get_seed_stats));
 
     Ok(router)
 }
@@ -250,8 +254,11 @@ async fn get_system_stats_impl(app_state: &AppState) -> Result<SystemStats> {
         Err(_) => "Disconnected".to_string(),
     };
 
+    // Calculate uptime in seconds since server startup
+    let uptime_seconds = app_state.startup_time.elapsed().as_secs();
+
     Ok(SystemStats {
-        uptime_seconds: 0, // TODO: Track actual uptime
+        uptime_seconds,
         version: env!("CARGO_PKG_VERSION").to_string(),
         environment: std::env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()),
         database_status,
@@ -394,11 +401,14 @@ async fn get_search_stats_impl(app_state: &AppState) -> Result<SearchStats> {
         Err(_) => 0,
     };
 
+    // Get actual index size in MB
+    let index_size_mb = app_state.search_service.get_index_size_mb();
+
     // TODO: Implement actual search metrics tracking
-    // For now, return basic stats
+    // For now, return basic stats with real index size
     Ok(SearchStats {
         total_documents,
-        index_size_mb: 0.0, // TODO: Calculate actual index size
+        index_size_mb,
         avg_search_time_ms: None, // TODO: Track search performance
         popular_queries: vec![], // TODO: Track popular queries
     })
@@ -472,4 +482,66 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
         recent_repositories,
         recent_crawls,
     })
+}
+
+// Seeding endpoints
+
+async fn seed_database(
+    _admin_user: AdminUser,
+    State(app_state): State<AppState>,
+) -> Result<Json<SeedingStats>, StatusCode> {
+    info!("Admin user requested database seeding");
+    let pool = app_state.database.pool().clone();
+    let seeding_service = SeedingService::new(pool);
+    
+    seeding_service.seed_all().await.map_err(|e| {
+        error!("Database seeding failed: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    info!("Database seeding completed successfully");
+    let stats = seeding_service.get_stats().await.map_err(|e| {
+        error!("Failed to get seeding stats: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    Ok(Json(stats))
+}
+
+async fn clear_seed_data(
+    _admin_user: AdminUser,
+    State(app_state): State<AppState>,
+) -> Result<Json<SeedingStats>, StatusCode> {
+    info!("Admin user requested seed data clearing");
+    let pool = app_state.database.pool().clone();
+    let seeding_service = SeedingService::new(pool);
+    
+    seeding_service.clear_all().await.map_err(|e| {
+        error!("Failed to clear seed data: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    info!("Seed data cleared successfully");
+    let stats = seeding_service.get_stats().await.map_err(|e| {
+        error!("Failed to get seeding stats after clearing: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    Ok(Json(stats))
+}
+
+async fn get_seed_stats(
+    _admin_user: AdminUser,
+    State(app_state): State<AppState>,
+) -> Result<Json<SeedingStats>, StatusCode> {
+    debug!("Getting seeding stats for admin user");
+    let pool = app_state.database.pool().clone();
+    let seeding_service = SeedingService::new(pool);
+    
+    let stats = seeding_service.get_stats().await.map_err(|e| {
+        error!("Failed to get seeding stats: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    Ok(Json(stats))
 }
