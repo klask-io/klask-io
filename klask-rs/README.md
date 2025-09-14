@@ -8,6 +8,7 @@ A high-performance code search engine built with Rust, featuring real-time index
 - Rust (1.70+)
 - Docker & Docker Compose
 - Git
+- sqlx (cargo install sqlx-cli --no-default-features --features rustls,postgres)
 
 ### Development Setup
 

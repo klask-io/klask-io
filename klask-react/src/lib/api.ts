@@ -12,7 +12,13 @@ import type {
   CreateUserRequest,
   UpdateUserRequest,
   UserStats,
-  PaginatedResponse
+  PaginatedResponse,
+  AdminDashboardData,
+  SystemStats,
+  RepositoryStats,
+  ContentStats,
+  SearchStats,
+  RecentActivity
 } from '../types';
 
 // API Error class
@@ -266,6 +272,35 @@ class ApiClient {
     return this.request<UserStats>('/api/users/stats');
   }
 
+  // Admin API
+  async getAdminDashboard(): Promise<AdminDashboardData> {
+    return this.request<AdminDashboardData>('/api/admin/dashboard');
+  }
+
+  async getSystemStats(): Promise<SystemStats> {
+    return this.request<SystemStats>('/api/admin/system');
+  }
+
+  async getAdminUserStats(): Promise<UserStats> {
+    return this.request<UserStats>('/api/admin/users/stats');
+  }
+
+  async getRepositoryStats(): Promise<RepositoryStats> {
+    return this.request<RepositoryStats>('/api/admin/repositories/stats');
+  }
+
+  async getContentStats(): Promise<ContentStats> {
+    return this.request<ContentStats>('/api/admin/content/stats');
+  }
+
+  async getAdminSearchStats(): Promise<SearchStats> {
+    return this.request<SearchStats>('/api/admin/search/stats');
+  }
+
+  async getRecentActivity(): Promise<RecentActivity> {
+    return this.request<RecentActivity>('/api/admin/activity/recent');
+  }
+
   // Health Check
   async health(): Promise<{ status: string }> {
     return this.request<{ status: string }>('/health');
@@ -317,6 +352,15 @@ export const api = {
   updateUserStatus: (id: string, active: boolean) => apiClient.updateUserStatus(id, active),
   deleteUser: (id: string) => apiClient.deleteUser(id),
   getUserStats: () => apiClient.getUserStats(),
+
+  // Admin
+  getAdminDashboard: () => apiClient.getAdminDashboard(),
+  getSystemStats: () => apiClient.getSystemStats(),
+  getAdminUserStats: () => apiClient.getAdminUserStats(),
+  getRepositoryStats: () => apiClient.getRepositoryStats(),
+  getContentStats: () => apiClient.getContentStats(),
+  getAdminSearchStats: () => apiClient.getAdminSearchStats(),
+  getRecentActivity: () => apiClient.getRecentActivity(),
 };
 
 // Error helper functions

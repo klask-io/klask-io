@@ -1,0 +1,2 @@
+- Always work in "klask-rs" directory for the new backend rewrite in Rust and "klask-react" for the new frontend in React
+- Always use the workflow describe in command /explore-plan-code-test

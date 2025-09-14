@@ -278,6 +278,92 @@ export interface SearchEvent {
   timestamp: number;
 }
 
+// Admin Dashboard Types
+export interface SystemStats {
+  uptime_seconds: number;
+  version: string;
+  environment: string;
+  database_status: string;
+}
+
+export interface RepositoryStats {
+  total_repositories: number;
+  enabled_repositories: number;
+  disabled_repositories: number;
+  git_repositories: number;
+  gitlab_repositories: number;
+  filesystem_repositories: number;
+  recently_crawled: number;
+  never_crawled: number;
+}
+
+export interface ExtensionStat {
+  extension: string;
+  count: number;
+  total_size: number;
+}
+
+export interface ProjectStat {
+  project: string;
+  file_count: number;
+  total_size: number;
+}
+
+export interface ContentStats {
+  total_files: number;
+  total_size_bytes: number;
+  files_by_extension: ExtensionStat[];
+  files_by_project: ProjectStat[];
+  recent_additions: number;
+}
+
+export interface SearchStats {
+  total_documents: number;
+  index_size_mb: number;
+  avg_search_time_ms?: number;
+  popular_queries: QueryStat[];
+}
+
+export interface QueryStat {
+  query: string;
+  count: number;
+}
+
+export interface RecentUser {
+  username: string;
+  email: string;
+  created_at: string;
+  role: string;
+}
+
+export interface RecentRepository {
+  name: string;
+  url: string;
+  repository_type: string;
+  created_at: string;
+}
+
+export interface RecentCrawl {
+  repository_name: string;
+  last_crawled?: string;
+  status: string;
+}
+
+export interface RecentActivity {
+  recent_users: RecentUser[];
+  recent_repositories: RecentRepository[];
+  recent_crawls: RecentCrawl[];
+}
+
+export interface AdminDashboardData {
+  system: SystemStats;
+  users: UserStats;
+  repositories: RepositoryStats;
+  content: ContentStats;
+  search: SearchStats;
+  recent_activity: RecentActivity;
+}
+
 // Hook Return Types
 export interface UseSearchReturn {
   results: SearchResult[];

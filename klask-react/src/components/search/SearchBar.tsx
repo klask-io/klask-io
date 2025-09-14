@@ -20,6 +20,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const [localValue, setLocalValue] = useState(value);
   const [debouncedValue] = useDebounce(localValue, 300);
 
+  // Sync localValue with prop value when it changes (for recent searches)
+  React.useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
   React.useEffect(() => {
     if (debouncedValue !== value) {
       onChange(debouncedValue);

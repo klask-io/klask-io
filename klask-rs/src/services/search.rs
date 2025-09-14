@@ -514,6 +514,11 @@ impl SearchService {
         debug!("No document found with file_id: {}", file_id);
         Ok(None)
     }
+
+    pub fn get_document_count(&self) -> Result<u64> {
+        let searcher = self.reader.searcher();
+        Ok(searcher.num_docs() as u64)
+    }
 }
 
 #[derive(Debug, Serialize)]

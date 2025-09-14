@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod auth;
 pub mod files;
 pub mod search;
@@ -11,6 +12,7 @@ use crate::auth::extractors::AppState;
 pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/status", get(status_handler))
+        .nest("/admin", admin::create_router().await?)
         .nest("/auth", auth::create_router().await?)
         .nest("/files", files::create_router().await?)
         .nest("/search", search::create_router().await?)

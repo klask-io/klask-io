@@ -30,6 +30,22 @@ pub struct CreateRepositoryRequest {
     pub is_group: Option<bool>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateRepositoryRequest {
+    pub name: Option<String>,
+    pub url: Option<String>,
+    #[serde(alias = "repositoryType")]
+    pub repository_type: Option<RepositoryType>,
+    pub branch: Option<String>,
+    pub enabled: Option<bool>,
+    #[serde(alias = "accessToken")]
+    pub access_token: Option<String>,
+    #[serde(alias = "gitlabNamespace")]
+    pub gitlab_namespace: Option<String>,
+    #[serde(alias = "isGroup")]
+    pub is_group: Option<bool>,
+}
+
 pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/", get(list_repositories).post(create_repository))
@@ -108,6 +124,12 @@ async fn create_repository(
         last_crawled: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+        // Scheduling fields
+        auto_crawl_enabled: false,
+        cron_schedule: None,
+        next_crawl_at: None,
+        crawl_frequency_hours: None,
+        max_crawl_duration_minutes: Some(60),
     };
     
     match repo_repository.create_repository(&new_repository).await {
@@ -120,7 +142,7 @@ async fn update_repository(
     State(app_state): State<AppState>,
     Path(id): Path<Uuid>,
     _admin_user: AdminUser, // Require admin authentication
-    Json(payload): Json<CreateRepositoryRequest>,
+    Json(payload): Json<UpdateRepositoryRequest>,
 ) -> Result<Json<Repository>, StatusCode> {
     let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
     
@@ -158,10 +180,10 @@ async fn update_repository(
     
     let updated_repository = Repository {
         id,
-        name: payload.name,
-        url: payload.url,
-        repository_type: payload.repository_type,
-        branch: payload.branch,
+        name: payload.name.unwrap_or(existing_repository.name),
+        url: payload.url.unwrap_or(existing_repository.url),
+        repository_type: payload.repository_type.unwrap_or(existing_repository.repository_type),
+        branch: payload.branch.or(existing_repository.branch),
         enabled: payload.enabled.unwrap_or(existing_repository.enabled),
         access_token: encrypted_token,
         gitlab_namespace: payload.gitlab_namespace.or(existing_repository.gitlab_namespace),
@@ -169,6 +191,12 @@ async fn update_repository(
         last_crawled: existing_repository.last_crawled, // Preserve existing value
         created_at: existing_repository.created_at, // Preserve existing value
         updated_at: chrono::Utc::now(), // Will be set by the database
+        // Scheduling fields - preserve existing values
+        auto_crawl_enabled: existing_repository.auto_crawl_enabled,
+        cron_schedule: existing_repository.cron_schedule,
+        next_crawl_at: existing_repository.next_crawl_at,
+        crawl_frequency_hours: existing_repository.crawl_frequency_hours,
+        max_crawl_duration_minutes: existing_repository.max_crawl_duration_minutes,
     };
     
     match repo_repository.update_repository(id, &updated_repository).await {
