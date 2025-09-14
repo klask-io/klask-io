@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { 
   PlusIcon,
@@ -31,8 +31,11 @@ const RepositoriesPage: React.FC = () => {
   const [filter, setFilter] = useState<FilterType>('all');
   const [crawlingRepos, setCrawlingRepos] = useState<Set<string>>(new Set());
 
+  // Ref for select-all checkbox to properly handle indeterminate state
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
+
   const { data: repositories = [], isLoading, error, refetch } = useRepositories();
-  const { data: activeProgress = [] } = useActiveProgress();
+  const { data: activeProgress = [], refetch: refetchActiveProgress } = useActiveProgress();
   const stats = useRepositoryStats();
   const createMutation = useCreateRepository();
   const updateMutation = useUpdateRepository();
@@ -70,6 +73,14 @@ const RepositoriesPage: React.FC = () => {
         return true;
     }
   });
+
+  // Set indeterminate state on select-all checkbox
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      const isIndeterminate = selectedRepos.length > 0 && selectedRepos.length < filteredRepositories.length;
+      selectAllCheckboxRef.current.indeterminate = isIndeterminate;
+    }
+  }, [selectedRepos.length, filteredRepositories.length]);
 
   const handleCreate = useCallback(async (data: CreateRepositoryRequest) => {
     try {
@@ -119,6 +130,8 @@ const RepositoriesPage: React.FC = () => {
     try {
       await crawlMutation.mutateAsync(repository.id);
       toast.success(`Started crawling "${repository.name}"`);
+      // Immediately refresh active progress to show the new crawl
+      refetchActiveProgress();
     } catch (error: any) {
       if (error.status === 409) {
         toast.error(`Repository "${repository.name}" is already being crawled`);
@@ -212,6 +225,8 @@ const RepositoriesPage: React.FC = () => {
           
           if (result.successful > 0) {
             toast.success(`Started crawling ${result.successful} repositories`);
+            // Immediately refresh active progress to show the new crawls
+            refetchActiveProgress();
           }
           if (result.alreadyCrawling > 0) {
             toast.info(`${result.alreadyCrawling} repositories were already being crawled`);
@@ -390,9 +405,9 @@ const RepositoriesPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <input
+                ref={selectAllCheckboxRef}
                 type="checkbox"
                 checked={selectedRepos.length === filteredRepositories.length}
-                indeterminate={selectedRepos.length > 0 && selectedRepos.length < filteredRepositories.length}
                 onChange={(e) => handleSelectAll()}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 id="select-all"
@@ -452,6 +467,7 @@ const RepositoriesPage: React.FC = () => {
               onDelete={handleDelete}
               onCrawl={handleCrawl}
               onToggleEnabled={handleToggleEnabled}
+              activeProgress={activeProgress}
               isLoading={updateMutation.isPending && updateMutation.variables?.id === repository.id}
               isCrawling={isRepositoryCrawling(repository.id)}
             />

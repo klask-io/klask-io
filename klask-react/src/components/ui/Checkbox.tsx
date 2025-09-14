@@ -25,6 +25,15 @@ export const Checkbox: React.FC<CheckboxProps> = ({
   label,
   'aria-label': ariaLabel,
 }) => {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  
+  // Set indeterminate property on the DOM element
+  React.useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.indeterminate = indeterminate;
+    }
+  }, [indeterminate]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!disabled) {
       onChange(e.target.checked);
@@ -77,6 +86,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
     <div className="flex items-center">
       <div className="relative">
         <input
+          ref={inputRef}
           type="checkbox"
           checked={checked}
           onChange={handleChange}

@@ -2,6 +2,7 @@ import React from 'react';
 import { RepositoryCard } from './RepositoryCard';
 import { CheckIcon } from '@heroicons/react/24/outline';
 import type { Repository } from '../../types';
+import type { CrawlProgressInfo } from '../../hooks/useProgress';
 import { clsx } from 'clsx';
 
 interface SelectableRepositoryCardProps {
@@ -12,6 +13,7 @@ interface SelectableRepositoryCardProps {
   onDelete: (repository: Repository) => void;
   onCrawl: (repository: Repository) => void;
   onToggleEnabled: (repository: Repository) => void;
+  activeProgress: CrawlProgressInfo[];
   isLoading?: boolean;
   isCrawling?: boolean;
   className?: string;
@@ -25,6 +27,7 @@ export const SelectableRepositoryCard: React.FC<SelectableRepositoryCardProps> =
   onDelete,
   onCrawl,
   onToggleEnabled,
+  activeProgress,
   isLoading = false,
   isCrawling = false,
   className = '',
@@ -88,6 +91,7 @@ export const SelectableRepositoryCard: React.FC<SelectableRepositoryCardProps> =
           onDelete={onDelete}
           onCrawl={onCrawl}
           onToggleEnabled={onToggleEnabled}
+          activeProgress={activeProgress}
           isLoading={isLoading}
           isCrawling={isCrawling}
           className={clsx(

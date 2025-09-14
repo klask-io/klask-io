@@ -26,6 +26,7 @@ export function useProgress({
   const [activeProgress, setActiveProgress] = useState<CrawlProgressInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [restartCounter, setRestartCounter] = useState(0);
 
   // Fetch progress for a specific repository
   const refreshProgress = useCallback(async () => {
@@ -54,6 +55,11 @@ export function useProgress({
       setError(null);
       const activeProgressData = await api.getActiveProgress();
       setActiveProgress(activeProgressData);
+      
+      // If there are active crawls, restart polling with fast interval
+      if (activeProgressData && activeProgressData.length > 0) {
+        setRestartCounter(prev => prev + 1); // Trigger effect restart
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch active progress';
       setError(errorMessage);
@@ -74,16 +80,19 @@ export function useProgress({
     };
 
     const scheduleNextPoll = () => {
-      // Intelligent polling: fast when crawling, slow when idle
+      // Only poll when the repository is actively crawling
       const isCurrentlyActive = progress && !['completed', 'failed', 'cancelled'].includes(progress.status.toLowerCase());
-      const smartInterval = isCurrentlyActive ? pollingInterval : Math.max(pollingInterval * 5, 10000); // 2s -> 10s when idle
+      
+      if (!isCurrentlyActive) {
+        return; // Stop polling completely when not active
+      }
       
       intervalId = setTimeout(async () => {
         if (!document.hidden) {
           await pollProgress();
         }
         scheduleNextPoll();
-      }, smartInterval);
+      }, pollingInterval);
     };
 
     // Initial fetch
@@ -106,39 +115,60 @@ export function useProgress({
     if (!enabled) return;
 
     let intervalId: NodeJS.Timeout;
+    let isMounted = true;
 
     const pollActiveProgress = async () => {
-      await refreshActiveProgress();
+      if (!isMounted) return;
+      
+      try {
+        setIsLoading(true);
+        setError(null);
+        const activeProgressData = await api.getActiveProgress();
+        
+        if (!isMounted) return;
+        
+        setActiveProgress(activeProgressData);
+        
+        // Schedule next poll based on fresh data
+        scheduleNextPoll(activeProgressData.length > 0);
+      } catch (err) {
+        if (!isMounted) return;
+        
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch active progress';
+        setError(errorMessage);
+        console.error('Error fetching active progress:', err);
+        // Schedule next poll with idle interval on error
+        scheduleNextPoll(false);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     };
 
-    const scheduleNextPoll = () => {
-      // Intelligent polling: fast when crawls are active, slow when idle
-      const hasActiveCrawls = activeProgress.length > 0;
-      const smartInterval = hasActiveCrawls ? pollingInterval : Math.max(pollingInterval * 7.5, 15000); // 2s -> 15s when idle
+    const scheduleNextPoll = (hasActiveCrawls: boolean) => {
+      if (!isMounted) return;
+      
+      // Smart polling: fast when active, slow when idle
+      const interval = hasActiveCrawls ? pollingInterval : 15000; // 2s when active, 15s when idle
       
       intervalId = setTimeout(async () => {
-        // Don't poll when tab is not visible (save resources)
         if (!document.hidden) {
           await pollActiveProgress();
         }
-        scheduleNextPoll(); // Schedule next poll
-      }, smartInterval);
+      }, interval);
     };
 
     // Initial fetch
     pollActiveProgress();
 
-    // Start intelligent polling
-    if (pollingInterval > 0) {
-      scheduleNextPoll();
-    }
-
     return () => {
+      isMounted = false;
       if (intervalId) {
         clearTimeout(intervalId);
       }
     };
-  }, [pollingInterval, enabled, refreshActiveProgress, activeProgress.length]);
+  }, [pollingInterval, enabled, restartCounter]);
 
   return {
     progress,

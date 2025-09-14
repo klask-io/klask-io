@@ -21,8 +21,8 @@ import type { Repository } from '../../types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { CrawlProgressBar } from '../ui/ProgressBar';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { useActiveProgress, useStopCrawl } from '../../hooks/useRepositories';
-import { isRepositoryCrawling, getRepositoryProgressFromActive } from '../../hooks/useProgress';
+import { useStopCrawl } from '../../hooks/useRepositories';
+import { isRepositoryCrawling, getRepositoryProgressFromActive, type CrawlProgressInfo } from '../../hooks/useProgress';
 
 interface RepositoryCardProps {
   repository: Repository;
@@ -31,6 +31,7 @@ interface RepositoryCardProps {
   onCrawl: (repository: Repository) => void;
   onStopCrawl?: (repository: Repository) => void;
   onToggleEnabled: (repository: Repository) => void;
+  activeProgress: CrawlProgressInfo[];
   isLoading?: boolean;
   isCrawling?: boolean;
   className?: string;
@@ -43,13 +44,14 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
   onCrawl,
   onStopCrawl,
   onToggleEnabled,
+  activeProgress,
   isLoading = false,
   isCrawling = false,
   className = '',
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
-  const { data: activeProgress = [] } = useActiveProgress();
+  // activeProgress is now passed as prop to avoid multiple polling instances
   const stopCrawlMutation = useStopCrawl();
   
   // Check if this repository is currently crawling

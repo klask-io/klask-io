@@ -94,7 +94,8 @@ export const useCrawlRepository = () => {
       // Refetch the specific repository to get updated lastCrawled timestamp
       queryClient.invalidateQueries({ queryKey: ['repositories', repositoryId] });
       queryClient.invalidateQueries({ queryKey: ['repositories'] });
-      queryClient.invalidateQueries({ queryKey: ['repositories', 'progress', 'active'] });
+      // Force immediate refetch of active progress to switch polling interval
+      queryClient.refetchQueries({ queryKey: ['repositories', 'progress', 'active'] });
     },
     onError: (error: any) => {
       if (error.status === 409) {
@@ -243,16 +244,18 @@ export const useBulkRepositoryOperations = () => {
 
 import React from 'react';
 import type { CrawlProgressInfo } from '../types';
+import { useActiveProgress as useActiveProgressBase } from '../hooks/useProgress';
 
-// Hook to track active crawl progress
+// Wrapper to match React Query's expected return format
 export const useActiveProgress = () => {
-  return useQuery({
-    queryKey: ['repositories', 'progress', 'active'],
-    queryFn: () => apiClient.getActiveProgress(),
-    refetchInterval: 2000, // Refetch every 2 seconds
-    staleTime: 1000, // Consider data stale after 1 second
-    retry: 2,
-  });
+  const { activeProgress, isLoading, error, refreshActiveProgress } = useActiveProgressBase();
+  
+  return {
+    data: activeProgress,
+    isLoading,
+    error,
+    refetch: refreshActiveProgress,
+  };
 };
 
 // Hook to get progress for a specific repository
