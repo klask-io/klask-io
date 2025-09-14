@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import OptimizedSyntaxHighlighter from '../ui/OptimizedSyntaxHighlighter';
 import {
   DocumentIcon,
   DocumentTextIcon,
@@ -175,9 +174,9 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
         
         return (
           <div className="rounded overflow-hidden" style={{ maxHeight }}>
-            <SyntaxHighlighter
+            <OptimizedSyntaxHighlighter
               language={language}
-              style={vscDarkPlus}
+              style="vscDarkPlus"
               showLineNumbers={showLineNumbers}
               customStyle={{
                 margin: 0,
@@ -187,7 +186,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
               wrapLongLines
             >
               {content || ''}
-            </SyntaxHighlighter>
+            </OptimizedSyntaxHighlighter>
           </div>
         );
 

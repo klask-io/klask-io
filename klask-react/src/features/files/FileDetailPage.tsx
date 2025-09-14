@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneLight, oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import OptimizedSyntaxHighlighter from '../../components/ui/OptimizedSyntaxHighlighter';
 import toast from 'react-hot-toast';
 import { 
   ArrowLeftIcon,
@@ -161,7 +160,7 @@ const FileDetailPage: React.FC = () => {
 
   const { directory, filename } = formatPath(file.path);
   const language = getLanguageFromExtension(file.extension);
-  const syntaxStyle = isDarkTheme ? oneDark : oneLight;
+  const syntaxStyle = isDarkTheme ? 'oneDark' : 'oneLight';
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -292,7 +291,7 @@ const FileDetailPage: React.FC = () => {
         <div className="relative">
           {file.content ? (
             <div className="overflow-auto">
-              <SyntaxHighlighter
+              <OptimizedSyntaxHighlighter
                 language={language}
                 style={syntaxStyle}
                 customStyle={{
@@ -313,7 +312,7 @@ const FileDetailPage: React.FC = () => {
                 }}
               >
                 {file.content}
-              </SyntaxHighlighter>
+              </OptimizedSyntaxHighlighter>
             </div>
           ) : (
             <div className="flex items-center justify-center py-12">
