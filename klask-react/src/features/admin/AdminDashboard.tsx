@@ -20,7 +20,7 @@ const AdminDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <p className="text-red-600">Error loading dashboard: {error}</p>
+          <p className="text-red-600">Error loading dashboard: {error instanceof Error ? error.message : String(error)}</p>
         </div>
       </div>
     );

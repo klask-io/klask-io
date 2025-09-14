@@ -25,6 +25,7 @@ const UserManagement = React.lazy(() => import('./features/admin/UserManagement'
 const LoginPage = React.lazy(() => import('./features/auth/LoginPage'));
 const RegisterPage = React.lazy(() => import('./features/auth/RegisterPage'));
 const ProfilePage = React.lazy(() => import('./features/auth/ProfilePage'));
+const SyntaxHighlighterTest = React.lazy(() => import('./components/test/SyntaxHighlighterTest'));
 
 // Initialize auth on app start
 initializeAuth();
@@ -142,6 +143,16 @@ function App() {
                 element={
                   <Suspense fallback={<LoadingSpinner />}>
                     <ProfilePage />
+                  </Suspense>
+                } 
+              />
+              
+              {/* Test route for syntax highlighter */}
+              <Route 
+                path="test/syntax-highlighter" 
+                element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <SyntaxHighlighterTest />
                   </Suspense>
                 } 
               />

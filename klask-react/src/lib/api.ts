@@ -334,6 +334,18 @@ class ApiClient {
     return this.request<{ status: string }>('/health');
   }
 
+  // Generic HTTP methods for hooks
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint);
+  }
+
+  async post<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
 }
 
 // Create and export the API client instance
@@ -376,6 +388,10 @@ export const api = {
 
   // Health
   health: () => apiClient.health(),
+
+  // Generic methods
+  get: <T>(endpoint: string) => apiClient.get<T>(endpoint),
+  post: <T>(endpoint: string, data?: any) => apiClient.post<T>(endpoint, data),
 
   // User Management
   getUsers: () => apiClient.getUsers(),

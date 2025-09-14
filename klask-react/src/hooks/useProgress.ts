@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
 import type { CrawlProgressInfo } from '../types';
 
+// Re-export CrawlProgressInfo for components
+export type { CrawlProgressInfo } from '../types';
+
 export interface UseProgressOptions {
   repositoryId?: string;
   pollingInterval?: number; // ms, default 1000 (1 second)

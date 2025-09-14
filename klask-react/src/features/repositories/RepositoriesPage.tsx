@@ -229,7 +229,7 @@ const RepositoriesPage: React.FC = () => {
             refetchActiveProgress();
           }
           if (result.alreadyCrawling > 0) {
-            toast.info(`${result.alreadyCrawling} repositories were already being crawled`);
+            toast(`${result.alreadyCrawling} repositories were already being crawled`);
           }
           if (result.failed > 0) {
             toast.error(`Failed to crawl ${result.failed} repositories`);

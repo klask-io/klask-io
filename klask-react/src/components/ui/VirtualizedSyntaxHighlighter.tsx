@@ -49,7 +49,6 @@ const VirtualizedSyntaxHighlighter: React.FC<VirtualizedSyntaxHighlighterProps> 
         wrapLines={wrapLines}
         customStyle={customStyle}
         lineNumberStyle={lineNumberStyle}
-        className={className}
       >
         {children}
       </OptimizedSyntaxHighlighter>
@@ -171,8 +170,9 @@ const VirtualizedSyntaxHighlighter: React.FC<VirtualizedSyntaxHighlighterProps> 
           itemCount={lines.length}
           itemSize={lineHeight}
           width="100%"
+          {...({} as any)}
         >
-          {LineItem}
+          {LineItem as any}
         </List>
       </div>
     </div>

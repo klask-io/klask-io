@@ -27,13 +27,13 @@ const repositorySchema = z.object({
   gitlabNamespace: z
     .string()
     .optional(),
-  isGroup: z.boolean().optional().default(false),
-  enabled: z.boolean().optional().default(true),
+  isGroup: z.boolean().default(false),
+  enabled: z.boolean().default(true),
   // Scheduling fields
-  autoCrawlEnabled: z.boolean().optional().default(false),
+  autoCrawlEnabled: z.boolean().default(false),
   cronSchedule: z.string().optional(),
   crawlFrequencyHours: z.number().optional(),
-  maxCrawlDurationMinutes: z.number().optional().default(60),
+  maxCrawlDurationMinutes: z.number().default(60),
 }).refine((data) => {
   // For Git and GitLab, validate as URL
   if (data.repositoryType === 'Git' || data.repositoryType === 'GitLab') {
@@ -91,7 +91,7 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
     reset,
     formState: { errors, isValid },
   } = useForm<RepositoryFormData>({
-    resolver: zodResolver(repositorySchema),
+    resolver: zodResolver(repositorySchema) as any,
     defaultValues: repository ? {
       name: repository.name,
       url: repository.url,
@@ -215,7 +215,7 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(handleFormSubmit as any)} className="space-y-6">
             {/* Repository Name */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -380,7 +380,7 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
                 cronSchedule={schedulingData.cronSchedule}
                 crawlFrequencyHours={schedulingData.crawlFrequencyHours}
                 maxCrawlDurationMinutes={schedulingData.maxCrawlDurationMinutes}
-                onScheduleChange={setSchedulingData}
+                onScheduleChange={setSchedulingData as any}
               />
             </div>
 

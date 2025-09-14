@@ -51,7 +51,7 @@ export const SearchResult: React.FC<SearchResultProps> = ({
     return { directory, filename };
   };
 
-  const { directory, filename } = formatPath(result.path);
+  const { directory, filename } = formatPath(result.file_path);
 
   return (
     <div 

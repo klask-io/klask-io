@@ -38,15 +38,11 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
   const [copySuccess, setCopySuccess] = useState(false);
 
   // Fetch file data if not provided
-  const { data: fetchedFile, isLoading: fileLoading, error: fileError } = useFile(fileId || '', {
-    enabled: !!fileId && !providedFile,
-  });
+  const { data: fetchedFile, isLoading: fileLoading, error: fileError } = useFile(fileId || '');
 
   // Fetch file content
   const file = providedFile || fetchedFile;
-  const { data: content, isLoading: contentLoading, error: contentError } = useFileContent(file?.id || '', {
-    enabled: !!file?.id,
-  });
+  const { data: content, isLoading: contentLoading, error: contentError } = useFileContent(file?.id || '');
 
   const isLoading = fileLoading || contentLoading;
   const error = fileError || contentError;
@@ -199,7 +195,8 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
               className="max-w-full max-h-96 mx-auto rounded shadow"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling.style.display = 'block';
+                const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
+                if (nextSibling) nextSibling.style.display = 'block';
               }}
             />
             <div className="hidden text-slate-500">
@@ -217,7 +214,8 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
               className="max-w-full max-h-96 mx-auto rounded shadow"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling.style.display = 'block';
+                const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
+                if (nextSibling) nextSibling.style.display = 'block';
               }}
             >
               <source src={`/api/files/${file.id}/content`} />

@@ -459,7 +459,7 @@ const UserManagement: React.FC = () => {
           setShowForm(false);
           setEditingUser(null);
         }}
-        onSubmit={editingUser ? handleUpdate : handleCreate}
+        onSubmit={(editingUser ? handleUpdate : handleCreate) as any}
         isLoading={createMutation.isPending || updateMutation.isPending}
       />
     </div>

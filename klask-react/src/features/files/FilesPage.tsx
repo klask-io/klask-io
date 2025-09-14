@@ -201,7 +201,7 @@ const FilesPage: React.FC = () => {
         {!isLoading && results.length > 0 && (
           <div className="divide-y divide-slate-200">
             {results.map((result: SearchResultType) => (
-              <div key={result.id} className="px-6 py-4 hover:bg-slate-50">
+              <div key={result.file_id} className="px-6 py-4 hover:bg-slate-50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
                     <DocumentIcon className="h-5 w-5 text-slate-400 flex-shrink-0" />
@@ -209,10 +209,10 @@ const FilesPage: React.FC = () => {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center space-x-2">
                         <Link
-                          to={`/files/${result.id}`}
+                          to={`/files/${result.file_id}`}
                           className="font-medium text-blue-600 hover:text-blue-800 truncate"
                         >
-                          {result.name}
+                          {result.file_name}
                         </Link>
                         {result.extension && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">
@@ -224,7 +224,7 @@ const FilesPage: React.FC = () => {
                       <div className="mt-1 flex items-center space-x-4 text-sm text-slate-500">
                         <div className="flex items-center">
                           <FolderIcon className="h-4 w-4 mr-1" />
-                          {result.path}
+                          {result.file_path}
                         </div>
                         <div>
                           Project: {result.project}
