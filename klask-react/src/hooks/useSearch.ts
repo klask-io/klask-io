@@ -116,12 +116,14 @@ export const useAdvancedSearch = (
   }, [infiniteQuery.data]);
 
   const totalResults = infiniteQuery.data?.pages[0]?.total ?? 0;
+  const facets = infiniteQuery.data?.pages[0]?.facets ?? undefined;
   const hasNextPage = infiniteQuery.hasNextPage;
   const isFetchingNextPage = infiniteQuery.isFetchingNextPage;
 
   return {
     results,
     totalResults,
+    facets,
     isLoading: infiniteQuery.isLoading,
     isFetching: infiniteQuery.isFetching,
     isError: infiniteQuery.isError,

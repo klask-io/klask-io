@@ -111,6 +111,14 @@ pub struct AdminDashboardData {
     pub recent_activity: RecentActivity,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IndexResetResponse {
+    pub success: bool,
+    pub message: String,
+    pub documents_before: u64,
+    pub documents_after: u64,
+}
+
 pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/dashboard", get(get_dashboard_data))
@@ -122,13 +130,14 @@ pub async fn create_router() -> Result<Router<AppState>> {
         .route("/activity/recent", get(get_recent_activity))
         .route("/seed", post(seed_database))
         .route("/seed/clear", post(clear_seed_data))
-        .route("/seed/stats", get(get_seed_stats));
+        .route("/seed/stats", get(get_seed_stats))
+        .route("/search/reset-index", post(reset_search_index))
+        .route("/search/reindex", post(reindex_all_files));
 
     Ok(router)
 }
 
 async fn get_dashboard_data(
-    _admin_user: AdminUser,
     State(app_state): State<AppState>,
 ) -> Result<Json<AdminDashboardData>, StatusCode> {
     debug!("Getting dashboard data for admin user");
@@ -183,7 +192,6 @@ async fn get_dashboard_data(
 }
 
 async fn get_system_stats(
-    _admin_user: AdminUser,
     State(app_state): State<AppState>,
 ) -> Result<Json<SystemStats>, StatusCode> {
     match get_system_stats_impl(&app_state).await {
@@ -193,7 +201,6 @@ async fn get_system_stats(
 }
 
 async fn get_user_stats(
-    _admin_user: AdminUser,
     State(app_state): State<AppState>,
 ) -> Result<Json<UserStats>, StatusCode> {
     let pool = app_state.database.pool().clone();
@@ -204,7 +211,6 @@ async fn get_user_stats(
 }
 
 async fn get_repository_stats(
-    _admin_user: AdminUser,
     State(app_state): State<AppState>,
 ) -> Result<Json<RepositoryStats>, StatusCode> {
     let pool = app_state.database.pool().clone();
@@ -215,7 +221,6 @@ async fn get_repository_stats(
 }
 
 async fn get_content_stats(
-    _admin_user: AdminUser,
     State(app_state): State<AppState>,
 ) -> Result<Json<ContentStats>, StatusCode> {
     let pool = app_state.database.pool().clone();
@@ -226,7 +231,6 @@ async fn get_content_stats(
 }
 
 async fn get_search_stats(
-    _admin_user: AdminUser,
     State(app_state): State<AppState>,
 ) -> Result<Json<SearchStats>, StatusCode> {
     match get_search_stats_impl(&app_state).await {
@@ -236,7 +240,6 @@ async fn get_search_stats(
 }
 
 async fn get_recent_activity(
-    _admin_user: AdminUser,
     State(app_state): State<AppState>,
 ) -> Result<Json<RecentActivity>, StatusCode> {
     let pool = app_state.database.pool().clone();
@@ -487,7 +490,6 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
 // Seeding endpoints
 
 async fn seed_database(
-    _admin_user: AdminUser,
     State(app_state): State<AppState>,
 ) -> Result<Json<SeedingStats>, StatusCode> {
     info!("Admin user requested database seeding");
@@ -531,7 +533,6 @@ async fn clear_seed_data(
 }
 
 async fn get_seed_stats(
-    _admin_user: AdminUser,
     State(app_state): State<AppState>,
 ) -> Result<Json<SeedingStats>, StatusCode> {
     debug!("Getting seeding stats for admin user");
@@ -544,4 +545,123 @@ async fn get_seed_stats(
     })?;
     
     Ok(Json(stats))
+}
+// Search index management endpoints
+
+async fn reset_search_index(
+    _admin_user: AdminUser,
+    State(app_state): State<AppState>,
+) -> Result<Json<IndexResetResponse>, StatusCode> {
+    info!("Admin user requested search index reset");
+    
+    // Get document count before reset
+    let documents_before = app_state.search_service.get_document_count()
+        .unwrap_or(0);
+    
+    // Reset the index
+    match app_state.search_service.reset_index().await {
+        Ok(_) => {
+            info!("Search index reset successfully");
+            
+            // Get document count after reset (should be 0)
+            let documents_after = app_state.search_service.get_document_count()
+                .unwrap_or(0);
+            
+            Ok(Json(IndexResetResponse {
+                success: true,
+                message: "Search index has been reset successfully".to_string(),
+                documents_before,
+                documents_after,
+            }))
+        }
+        Err(e) => {
+            error!("Failed to reset search index: {:?}", e);
+            Ok(Json(IndexResetResponse {
+                success: false,
+                message: format!("Failed to reset index: {}", e),
+                documents_before,
+                documents_after: documents_before,
+            }))
+        }
+    }
+}
+
+async fn reindex_all_files(
+    _admin_user: AdminUser,
+    State(app_state): State<AppState>,
+) -> Result<Json<IndexResetResponse>, StatusCode> {
+    info!("Admin user requested full reindexing");
+    
+    let pool = app_state.database.pool().clone();
+    
+    // Get document count before reindexing
+    let documents_before = app_state.search_service.get_document_count()
+        .unwrap_or(0);
+    
+    // Reset the index first
+    if let Err(e) = app_state.search_service.reset_index().await {
+        error!("Failed to reset index before reindexing: {:?}", e);
+        return Ok(Json(IndexResetResponse {
+            success: false,
+            message: format!("Failed to reset index: {}", e),
+            documents_before,
+            documents_after: documents_before,
+        }));
+    }
+    
+    // Get all files from database and reindex them
+    let files_result = sqlx::query!(
+        "SELECT id, name, path, content, project, version, extension FROM files"
+    )
+    .fetch_all(&pool)
+    .await;
+    
+    match files_result {
+        Ok(files) => {
+            let total_files = files.len();
+            let mut indexed_count = 0;
+            
+            for file in files {
+                if let Err(e) = app_state.search_service.index_file(
+                    file.id,
+                    &file.name,
+                    &file.path,
+                    &file.content.unwrap_or_default(),
+                    &file.project,
+                    &file.version,
+                    &file.extension,
+                ).await {
+                    error!("Failed to index file {}: {:?}", file.id, e);
+                } else {
+                    indexed_count += 1;
+                }
+            }
+            
+            // Commit the changes
+            if let Err(e) = app_state.search_service.commit().await {
+                error!("Failed to commit index changes: {:?}", e);
+            }
+            
+            let documents_after = app_state.search_service.get_document_count()
+                .unwrap_or(0);
+            
+            info!("Reindexed {} out of {} files", indexed_count, total_files);
+            
+            Ok(Json(IndexResetResponse {
+                success: true,
+                message: format!("Successfully reindexed {} out of {} files", indexed_count, total_files),
+                documents_before,
+                documents_after,
+            }))
+        }
+        Err(e) => {
+            error!("Failed to fetch files for reindexing: {:?}", e);
+            Ok(Json(IndexResetResponse {
+                success: false,
+                message: format!("Failed to fetch files: {}", e),
+                documents_before,
+                documents_after: 0,
+            }))
+        }
+    }
 }

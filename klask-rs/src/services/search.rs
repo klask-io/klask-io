@@ -1,16 +1,17 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use tantivy::collector::TopDocs;
-use tantivy::query::QueryParser;
+use tantivy::query::{QueryParser, BooleanQuery, TermQuery};
 use tantivy::schema::{Schema, Field, FAST, STORED, TEXT, Value};
 use tantivy::snippet::{Snippet, SnippetGenerator};
-use tantivy::{doc, DocAddress, Index, IndexReader, IndexWriter};
+use tantivy::{doc, DocAddress, Index, IndexReader, IndexWriter, Term};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use tracing::{debug, error, info, warn};
+use tracing::{debug, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
@@ -30,6 +31,14 @@ pub struct SearchResult {
 pub struct SearchResultsWithTotal {
     pub results: Vec<SearchResult>,
     pub total: u64,
+    pub facets: Option<SearchFacets>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchFacets {
+    pub projects: HashMap<String, u64>,
+    pub versions: HashMap<String, u64>,
+    pub extensions: HashMap<String, u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -190,6 +199,29 @@ impl SearchService {
         Ok(())
     }
 
+    /// Reset the entire search index (delete all documents)
+    pub async fn reset_index(&self) -> Result<()> {
+        // Delete the index directory and recreate it
+        if self.index_dir.exists() {
+            std::fs::remove_dir_all(&self.index_dir)?;
+        }
+        std::fs::create_dir_all(&self.index_dir)?;
+        
+        // Recreate the index
+        let _new_index = Index::create_in_dir(&self.index_dir, self.schema.clone())?;
+        
+        // Note: We can't replace self.index directly since it's not mutable
+        // Instead, we'll delete all documents from the existing index
+        let mut writer = self.writer.write().await;
+        writer.delete_all_documents()?;
+        writer.commit()?;
+        
+        // Reload the reader to see the changes
+        self.reader.reload()?;
+        
+        Ok(())
+    }
+
     pub async fn search(&self, search_query: SearchQuery) -> Result<SearchResultsWithTotal> {
         let searcher = self.reader.searcher();
         
@@ -201,16 +233,45 @@ impl SearchService {
         ]);
 
         // Parse the main query
-        let query = query_parser.parse_query(&search_query.query)
+        let mut base_query = query_parser.parse_query(&search_query.query)
             .map_err(|e| anyhow!("Failed to parse query '{}': {}", search_query.query, e))?;
 
+        // Build filter queries if filters are provided
+        let mut filter_queries = Vec::new();
+        
+        if let Some(project_filter) = &search_query.project_filter {
+            let term = Term::from_field_text(self.fields.project, project_filter);
+            filter_queries.push(Box::new(TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic)) as Box<dyn tantivy::query::Query>);
+        }
+        
+        if let Some(version_filter) = &search_query.version_filter {
+            let term = Term::from_field_text(self.fields.version, version_filter);
+            filter_queries.push(Box::new(TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic)) as Box<dyn tantivy::query::Query>);
+        }
+        
+        if let Some(extension_filter) = &search_query.extension_filter {
+            let term = Term::from_field_text(self.fields.extension, extension_filter);
+            filter_queries.push(Box::new(TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic)) as Box<dyn tantivy::query::Query>);
+        }
+
+        // Combine base query with filters using BooleanQuery if we have filters
+        let final_query: Box<dyn tantivy::query::Query> = if !filter_queries.is_empty() {
+            let mut clauses = vec![(tantivy::query::Occur::Must, base_query)];
+            for filter in filter_queries {
+                clauses.push((tantivy::query::Occur::Must, filter));
+            }
+            Box::new(BooleanQuery::new(clauses))
+        } else {
+            base_query
+        };
+
         // First, get total count without limit/offset
-        let total_count = searcher.search(&query, &TopDocs::with_limit(1000000))?;
+        let total_count = searcher.search(&final_query, &TopDocs::with_limit(1000000))?;
         let total = total_count.len() as u64;
 
         // Execute search with pagination
         let top_docs = searcher.search(
-            &query, 
+            &final_query, 
             &TopDocs::with_limit(search_query.limit).and_offset(search_query.offset)
         )?;
 
@@ -257,24 +318,7 @@ impl SearchService {
                 .unwrap_or("")
                 .to_string();
 
-            // Apply filters
-            if let Some(project_filter) = &search_query.project_filter {
-                if project != *project_filter {
-                    continue;
-                }
-            }
-            
-            if let Some(version_filter) = &search_query.version_filter {
-                if version != *version_filter {
-                    continue;
-                }
-            }
-            
-            if let Some(extension_filter) = &search_query.extension_filter {
-                if extension != *extension_filter {
-                    continue;
-                }
-            }
+            // No need for post-query filtering anymore since we're using query-time filters
 
             // Generate content snippet and extract line number
             let (content_snippet, line_number) = self.generate_snippet_with_line_number(&search_query.query, &retrieved_doc)?;
@@ -296,9 +340,19 @@ impl SearchService {
             });
         }
 
+        // Collect facets if this is the initial query (no filters applied)
+        let facets = if search_query.project_filter.is_none() 
+            && search_query.version_filter.is_none() 
+            && search_query.extension_filter.is_none() {
+            Some(self.collect_facets(&search_query.query).await?)
+        } else {
+            None
+        };
+
         Ok(SearchResultsWithTotal {
             results,
             total,
+            facets,
         })
     }
 
@@ -615,6 +669,64 @@ impl SearchService {
                 0.0
             }
         }
+    }
+
+    /// Collect facets from the search index for filtering
+    async fn collect_facets(&self, query: &str) -> Result<SearchFacets> {
+        let searcher = self.reader.searcher();
+        
+        // Build query parser for content search
+        let query_parser = QueryParser::for_index(&self.index, vec![
+            self.fields.content,
+            self.fields.file_name,
+            self.fields.file_path,
+        ]);
+
+        // Parse the query to get matching documents
+        let parsed_query = query_parser.parse_query(query)
+            .map_err(|e| anyhow!("Failed to parse query '{}': {}", query, e))?;
+        
+        // Get matching documents (up to 10000 for facet collection)
+        let top_docs = searcher.search(&parsed_query, &TopDocs::with_limit(10000))?;
+        
+        let mut projects = HashMap::new();
+        let mut versions = HashMap::new();
+        let mut extensions = HashMap::new();
+        
+        // Collect facet values from matching documents
+        for (_score, doc_address) in top_docs {
+            let retrieved_doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
+            
+            if let Some(project) = retrieved_doc
+                .get_first(self.fields.project)
+                .and_then(|v| v.as_str()) {
+                if !project.is_empty() {
+                    *projects.entry(project.to_string()).or_insert(0) += 1;
+                }
+            }
+            
+            if let Some(version) = retrieved_doc
+                .get_first(self.fields.version)
+                .and_then(|v| v.as_str()) {
+                if !version.is_empty() {
+                    *versions.entry(version.to_string()).or_insert(0) += 1;
+                }
+            }
+            
+            if let Some(extension) = retrieved_doc
+                .get_first(self.fields.extension)
+                .and_then(|v| v.as_str()) {
+                if !extension.is_empty() {
+                    *extensions.entry(extension.to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+        
+        Ok(SearchFacets {
+            projects,
+            versions,
+            extensions,
+        })
     }
 }
 

@@ -80,12 +80,24 @@ export interface SearchResult {
   line_number?: number;
 }
 
+export interface FacetValue {
+  value: string;
+  count: number;
+}
+
+export interface SearchFacets {
+  projects: FacetValue[];
+  versions: FacetValue[];
+  extensions: FacetValue[];
+}
+
 export interface SearchResponse {
   results: SearchResult[];
   total: number;
   took?: number;
   page?: number;
   size?: number;
+  facets?: SearchFacets;
 }
 
 // Filter Types - Simple strings for now

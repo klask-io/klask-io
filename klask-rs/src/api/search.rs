@@ -29,6 +29,20 @@ pub struct SearchResponse {
     pub total: u64,
     pub page: u32,
     pub limit: u32,
+    pub facets: Option<SearchFacets>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchFacets {
+    pub projects: Vec<FacetValue>,
+    pub versions: Vec<FacetValue>,
+    pub extensions: Vec<FacetValue>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FacetValue {
+    pub value: String,
+    pub count: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -96,11 +110,27 @@ async fn search_files(
                 })
                 .collect();
             
+            // Convert facets to API format if present
+            let facets = search_response.facets.map(|service_facets| {
+                SearchFacets {
+                    projects: service_facets.projects.into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                    versions: service_facets.versions.into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                    extensions: service_facets.extensions.into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                }
+            });
+            
             let response = SearchResponse {
                 total: search_response.total,
                 results,
                 page,
                 limit,
+                facets,
             };
             
             Ok(Json(response))
@@ -114,37 +144,51 @@ async fn search_files(
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchFilters {
-    pub projects: Vec<String>,
-    pub versions: Vec<String>,
-    pub extensions: Vec<String>,
+    pub projects: Vec<FacetValue>,
+    pub versions: Vec<FacetValue>,
+    pub extensions: Vec<FacetValue>,
 }
 
 async fn get_search_filters(
-    _state: State<AppState>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<SearchFilters>, StatusCode> {
-    // For now, return static filters based on typical usage
-    // In a real implementation, this would query the search index or database
-    // to get actual available filters from indexed files
-    let filters = SearchFilters {
-        projects: vec![
-            "test".to_string(),
-        ],
-        versions: vec![
-            "HEAD".to_string(),
-        ],
-        extensions: vec![
-            "rs".to_string(),
-            "py".to_string(),
-            "js".to_string(),
-            "ts".to_string(),
-            "md".to_string(),
-            "txt".to_string(),
-            "json".to_string(),
-            "toml".to_string(),
-            "yaml".to_string(),
-            "yml".to_string(),
-        ],
+    // Get all facets by performing an empty search
+    let search_query = SearchQuery {
+        query: "*".to_string(), // Match all documents
+        project_filter: None,
+        version_filter: None,
+        extension_filter: None,
+        limit: 0, // We only need facets, not results
+        offset: 0,
     };
     
-    Ok(Json(filters))
+    match app_state.search_service.search(search_query).await {
+        Ok(search_response) => {
+            if let Some(facets) = search_response.facets {
+                let filters = SearchFilters {
+                    projects: facets.projects.into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                    versions: facets.versions.into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                    extensions: facets.extensions.into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                };
+                Ok(Json(filters))
+            } else {
+                // No facets available, return empty filters
+                Ok(Json(SearchFilters {
+                    projects: vec![],
+                    versions: vec![],
+                    extensions: vec![],
+                }))
+            }
+        }
+        Err(e) => {
+            tracing::error!("Failed to get search filters: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }

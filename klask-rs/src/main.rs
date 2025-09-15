@@ -10,7 +10,7 @@ use anyhow::Result;
 use axum::{routing::get, Router};
 use config::AppConfig;
 use database::Database;
-use services::{SearchService, crawler::CrawlerService, progress::ProgressTracker};
+use services::{SearchService, crawler::CrawlerService, progress::ProgressTracker, scheduler::SchedulerService};
 use auth::{extractors::AppState, jwt::JwtService};
 use tower_http::cors::CorsLayer;
 use std::sync::Arc;
@@ -96,13 +96,32 @@ async fn main() -> Result<()> {
         }
     };
 
+    // Initialize scheduler service
+    let crawler_service_arc = Arc::new(crawler_service);
+    let scheduler_service = match SchedulerService::new(database.pool().clone(), crawler_service_arc.clone()).await {
+        Ok(service) => {
+            info!("Scheduler service initialized successfully");
+            // Start the scheduler
+            if let Err(e) = service.start().await {
+                error!("Failed to start scheduler service: {}", e);
+            } else {
+                info!("Scheduler service started successfully");
+            }
+            service
+        }
+        Err(e) => {
+            error!("Failed to initialize scheduler service: {}", e);
+            return Err(e);
+        }
+    };
+
     // Create application state
     let app_state = AppState {
         database,
         search_service: search_service_arc,
-        crawler_service: Arc::new(crawler_service),
+        crawler_service: crawler_service_arc,
         progress_tracker,
-        scheduler_service: None, // Not implemented yet
+        scheduler_service: Some(Arc::new(scheduler_service)),
         jwt_service,
         config: config.clone(),
         crawl_tasks: Arc::new(RwLock::new(HashMap::new())),

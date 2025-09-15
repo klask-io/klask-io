@@ -76,13 +76,24 @@ export const SearchResult: React.FC<SearchResultProps> = ({
           </div>
           
           {/* Right side: Badges */}
-          <div className="flex items-center space-x-2 flex-shrink-0">
-            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded">
-              {result.extension || 'N/A'}
-            </span>
-            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-50 text-green-700 rounded">
-              {((result.score || 0) * 100).toFixed(0)}%
-            </span>
+          <div className="flex flex-col items-end space-y-2">
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded">
+                {result.extension || 'N/A'}
+              </span>
+              <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-50 text-green-700 rounded">
+                {((result.score || 0) * 100).toFixed(0)}%
+              </span>
+            </div>
+            {/* View File button moved here */}
+            <button
+              onClick={() => onFileClick(result)}
+              className="inline-flex items-center space-x-1 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+            >
+              <EyeIcon className="h-3 w-3" />
+              <span>View File</span>
+              <ArrowTopRightOnSquareIcon className="h-3 w-3" />
+            </button>
           </div>
         </div>
         
@@ -112,17 +123,6 @@ export const SearchResult: React.FC<SearchResultProps> = ({
       {/* Code Preview */}
       <div className="p-4">
         <div className="relative">
-          <div className="absolute top-2 right-2 z-10">
-            <button
-              onClick={() => onFileClick(result)}
-              className="inline-flex items-center space-x-1 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
-            >
-              <EyeIcon className="h-3 w-3" />
-              <span>View File</span>
-              <ArrowTopRightOnSquareIcon className="h-3 w-3" />
-            </button>
-          </div>
-          
           <div className="overflow-hidden rounded border border-gray-200">
             <div 
               className="p-3 bg-gray-50 text-sm font-mono overflow-auto"

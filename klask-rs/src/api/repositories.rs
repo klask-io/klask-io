@@ -331,10 +331,37 @@ async fn delete_repository(
     
     // Check if repository exists
     match repo_repository.get_repository(id).await {
-        Ok(Some(_)) => {
-            // Repository exists, delete it
+        Ok(Some(repository)) => {
+            // Get all files for this repository from database before deletion
+            let pool = app_state.database.pool().clone();
+            let files_result = sqlx::query!(
+                "SELECT id FROM files WHERE repository_id = $1",
+                id
+            )
+            .fetch_all(&pool)
+            .await;
+            
+            // Delete the repository from database (this will cascade delete files)
             match repo_repository.delete_repository(id).await {
-                Ok(_) => Ok(StatusCode::NO_CONTENT),
+                Ok(_) => {
+                    // Clean up search index for all files from this repository
+                    if let Ok(files) = files_result {
+                        for file in files {
+                            // Delete from search index
+                            if let Err(e) = app_state.search_service.delete_file(file.id).await {
+                                tracing::error!("Failed to delete file {} from search index: {}", file.id, e);
+                            }
+                        }
+                        
+                        // Commit the search index changes
+                        if let Err(e) = app_state.search_service.commit().await {
+                            tracing::error!("Failed to commit search index changes after repository deletion: {}", e);
+                        }
+                    }
+                    
+                    tracing::info!("Repository {} and its indexed documents deleted successfully", repository.name);
+                    Ok(StatusCode::NO_CONTENT)
+                },
                 Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
             }
         },
