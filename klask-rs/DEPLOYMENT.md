@@ -254,7 +254,7 @@ For development, use the existing development setup:
 
 ```bash
 # Use development compose file
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose -f docker-compose.yml up -d
 
 # Run services locally
 npm run dev  # Frontend

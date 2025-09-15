@@ -116,7 +116,7 @@ else
 fi
 
 echo -e "${YELLOW}Starting Rust backend...${NC}"
-cargo run &
+cargo run --bin klask-rs &
 BACKEND_PID=$!
 cd ..
 
@@ -129,11 +129,11 @@ if ! port_available 5173; then
     exit 1
 fi
 
-# Check if .env.local exists
-if [ ! -f "klask-react/.env.local" ]; then
-    echo -e "${YELLOW}Creating .env.local file...${NC}"
-    cp klask-react/.env.example klask-react/.env.local
-    echo -e "${GREEN}✓ Created .env.local file${NC}"
+# Check if .env exists
+if [ ! -f "klask-react/.env" ]; then
+    echo -e "${YELLOW}Creating .env file...${NC}"
+    cp klask-react/.env.example klask-react/.env
+    echo -e "${GREEN}✓ Created .env file${NC}"
 fi
 
 echo -e "${YELLOW}Installing Node.js dependencies...${NC}"
@@ -155,8 +155,8 @@ cd ..
 echo -e "\n${GREEN}🎉 Development Environment Started!${NC}"
 echo "========================================"
 echo -e "${BLUE}Frontend:${NC} http://localhost:5173"
-echo -e "${BLUE}Backend:${NC}  http://localhost:8080"
-echo -e "${BLUE}API Health:${NC} http://localhost:8080/health"
+echo -e "${BLUE}Backend:${NC}  http://localhost:3000"
+echo -e "${BLUE}API Health:${NC} http://localhost:3000/health"
 echo ""
 echo -e "${YELLOW}Test Authentication:${NC}"
 echo "1. Go to http://localhost:5173/register"

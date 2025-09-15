@@ -128,7 +128,7 @@ DATABASE_URL=postgresql://klask_user:klask_password@localhost/klask_dev
 
 # Server
 HOST=127.0.0.1
-PORT=8080
+PORT=3000
 
 # JWT
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
@@ -141,9 +141,9 @@ SEARCH_INDEX_PATH=./search_index
 TEMP_DIR=./temp_crawl
 ```
 
-### Frontend (.env.local)
+### Frontend (.env)
 ```env
-VITE_API_BASE_URL=http://localhost:8080
+VITE_API_BASE_URL=http://localhost:3000
 ```
 
 ## Development Workflow

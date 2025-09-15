@@ -22,7 +22,7 @@ This script will:
 1. **Start Database**:
    ```bash
    cd klask-rs
-   docker-compose -f docker-compose.dev.yml up -d
+   docker-compose -f docker-compose.yml up -d
    ```
 
 2. **Start Backend**:
@@ -35,7 +35,7 @@ This script will:
 3. **Start Frontend** (new terminal):
    ```bash
    cd klask-react
-   cp .env.example .env.local
+   cp .env.example .env
    npm install
    npm run dev
    ```
@@ -161,7 +161,7 @@ sqlx migrate run
 
 **API Connection Failed**:
 1. Check backend is running on port 8080
-2. Verify VITE_API_BASE_URL in `.env.local`
+2. Verify VITE_API_BASE_URL in `.env`
 3. Check CORS settings in backend
 
 **TypeScript Errors**:
