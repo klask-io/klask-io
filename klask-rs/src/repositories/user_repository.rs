@@ -137,6 +137,13 @@ impl UserRepository {
         Ok(())
     }
 
+    pub async fn count_users(&self) -> Result<i64> {
+        let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(count)
+    }
+
     pub async fn get_user_stats(&self) -> Result<UserStats> {
         let total_users = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
             .fetch_one(&self.pool)

@@ -25,6 +25,8 @@ const UserManagement = React.lazy(() => import('./features/admin/UserManagement'
 const LoginPage = React.lazy(() => import('./features/auth/LoginPage'));
 const RegisterPage = React.lazy(() => import('./features/auth/RegisterPage'));
 const ProfilePage = React.lazy(() => import('./features/auth/ProfilePage'));
+const SetupPage = React.lazy(() => import('./features/auth/SetupPage'));
+const SetupRedirect = React.lazy(() => import('./components/setup/SetupRedirect'));
 const SyntaxHighlighterTest = React.lazy(() => import('./components/test/SyntaxHighlighterTest'));
 
 // Initialize auth on app start
@@ -63,6 +65,14 @@ function App() {
           <Routes>
             {/* Public routes */}
             <Route 
+              path="/setup" 
+              element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <SetupPage />
+                </Suspense>
+              } 
+            />
+            <Route 
               path="/login" 
               element={
                 <Suspense fallback={<LoadingSpinner />}>
@@ -88,8 +98,12 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              {/* Default redirect to search */}
-              <Route index element={<Navigate to="/search" replace />} />
+              {/* Default route - setup check and redirect */}
+              <Route index element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <SetupRedirect />
+                </Suspense>
+              } />
               
               {/* Search routes */}
               <Route 

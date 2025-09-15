@@ -30,37 +30,42 @@ pub enum AuthError {
     EmailExists,
     #[error("Database error: {0}")]
     DatabaseError(String),
+    #[error("Forbidden: {0}")]
+    Forbidden(String),
 }
 
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
-        let (status, error_message) = match self {
+        let (status, error_message) = match &self {
             AuthError::MissingAuthHeader | AuthError::InvalidAuthHeader => {
-                (StatusCode::UNAUTHORIZED, "Missing or invalid authorization header")
+                (StatusCode::UNAUTHORIZED, "Missing or invalid authorization header".to_string())
             }
             AuthError::InvalidToken(_) | AuthError::TokenExpired => {
-                (StatusCode::UNAUTHORIZED, "Invalid or expired token")
+                (StatusCode::UNAUTHORIZED, "Invalid or expired token".to_string())
             }
             AuthError::InvalidCredentials => {
-                (StatusCode::UNAUTHORIZED, "Invalid username or password")
+                (StatusCode::UNAUTHORIZED, "Invalid username or password".to_string())
             }
             AuthError::UserNotFound => {
-                (StatusCode::UNAUTHORIZED, "User not found")
+                (StatusCode::UNAUTHORIZED, "User not found".to_string())
             }
             AuthError::UserInactive => {
-                (StatusCode::UNAUTHORIZED, "User account is inactive")
+                (StatusCode::UNAUTHORIZED, "User account is inactive".to_string())
             }
             AuthError::InsufficientPermissions => {
-                (StatusCode::FORBIDDEN, "Insufficient permissions")
+                (StatusCode::FORBIDDEN, "Insufficient permissions".to_string())
             }
             AuthError::UsernameExists => {
-                (StatusCode::CONFLICT, "Username already exists")
+                (StatusCode::CONFLICT, "Username already exists".to_string())
             }
             AuthError::EmailExists => {
-                (StatusCode::CONFLICT, "Email already exists")
+                (StatusCode::CONFLICT, "Email already exists".to_string())
             }
             AuthError::DatabaseError(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string())
+            }
+            AuthError::Forbidden(msg) => {
+                (StatusCode::FORBIDDEN, msg.clone())
             }
         };
 

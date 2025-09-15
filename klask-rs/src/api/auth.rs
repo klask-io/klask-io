@@ -35,6 +35,21 @@ pub struct RegisterRequest {
     pub password: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Validate)]
+pub struct SetupRequest {
+    #[validate(length(min = 3, max = 50))]
+    pub username: String,
+    #[validate(email)]
+    pub email: String,
+    #[validate(length(min = 6))]
+    pub password: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SetupCheckResponse {
+    pub needs_setup: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthResponse {
     pub token: String,
@@ -66,7 +81,9 @@ pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/login", post(login))
         .route("/register", post(register))
-        .route("/profile", get(get_profile));
+        .route("/profile", get(get_profile))
+        .route("/setup/check", get(check_setup))
+        .route("/setup", post(initial_setup));
 
     Ok(router)
 }
@@ -172,6 +189,73 @@ async fn get_profile(
     auth_user: AuthenticatedUser,
 ) -> Result<Json<UserInfo>, AuthError> {
     Ok(Json(UserInfo::from(auth_user.user)))
+}
+
+async fn check_setup(
+    State(app_state): State<AppState>,
+) -> Result<Json<SetupCheckResponse>, AuthError> {
+    let user_repo = UserRepository::new(app_state.database.pool().clone());
+    
+    let user_count = user_repo
+        .count_users()
+        .await
+        .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
+    
+    Ok(Json(SetupCheckResponse {
+        needs_setup: user_count == 0,
+    }))
+}
+
+async fn initial_setup(
+    State(app_state): State<AppState>,
+    Json(req): Json<SetupRequest>,
+) -> Result<Json<AuthResponse>, AuthError> {
+    // Validate request
+    req.validate()
+        .map_err(|_| AuthError::InvalidCredentials)?;
+    
+    let user_repo = UserRepository::new(app_state.database.pool().clone());
+    
+    // Check if any users exist
+    let user_count = user_repo
+        .count_users()
+        .await
+        .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
+    
+    if user_count > 0 {
+        return Err(AuthError::Forbidden("Setup already completed".to_string()));
+    }
+    
+    // Hash password
+    let password_hash = hash_password(&req.password)
+        .map_err(|_| AuthError::InvalidCredentials)?;
+    
+    // Create the first admin user
+    let admin_user = User {
+        id: Uuid::new_v4(),
+        username: req.username.clone(),
+        email: req.email,
+        password_hash,
+        role: UserRole::Admin, // First user is always admin
+        active: true,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    };
+    
+    let user = user_repo
+        .create_user(&admin_user)
+        .await
+        .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
+    
+    // Generate JWT token
+    let token = app_state.jwt_service
+        .create_token_for_user(user.id, user.username.clone(), user.role.to_string())
+        .map_err(|e| AuthError::InvalidToken(e.to_string()))?;
+    
+    Ok(Json(AuthResponse {
+        token,
+        user: UserInfo::from(user),
+    }))
 }
 
 fn hash_password(password: &str) -> Result<String> {

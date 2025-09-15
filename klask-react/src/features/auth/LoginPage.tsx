@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,6 +13,7 @@ const LoginPage: React.FC = () => {
   const login = useAuthStore((state) => state.login);
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [isCheckingSetup, setIsCheckingSetup] = useState(true);
 
   const {
     register,
@@ -21,6 +22,27 @@ const LoginPage: React.FC = () => {
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   });
+
+  useEffect(() => {
+    const checkSetup = async () => {
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+        const response = await fetch(`${API_BASE_URL}/api/auth/setup/check`);
+        const data = await response.json();
+        
+        if (data.needs_setup) {
+          navigate('/setup');
+        } else {
+          setIsCheckingSetup(false);
+        }
+      } catch (error) {
+        console.error('Failed to check setup status:', error);
+        setIsCheckingSetup(false);
+      }
+    };
+
+    checkSetup();
+  }, [navigate]);
 
   const onSubmit = async (data: LoginForm) => {
     try {
@@ -36,6 +58,14 @@ const LoginPage: React.FC = () => {
       }
     }
   };
+
+  if (isCheckingSetup) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
