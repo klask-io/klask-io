@@ -70,8 +70,8 @@ export interface SearchQuery {
 export interface SearchResult {
   file_id: string;
   doc_address: string;
-  file_name: string;
-  file_path: string;
+  name: string;
+  path: string;
   content_snippet: string;
   project: string;
   version: string;

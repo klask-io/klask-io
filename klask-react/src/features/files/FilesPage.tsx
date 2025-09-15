@@ -212,7 +212,7 @@ const FilesPage: React.FC = () => {
                           to={`/files/${result.file_id}`}
                           className="font-medium text-blue-600 hover:text-blue-800 truncate"
                         >
-                          {result.file_name}
+                          {result.name}
                         </Link>
                         {result.extension && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">
@@ -224,7 +224,7 @@ const FilesPage: React.FC = () => {
                       <div className="mt-1 flex items-center space-x-4 text-sm text-slate-500">
                         <div className="flex items-center">
                           <FolderIcon className="h-4 w-4 mr-1" />
-                          {result.file_path}
+                          {result.path}
                         </div>
                         <div>
                           Project: {result.project}

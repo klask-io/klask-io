@@ -23,7 +23,7 @@ export const SearchResult: React.FC<SearchResultProps> = ({
 }) => {
 
   const highlightQuery = (text: string, query: string): React.JSX.Element => {
-    if (!query.trim()) return <>{text}</>;
+    if (!text || !query.trim()) return <>{text || ''}</>;
     
     const parts = text.split(new RegExp(`(${query})`, 'gi'));
     return (
@@ -43,15 +43,18 @@ export const SearchResult: React.FC<SearchResultProps> = ({
 
   const formatPath = (path: string): { directory: string; filename: string } => {
     if (!path) {
-      return { directory: '', filename: '' };
+      return { directory: '', filename: 'Unknown file' };
     }
     const parts = path.split('/');
-    const filename = parts.pop() || '';
+    const filename = parts.pop() || 'Unknown file';
     const directory = parts.join('/');
     return { directory, filename };
   };
 
-  const { directory, filename } = formatPath(result.file_path);
+  // Try name first, then extract from path
+  const extractedPath = formatPath(result.path || '');
+  const filename = result.name || extractedPath.filename;
+  const directory = extractedPath.directory;
 
   return (
     <div 
@@ -59,43 +62,49 @@ export const SearchResult: React.FC<SearchResultProps> = ({
     >
       {/* File Header */}
       <div className="px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 min-w-0 flex-1">
-            <DocumentTextIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+        {/* Main row with file info and badges */}
+        <div className="flex items-start justify-between gap-4">
+          {/* Left side: Icon and file info */}
+          <div className="flex items-start space-x-3 min-w-0 flex-1">
+            <DocumentTextIcon className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center space-x-1 text-sm text-gray-500">
-                <FolderIcon className="h-4 w-4" />
-                <span className="truncate">{directory}</span>
-                <ChevronRightIcon className="h-4 w-4 flex-shrink-0" />
-              </div>
-              <div className="font-medium text-gray-900">
+              {/* File name - prominent */}
+              <h3 className="font-semibold text-gray-900 text-base leading-tight">
                 {highlightQuery(filename, query)}
-              </div>
+              </h3>
             </div>
           </div>
           
-          <div className="flex items-center space-x-2">
-            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">
-              {result.extension}
+          {/* Right side: Badges */}
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded">
+              {result.extension || 'N/A'}
             </span>
-            <span className="text-xs text-gray-500">
-              Score: {(result.score * 100).toFixed(1)}%
+            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-50 text-green-700 rounded">
+              {((result.score || 0) * 100).toFixed(0)}%
             </span>
           </div>
         </div>
         
-        {/* Project and Version Info */}
-        <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-          <span>
-            <span className="font-medium">Project:</span> {result.project}
+        {/* Metadata row */}
+        <div className="mt-2.5 flex items-center space-x-3 text-xs text-gray-500">
+          <span className="inline-flex items-center">
+            <span className="font-medium text-gray-600">Project:</span>
+            <span className="ml-1">{result.project || 'Unknown'}</span>
           </span>
-          <span>
-            <span className="font-medium">Version:</span> {result.version}
+          <span className="text-gray-300">•</span>
+          <span className="inline-flex items-center">
+            <span className="font-medium text-gray-600">Version:</span>
+            <span className="ml-1">{result.version || 'Unknown'}</span>
           </span>
           {result.line_number && (
-            <span>
-              <span className="font-medium">Line:</span> {result.line_number}
-            </span>
+            <>
+              <span className="text-gray-300">•</span>
+              <span className="inline-flex items-center">
+                <span className="font-medium text-gray-600">Line:</span>
+                <span className="ml-1">{result.line_number}</span>
+              </span>
+            </>
           )}
         </div>
       </div>
@@ -122,7 +131,7 @@ export const SearchResult: React.FC<SearchResultProps> = ({
                 lineHeight: '1.5',
               }}
               dangerouslySetInnerHTML={{
-                __html: result.content_snippet
+                __html: (result.content_snippet || 'No content preview available')
                   .replace(/&/g, '&amp;')
                   .replace(/</g, '&lt;')
                   .replace(/>/g, '&gt;')
@@ -133,9 +142,12 @@ export const SearchResult: React.FC<SearchResultProps> = ({
           </div>
         </div>
         
-        {/* Snippet Info */}
+        {/* Full Path Info */}
         <div className="mt-2 text-xs text-gray-500">
-          Content preview • {result.content_snippet.length} characters
+          <div className="flex items-center space-x-1">
+            <FolderIcon className="h-3.5 w-3.5" />
+            <span className="font-mono">{result.path || 'Unknown path'}</span>
+          </div>
         </div>
       </div>
     </div>
