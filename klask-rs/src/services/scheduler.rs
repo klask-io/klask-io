@@ -73,10 +73,22 @@ impl SchedulerService {
             cron_schedule.clone()
         } else if let Some(frequency_hours) = repository.crawl_frequency_hours {
             // Convert hours to cron expression (run every X hours)
-            format!("0 0 */{} * * *", frequency_hours)
+            // tokio-cron-scheduler uses seconds-based cron (6 fields)
+            // Format: sec min hour day month weekday
+            if frequency_hours == 1 {
+                // Every hour at minute 0
+                "0 0 * * * *".to_string()
+            } else if frequency_hours < 24 {
+                // Every N hours at minute 0
+                format!("0 0 */{} * * *", frequency_hours)
+            } else {
+                // Daily at midnight
+                "0 0 0 * * *".to_string()
+            }
         } else {
-            warn!("Repository {} has auto-crawl enabled but no schedule defined", repository.id);
-            return Ok(());
+            // Default to every minute for testing (change back to daily in production)
+            warn!("Repository {} has auto-crawl enabled but no schedule defined, defaulting to every minute for testing", repository.id);
+            "0 * * * * *".to_string() // Every minute for testing
         };
 
         // Validate cron expression
@@ -92,6 +104,10 @@ impl SchedulerService {
         let pool = self.pool.clone();
         let crawler_service = self.crawler_service.clone();
 
+        // Log the schedule being created
+        info!("Creating schedule for repository {} ({}) with expression: {}", 
+            repository_name, repository_id, schedule_expr);
+
         // Create the job
         let job = Job::new_cron_job_async(schedule_expr.as_str(), move |_uuid, _l| {
             let pool = pool.clone();
@@ -99,7 +115,7 @@ impl SchedulerService {
             let repository_name = repository_name.clone();
             
             Box::pin(async move {
-                info!("Starting scheduled crawl for repository: {} ({})", repository_name, repository_id);
+                info!("🚀 SCHEDULED CRAWL TRIGGERED for repository: {} ({})", repository_name, repository_id);
                 
                 // Set up timeout for the crawl operation
                 let crawl_timeout = Duration::from_secs(max_duration * 60);
