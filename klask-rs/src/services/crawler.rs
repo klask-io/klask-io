@@ -127,8 +127,18 @@ impl CrawlerService {
                 }
                 
                 let temp_path = self.temp_dir.join(format!("{}-{}", repository.name, repository.id));
-                let _git_repo = self.clone_or_update_repository(repository, &temp_path).await?;
-                temp_path
+                
+                // Try to clone the repository, handle errors gracefully
+                match self.clone_or_update_repository(repository, &temp_path).await {
+                    Ok(_git_repo) => temp_path,
+                    Err(e) => {
+                        let error_msg = format!("Failed to clone/update repository: {}", e);
+                        error!("Crawl error for repository {}: {}", repository.name, error_msg);
+                        self.progress_tracker.set_error(repository.id, error_msg.clone()).await;
+                        self.cleanup_cancellation_token(repository.id).await;
+                        return Err(anyhow!(error_msg));
+                    }
+                }
             }
         };
         
@@ -242,7 +252,23 @@ impl CrawlerService {
             Ok(git_repo)
         } else {
             debug!("Cloning repository to: {:?}", repo_path);
-            let git_repo = GitRepository::clone(&repository.url, repo_path)
+            
+            // Try to use a public-friendly URL for GitHub repos
+            let clone_url = if repository.url.starts_with("https://github.com/") {
+                // Convert HTTPS GitHub URL to git:// protocol which doesn't require auth for public repos
+                repository.url.replace("https://github.com/", "git://github.com/")
+            } else {
+                repository.url.clone()
+            };
+            
+            debug!("Using clone URL: {}", clone_url);
+            
+            let git_repo = GitRepository::clone(&clone_url, repo_path)
+                .or_else(|_| {
+                    // If git:// fails, try the original URL
+                    debug!("Git protocol failed, trying original URL: {}", repository.url);
+                    GitRepository::clone(&repository.url, repo_path)
+                })
                 .map_err(|e| anyhow!("Failed to clone repository: {}", e))?;
             
             // Checkout the specified branch if provided
