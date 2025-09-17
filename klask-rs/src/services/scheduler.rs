@@ -145,6 +145,12 @@ impl SchedulerService {
             Box::pin(async move {
                 info!("🚀 SCHEDULED CRAWL TRIGGERED for repository: {} ({})", repository_name, repository_id);
                 
+                // Check if repository is already being crawled
+                if crawler_service.is_crawling(repository_id).await {
+                    info!("⏭️  Skipping scheduled crawl for repository {} ({}) - already in progress", repository_name, repository_id);
+                    return;
+                }
+                
                 // Set up timeout for the crawl operation
                 let crawl_timeout = Duration::from_secs(max_duration * 60);
                 
