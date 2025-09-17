@@ -17,15 +17,10 @@ impl EncryptionService {
             key_string.as_bytes().to_vec()
         } else {
             // Hash the key to get exactly 32 bytes
-            use argon2::{Argon2, password_hash::{SaltString, PasswordHasher}};
-            let salt = SaltString::from_b64("0000000000000000000000==")
-                .map_err(|e| anyhow::anyhow!("Failed to create salt: {:?}", e))?;
-            let argon2 = Argon2::default();
-            let hash = argon2.hash_password(key_string.as_bytes(), &salt)
-                .map_err(|e| anyhow::anyhow!("Failed to hash encryption key: {:?}", e))?;
-            
-            let hash_str = hash.hash.unwrap();
-            hash_str.as_bytes()[..32].to_vec()
+            use sha2::{Sha256, Digest};
+            let mut hasher = Sha256::new();
+            hasher.update(key_string.as_bytes());
+            hasher.finalize().to_vec()
         };
 
         let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
