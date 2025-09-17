@@ -13,7 +13,7 @@ use uuid::Uuid;
 use crate::auth::extractors::{AppState, AdminUser};
 use crate::models::{Repository, RepositoryType};
 use crate::repositories::RepositoryRepository;
-use crate::services::EncryptionService;
+use crate::services::{EncryptionService, gitlab::GitLabService};
 
 
 #[derive(Debug, Deserialize)]
@@ -78,9 +78,28 @@ pub struct ScheduleRepositoryRequest {
     pub max_crawl_duration_minutes: Option<i32>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct GitLabDiscoverRequest {
+    #[serde(alias = "gitlabUrl")]
+    pub gitlab_url: Option<String>,
+    #[serde(alias = "accessToken")]
+    pub access_token: String,
+    pub namespace: Option<String>,
+    // Scheduling fields (optional, applied to all imported repos)
+    #[serde(alias = "autoCrawlEnabled")]
+    pub auto_crawl_enabled: Option<bool>,
+    #[serde(alias = "cronSchedule")]
+    pub cron_schedule: Option<String>,
+    #[serde(alias = "crawlFrequencyHours")]
+    pub crawl_frequency_hours: Option<i32>,
+    #[serde(alias = "maxCrawlDurationMinutes")]
+    pub max_crawl_duration_minutes: Option<i32>,
+}
+
 pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/", get(list_repositories).post(create_repository))
+        .route("/gitlab/discover", post(discover_gitlab_projects))
         .route("/:id", get(get_repository).put(update_repository).delete(delete_repository))
         .route("/:id/crawl", post(trigger_crawl).delete(stop_crawl))
         .route("/:id/schedule", put(update_repository_schedule))
@@ -490,6 +509,128 @@ async fn get_active_progress(
 ) -> Result<Json<Vec<crate::services::progress::CrawlProgressInfo>>, StatusCode> {
     let active_progress = app_state.progress_tracker.get_all_active_progress().await;
     Ok(Json(active_progress))
+}
+
+async fn discover_gitlab_projects(
+    State(app_state): State<AppState>,
+    _admin_user: AdminUser, // Require admin authentication
+    Json(payload): Json<GitLabDiscoverRequest>,
+) -> Result<Json<Vec<Repository>>, StatusCode> {
+    // Use default GitLab URL if not provided
+    let gitlab_url = payload.gitlab_url.unwrap_or_else(|| "https://gitlab.com".to_string());
+    
+    // Initialize GitLab service
+    let gitlab_service = GitLabService::new();
+    
+    // Discover projects
+    let projects = match gitlab_service
+        .discover_projects(&gitlab_url, &payload.access_token, payload.namespace.as_deref())
+        .await {
+            Ok(projects) => projects,
+            Err(e) => {
+                tracing::error!("Failed to discover GitLab projects: {}", e);
+                return Err(StatusCode::BAD_REQUEST);
+            }
+        };
+    
+    if projects.is_empty() {
+        tracing::warn!("No accessible projects found on GitLab");
+        return Ok(Json(vec![]));
+    }
+    
+    tracing::info!("Discovered {} GitLab projects", projects.len());
+    
+    // Prepare to create repositories
+    let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
+    let mut created_repositories = Vec::new();
+    
+    // Encrypt access token once for all repositories
+    let encrypted_token = {
+        let encryption_key = std::env::var("ENCRYPTION_KEY")
+            .unwrap_or_else(|_| "default-encryption-key-change-me".to_string());
+        
+        match EncryptionService::new(&encryption_key) {
+            Ok(encryption_service) => {
+                match encryption_service.encrypt(&payload.access_token) {
+                    Ok(encrypted) => Some(encrypted),
+                    Err(e) => {
+                        tracing::error!("Failed to encrypt access token: {}", e);
+                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
+                }
+            },
+            Err(e) => {
+                tracing::error!("Failed to create encryption service: {}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        }
+    };
+    
+    // Calculate next_crawl_at if auto_crawl is enabled
+    let auto_crawl_enabled = payload.auto_crawl_enabled.unwrap_or(false);
+    let next_crawl_at = if auto_crawl_enabled {
+        calculate_next_crawl_time(&payload.cron_schedule, payload.crawl_frequency_hours).await
+    } else {
+        None
+    };
+    
+    // Create a repository for each discovered project
+    for project in projects {
+        // Check if repository already exists with this URL
+        let existing_repos = match repo_repository.list_repositories().await {
+            Ok(repos) => repos,
+            Err(e) => {
+                tracing::error!("Failed to list existing repositories: {}", e);
+                continue;
+            }
+        };
+        
+        if existing_repos.iter().any(|r| r.url == project.http_url_to_repo) {
+            tracing::info!("Repository {} already exists, skipping", project.path_with_namespace);
+            continue;
+        }
+        
+        let new_repository = Repository {
+            id: uuid::Uuid::new_v4(),
+            name: project.path_with_namespace.clone(),
+            url: project.http_url_to_repo.clone(),
+            repository_type: RepositoryType::GitLab,
+            branch: project.default_branch.clone(),
+            enabled: true,
+            access_token: encrypted_token.clone(),
+            gitlab_namespace: None,
+            is_group: false,
+            last_crawled: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            // Scheduling fields
+            auto_crawl_enabled,
+            cron_schedule: payload.cron_schedule.clone(),
+            next_crawl_at,
+            crawl_frequency_hours: payload.crawl_frequency_hours,
+            max_crawl_duration_minutes: payload.max_crawl_duration_minutes.or(Some(60)),
+        };
+        
+        match repo_repository.create_repository(&new_repository).await {
+            Ok(repository) => {
+                // Schedule the repository if auto-crawl is enabled
+                if repository.auto_crawl_enabled {
+                    if let Some(scheduler) = &app_state.scheduler_service {
+                        if let Err(e) = scheduler.schedule_repository(&repository).await {
+                            tracing::error!("Failed to schedule repository {}: {}", repository.name, e);
+                        }
+                    }
+                }
+                created_repositories.push(repository);
+            },
+            Err(e) => {
+                tracing::error!("Failed to create repository {}: {}", project.path_with_namespace, e);
+            }
+        }
+    }
+    
+    tracing::info!("Successfully imported {} GitLab repositories", created_repositories.len());
+    Ok(Json(created_repositories))
 }
 
 async fn update_repository_schedule(

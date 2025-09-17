@@ -15,7 +15,7 @@ const repositorySchema = z.object({
     .max(100, 'Repository name must be less than 100 characters'),
   url: z
     .string()
-    .min(1, 'Repository URL is required'),
+    .optional(),
   repositoryType: z.enum(['Git', 'GitLab', 'FileSystem'] as const),
   branch: z
     .string()
@@ -30,8 +30,24 @@ const repositorySchema = z.object({
   isGroup: z.boolean().default(false),
   enabled: z.boolean().default(true),
 }).refine((data) => {
-  // For Git and GitLab, validate as URL
-  if (data.repositoryType === 'Git' || data.repositoryType === 'GitLab') {
+  // For GitLab, accessToken is required, URL is optional (defaults to gitlab.com)
+  if (data.repositoryType === 'GitLab') {
+    if (!data.accessToken || data.accessToken.trim() === '') {
+      return false;
+    }
+    // If URL is provided, validate it
+    if (data.url && data.url.trim() !== '') {
+      try {
+        new URL(data.url);
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  }
+  // For Git, URL is required and must be valid
+  if (data.repositoryType === 'Git') {
+    if (!data.url || data.url.trim() === '') return false;
     try {
       new URL(data.url);
       return true;
@@ -39,14 +55,24 @@ const repositorySchema = z.object({
       return false;
     }
   }
-  // For FileSystem, validate as path (allow any non-empty string that looks like a path)
+  // For FileSystem, validate as path
   if (data.repositoryType === 'FileSystem') {
-    return data.url.length > 0 && (data.url.startsWith('/') || data.url.match(/^[a-zA-Z]:[\\\/]/));
+    if (!data.url || data.url.trim() === '') return false;
+    return data.url.startsWith('/') || data.url.match(/^[a-zA-Z]:[\\\/]/);
   }
   return true;
 }, {
-  message: 'Please enter a valid URL for Git/GitLab repositories or a valid file path for FileSystem repositories',
+  message: 'Please provide required fields for the selected repository type',
   path: ['url'],
+}).refine((data) => {
+  // Additional validation for GitLab access token
+  if (data.repositoryType === 'GitLab' && (!data.accessToken || data.accessToken.trim() === '')) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Access token is required for GitLab repositories',
+  path: ['accessToken'],
 });
 
 type RepositoryFormData = z.infer<typeof repositorySchema>;
@@ -317,27 +343,29 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
               )}
             </div>
 
-            {/* Repository URL */}
-            <div>
-              <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
-                Repository URL
-              </label>
-              <input
-                {...register('url')}
-                type={watchedType === 'FileSystem' ? 'text' : 'url'}
-                className={`input-field ${errors.url ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
-                placeholder={getPlaceholderUrl(watchedType)}
-              />
-              {errors.url && (
-                <p className="mt-1 text-sm text-red-600">{errors.url.message}</p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">
-                {watchedType === 'FileSystem' 
-                  ? 'Enter the absolute path to the directory'
-                  : 'Enter the full URL to the repository'
-                }
-              </p>
-            </div>
+            {/* Repository URL - Not for GitLab type */}
+            {watchedType !== 'GitLab' && (
+              <div>
+                <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
+                  Repository URL
+                </label>
+                <input
+                  {...register('url')}
+                  type={watchedType === 'FileSystem' ? 'text' : 'url'}
+                  className={`input-field ${errors.url ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                  placeholder={getPlaceholderUrl(watchedType)}
+                />
+                {errors.url && (
+                  <p className="mt-1 text-sm text-red-600">{errors.url.message}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  {watchedType === 'FileSystem' 
+                    ? 'Enter the absolute path to the directory'
+                    : 'Enter the full URL to the repository'
+                  }
+                </p>
+              </div>
+            )}
 
             {/* Branch (for Git repositories) */}
             {watchedType !== 'FileSystem' && (
@@ -360,30 +388,55 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
               </div>
             )}
 
-            {/* Access Token (for GitLab) */}
+            {/* GitLab-specific fields */}
             {watchedType === 'GitLab' && (
               <>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    GitLab repositories will be automatically discovered and imported using your access token.
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
+                    GitLab Server URL (Optional)
+                  </label>
+                  <input
+                    {...register('url')}
+                    type="url"
+                    className={`input-field ${errors.url ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                    placeholder="https://gitlab.com"
+                  />
+                  {errors.url && (
+                    <p className="mt-1 text-sm text-red-600">{errors.url.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Leave empty to use gitlab.com, or enter your self-hosted GitLab URL
+                  </p>
+                </div>
+
                 <div>
                   <label htmlFor="accessToken" className="block text-sm font-medium text-gray-700 mb-1">
-                    Access Token (Required for private repositories)
+                    Personal Access Token *
                   </label>
                   <input
                     {...register('accessToken')}
                     type="password"
                     className={`input-field ${errors.accessToken ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
                     placeholder="glpat-..."
+                    required
                   />
                   {errors.accessToken && (
                     <p className="mt-1 text-sm text-red-600">{errors.accessToken.message}</p>
                   )}
                   <p className="mt-1 text-xs text-gray-500">
-                    Create a personal access token with 'read_repository' scope in GitLab settings
+                    Create a token with 'read_repository' scope in GitLab settings
                   </p>
                 </div>
 
                 <div>
                   <label htmlFor="gitlabNamespace" className="block text-sm font-medium text-gray-700 mb-1">
-                    GitLab Namespace (Optional)
+                    Namespace Filter (Optional)
                   </label>
                   <input
                     {...register('gitlabNamespace')}
@@ -395,19 +448,8 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
                     <p className="mt-1 text-sm text-red-600">{errors.gitlabNamespace.message}</p>
                   )}
                   <p className="mt-1 text-xs text-gray-500">
-                    Enter a namespace to automatically discover and import all accessible repositories
+                    Filter to only import repositories from a specific namespace
                   </p>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    {...register('isGroup')}
-                    type="checkbox"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="isGroup" className="ml-2 block text-sm text-gray-900">
-                    This is a GitLab group (will import all projects in the group)
-                  </label>
                 </div>
               </>
             )}

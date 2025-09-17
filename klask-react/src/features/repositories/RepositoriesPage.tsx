@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   PlusIcon,
   FunnelIcon,
@@ -19,12 +20,13 @@ import {
   useBulkRepositoryOperations,
   useActiveProgress,
 } from '../../hooks/useRepositories';
-import { getErrorMessage } from '../../lib/api';
+import { getErrorMessage, apiClient } from '../../lib/api';
 import type { Repository, CreateRepositoryRequest } from '../../types';
 
 type FilterType = 'all' | 'enabled' | 'disabled' | 'crawled' | 'not-crawled';
 
 const RepositoriesPage: React.FC = () => {
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingRepository, setEditingRepository] = useState<Repository | null>(null);
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
@@ -84,13 +86,34 @@ const RepositoriesPage: React.FC = () => {
 
   const handleCreate = useCallback(async (data: CreateRepositoryRequest) => {
     try {
-      await createMutation.mutateAsync(data);
+      // For GitLab repositories, use the discovery endpoint
+      if (data.repositoryType === 'GitLab') {
+        const discoveredRepos = await apiClient.discoverGitlabProjects({
+          gitlabUrl: data.url?.trim() || undefined,
+          accessToken: data.accessToken || '',
+          namespace: data.gitlabNamespace?.trim() || undefined,
+          autoCrawlEnabled: data.autoCrawlEnabled,
+          cronSchedule: data.cronSchedule,
+          crawlFrequencyHours: data.crawlFrequencyHours,
+          maxCrawlDurationMinutes: data.maxCrawlDurationMinutes,
+        });
+        
+        if (discoveredRepos.length > 0) {
+          toast.success(`Successfully imported ${discoveredRepos.length} GitLab repositories`);
+          queryClient.invalidateQueries({ queryKey: ['repositories'] });
+        } else {
+          toast.warning('No accessible repositories found on GitLab');
+        }
+      } else {
+        // For other repository types, use the regular create endpoint
+        await createMutation.mutateAsync(data);
+        toast.success('Repository created successfully');
+      }
       setShowForm(false);
-      toast.success('Repository created successfully');
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
-  }, [createMutation]);
+  }, [createMutation, queryClient]);
 
   const handleUpdate = useCallback(async (data: CreateRepositoryRequest) => {
     if (!editingRepository) return;
@@ -487,6 +510,7 @@ const RepositoriesPage: React.FC = () => {
         onSubmit={editingRepository ? handleUpdate : handleCreate}
         isLoading={createMutation.isPending || updateMutation.isPending}
       />
+
     </div>
   );
 };

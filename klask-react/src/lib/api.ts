@@ -249,6 +249,21 @@ class ApiClient {
     });
   }
 
+  async discoverGitlabProjects(data: {
+    gitlabUrl?: string;
+    accessToken: string;
+    namespace?: string;
+    autoCrawlEnabled?: boolean;
+    cronSchedule?: string;
+    crawlFrequencyHours?: number;
+    maxCrawlDurationMinutes?: number;
+  }): Promise<Repository[]> {
+    return this.request<Repository[]>('/api/repositories/gitlab/discover', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async getSchedulerStatus(): Promise<SchedulerStatus> {
     return this.request<SchedulerStatus>('/api/scheduler/status');
   }
