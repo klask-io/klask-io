@@ -3,12 +3,14 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::Json,
-    routing::{delete, get, post, put},
+    routing::{get, post, put},
     Router,
 };
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
+use tokio_cron_scheduler::{Job, JobScheduler};
 use uuid::Uuid;
-use crate::auth::extractors::{AppState, AuthenticatedUser, AdminUser};
+use crate::auth::extractors::{AppState, AdminUser};
 use crate::models::{Repository, RepositoryType};
 use crate::repositories::RepositoryRepository;
 use crate::services::EncryptionService;
@@ -28,6 +30,15 @@ pub struct CreateRepositoryRequest {
     pub gitlab_namespace: Option<String>,
     #[serde(alias = "isGroup")]
     pub is_group: Option<bool>,
+    // Scheduling fields
+    #[serde(alias = "autoCrawlEnabled")]
+    pub auto_crawl_enabled: Option<bool>,
+    #[serde(alias = "cronSchedule")]
+    pub cron_schedule: Option<String>,
+    #[serde(alias = "crawlFrequencyHours")]
+    pub crawl_frequency_hours: Option<i32>,
+    #[serde(alias = "maxCrawlDurationMinutes")]
+    pub max_crawl_duration_minutes: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -77,6 +88,62 @@ pub async fn create_router() -> Result<Router<AppState>> {
         .route("/progress/active", get(get_active_progress));
 
     Ok(router)
+}
+
+/// Calculate the next crawl time based on cron schedule or frequency
+async fn calculate_next_crawl_time(cron_schedule: &Option<String>, crawl_frequency_hours: Option<i32>) -> Option<DateTime<Utc>> {
+    if let Some(ref cron_expr) = cron_schedule {
+        // Convert 5-field to 6-field if needed (same logic as scheduler)
+        let parts: Vec<&str> = cron_expr.split_whitespace().collect();
+        let six_field_cron = if parts.len() == 5 {
+            format!("0 {}", cron_expr) // Add "0" at the beginning for seconds
+        } else {
+            cron_expr.clone()
+        };
+
+        // Use tokio-cron-scheduler to calculate next run time
+        // We're already in an async context, so we can use await directly
+        match JobScheduler::new().await {
+            Ok(mut temp_scheduler) => {
+                match Job::new_cron_job_async(six_field_cron.as_str(), |_uuid, _l| {
+                    Box::pin(async move {})
+                }) {
+                    Ok(job) => {
+                        match temp_scheduler.add(job).await {
+                            Ok(_) => {
+                                if let Ok(Some(duration)) = temp_scheduler.time_till_next_job().await {
+                                    let next_time = Utc::now() + chrono::Duration::from_std(duration).unwrap_or_default();
+                                    tracing::debug!("Calculated next crawl time for cron '{}': {:?}", cron_expr, next_time);
+                                    Some(next_time)
+                                } else {
+                                    tracing::warn!("Could not calculate next tick for cron expression '{}'", cron_expr);
+                                    Some(Utc::now() + chrono::Duration::hours(1))
+                                }
+                            },
+                            Err(e) => {
+                                tracing::warn!("Failed to add temporary job for next run calculation: {}", e);
+                                Some(Utc::now() + chrono::Duration::hours(1))
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("Invalid cron expression '{}': {}. Using fallback.", cron_expr, e);
+                        Some(Utc::now() + chrono::Duration::hours(1))
+                    }
+                }
+            },
+            Err(e) => {
+                tracing::warn!("Failed to create temporary scheduler: {}. Using fallback.", e);
+                Some(Utc::now() + chrono::Duration::hours(1))
+            }
+        }
+    } else if let Some(frequency_hours) = crawl_frequency_hours {
+        // Simple frequency-based scheduling
+        Some(Utc::now() + chrono::Duration::hours(frequency_hours as i64))
+    } else {
+        // Default to 24 hours if no schedule is specified
+        Some(Utc::now() + chrono::Duration::hours(24))
+    }
 }
 
 async fn list_repositories(
@@ -135,6 +202,14 @@ async fn create_repository(
         None
     };
     
+    // Calculate next_crawl_at if auto_crawl is enabled
+    let auto_crawl_enabled = payload.auto_crawl_enabled.unwrap_or(false);
+    let next_crawl_at = if auto_crawl_enabled {
+        calculate_next_crawl_time(&payload.cron_schedule, payload.crawl_frequency_hours).await
+    } else {
+        None
+    };
+    
     let new_repository = Repository {
         id: uuid::Uuid::new_v4(),
         name: payload.name,
@@ -149,15 +224,25 @@ async fn create_repository(
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
         // Scheduling fields
-        auto_crawl_enabled: false,
-        cron_schedule: None,
-        next_crawl_at: None,
-        crawl_frequency_hours: None,
-        max_crawl_duration_minutes: Some(60),
+        auto_crawl_enabled,
+        cron_schedule: payload.cron_schedule,
+        next_crawl_at,
+        crawl_frequency_hours: payload.crawl_frequency_hours,
+        max_crawl_duration_minutes: payload.max_crawl_duration_minutes.or(Some(60)),
     };
     
     match repo_repository.create_repository(&new_repository).await {
-        Ok(repository) => Ok(Json(repository)),
+        Ok(repository) => {
+            // Schedule the repository if auto-crawl is enabled
+            if repository.auto_crawl_enabled {
+                if let Some(scheduler) = &app_state.scheduler_service {
+                    if let Err(e) = scheduler.schedule_repository(&repository).await {
+                        tracing::error!("Failed to schedule new repository: {}", e);
+                    }
+                }
+            }
+            Ok(Json(repository))
+        },
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
@@ -202,6 +287,18 @@ async fn update_repository(
         existing_repository.access_token
     };
     
+    // Determine final scheduling values
+    let auto_crawl_enabled = payload.auto_crawl_enabled.unwrap_or(existing_repository.auto_crawl_enabled);
+    let cron_schedule = payload.cron_schedule.or(existing_repository.cron_schedule);
+    let crawl_frequency_hours = payload.crawl_frequency_hours.or(existing_repository.crawl_frequency_hours);
+    
+    // Calculate next_crawl_at based on the schedule
+    let next_crawl_at = if auto_crawl_enabled {
+        calculate_next_crawl_time(&cron_schedule, crawl_frequency_hours).await
+    } else {
+        None
+    };
+    
     let updated_repository = Repository {
         id,
         name: payload.name.unwrap_or(existing_repository.name),
@@ -216,15 +313,23 @@ async fn update_repository(
         created_at: existing_repository.created_at, // Preserve existing value
         updated_at: chrono::Utc::now(), // Will be set by the database
         // Scheduling fields - update if provided, otherwise preserve existing values
-        auto_crawl_enabled: payload.auto_crawl_enabled.unwrap_or(existing_repository.auto_crawl_enabled),
-        cron_schedule: payload.cron_schedule.or(existing_repository.cron_schedule),
-        next_crawl_at: existing_repository.next_crawl_at,
-        crawl_frequency_hours: payload.crawl_frequency_hours.or(existing_repository.crawl_frequency_hours),
+        auto_crawl_enabled,
+        cron_schedule,
+        next_crawl_at,
+        crawl_frequency_hours,
         max_crawl_duration_minutes: payload.max_crawl_duration_minutes.or(existing_repository.max_crawl_duration_minutes),
     };
     
     match repo_repository.update_repository(id, &updated_repository).await {
-        Ok(repository) => Ok(Json(repository)),
+        Ok(repository) => {
+            // Update the scheduler if scheduling settings changed
+            if let Some(scheduler) = &app_state.scheduler_service {
+                if let Err(e) = scheduler.update_repository_schedule(&repository).await {
+                    tracing::error!("Failed to update repository schedule: {}", e);
+                }
+            }
+            Ok(Json(repository))
+        },
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

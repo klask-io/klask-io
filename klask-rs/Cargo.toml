@@ -45,6 +45,7 @@ thiserror = "1.0"
 
 # Date and time
 chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.8"
 
 # Repository crawling
 git2 = "0.19"
@@ -66,8 +67,8 @@ base64 = "0.22"
 rand = "0.8"
 
 # Scheduling and cron jobs
-cron = "0.12"
 tokio-cron-scheduler = "0.10"
+cron = "0.12"
 
 # Cryptographic hashing for deterministic IDs
 sha2 = "0.10"

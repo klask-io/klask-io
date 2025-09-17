@@ -13,6 +13,7 @@ interface CronScheduleFormProps {
     maxCrawlDurationMinutes?: number;
   }) => void;
   className?: string;
+  repositoryId?: string; // Add this to track repository changes
 }
 
 const FREQUENCY_OPTIONS = [
@@ -38,26 +39,21 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
   maxCrawlDurationMinutes,
   onScheduleChange,
   className = '',
+  repositoryId,
 }) => {
-  const [scheduleMode, setScheduleMode] = useState<'frequency' | 'cron'>(
-    cronSchedule ? 'cron' : 'frequency'
-  );
+  // Determine mode from props
+  const currentMode = cronSchedule && cronSchedule.trim() !== '' ? 'cron' : 'frequency';
+  
+  // Local state only for UI interactions
   const [localCronSchedule, setLocalCronSchedule] = useState(cronSchedule || '');
-  const [localFrequency, setLocalFrequency] = useState(crawlFrequencyHours || 24);
-  const [localDuration, setLocalDuration] = useState(maxCrawlDurationMinutes || 60);
   const [cronError, setCronError] = useState<string | null>(null);
-
+  
+  // Reset local cron when repository changes
   useEffect(() => {
-    const scheduleData = {
-      autoCrawlEnabled,
-      maxCrawlDurationMinutes: localDuration,
-      ...(scheduleMode === 'cron' 
-        ? { cronSchedule: localCronSchedule, crawlFrequencyHours: undefined }
-        : { crawlFrequencyHours: localFrequency, cronSchedule: undefined }
-      ),
-    };
-    onScheduleChange(scheduleData);
-  }, [autoCrawlEnabled, scheduleMode, localCronSchedule, localFrequency, localDuration, onScheduleChange]);
+    setLocalCronSchedule(cronSchedule || '');
+    setCronError(null);
+  }, [repositoryId, cronSchedule]);
+
 
   const validateCronExpression = (cron: string): string | null => {
     if (!cron.trim()) return null;
@@ -86,11 +82,79 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
     setCronError(error);
   };
 
+  // Handle changes to scheduling mode
+  const handleScheduleModeChange = (mode: 'frequency' | 'cron') => {
+    if (mode === 'cron') {
+      // Switch to cron mode
+      onScheduleChange({
+        autoCrawlEnabled,
+        maxCrawlDurationMinutes: maxCrawlDurationMinutes || 60,
+        cronSchedule: localCronSchedule || '0 0 2 * * *', // Default cron
+        crawlFrequencyHours: undefined,
+      });
+    } else {
+      // Switch to frequency mode
+      onScheduleChange({
+        autoCrawlEnabled,
+        maxCrawlDurationMinutes: maxCrawlDurationMinutes || 60,
+        crawlFrequencyHours: crawlFrequencyHours || 24, // Default frequency
+        cronSchedule: undefined,
+      });
+    }
+  };
+
+  // Handle frequency changes
+  const handleFrequencyChange = (value: number) => {
+    onScheduleChange({
+      autoCrawlEnabled,
+      maxCrawlDurationMinutes: maxCrawlDurationMinutes || 60,
+      crawlFrequencyHours: value,
+      cronSchedule: undefined,
+    });
+  };
+
+  // Handle duration changes  
+  const handleDurationChange = (value: number) => {
+    onScheduleChange({
+      autoCrawlEnabled,
+      maxCrawlDurationMinutes: value,
+      ...(currentMode === 'cron' 
+        ? { cronSchedule: localCronSchedule, crawlFrequencyHours: undefined }
+        : { crawlFrequencyHours: crawlFrequencyHours || 24, cronSchedule: undefined }
+      ),
+    });
+  };
+
+  // Handle cron input changes
+  const handleCronInputChange = (value: string) => {
+    handleCronChange(value);
+    if (!validateCronExpression(value)) {
+      onScheduleChange({
+        autoCrawlEnabled,
+        maxCrawlDurationMinutes: maxCrawlDurationMinutes || 60,
+        cronSchedule: value,
+        crawlFrequencyHours: undefined,
+      });
+    }
+  };
+
+  // Handle auto-crawl toggle
+  const handleAutoCrawlToggle = (enabled: boolean) => {
+    onScheduleChange({
+      autoCrawlEnabled: enabled,
+      maxCrawlDurationMinutes: maxCrawlDurationMinutes || 60,
+      ...(currentMode === 'cron' 
+        ? { cronSchedule: localCronSchedule, crawlFrequencyHours: undefined }
+        : { crawlFrequencyHours: crawlFrequencyHours || 24, cronSchedule: undefined }
+      ),
+    });
+  };
+
   const getNextRunDescription = () => {
     if (!autoCrawlEnabled) return null;
 
-    if (scheduleMode === 'frequency') {
-      return `Will run every ${localFrequency} hour${localFrequency !== 1 ? 's' : ''}`;
+    if (currentMode === 'frequency' && crawlFrequencyHours) {
+      return `Will run every ${crawlFrequencyHours} hour${crawlFrequencyHours !== 1 ? 's' : ''}`;
     } else if (localCronSchedule && !cronError) {
       return 'Will run according to cron schedule';
     }
@@ -113,12 +177,7 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
           type="checkbox"
           id="autoCrawlEnabled"
           checked={autoCrawlEnabled}
-          onChange={(e) => onScheduleChange({
-            autoCrawlEnabled: e.target.checked,
-            cronSchedule: scheduleMode === 'cron' ? localCronSchedule : undefined,
-            crawlFrequencyHours: scheduleMode === 'frequency' ? localFrequency : undefined,
-            maxCrawlDurationMinutes: localDuration,
-          })}
+          onChange={(e) => handleAutoCrawlToggle(e.target.checked)}
           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
         />
         <label htmlFor="autoCrawlEnabled" className="text-sm font-medium text-gray-900">
@@ -135,15 +194,19 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label className={`relative flex items-center justify-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                scheduleMode === 'frequency'
+                currentMode === 'frequency'
                   ? 'border-blue-500 bg-blue-50 text-blue-700'
                   : 'border-gray-300 hover:border-gray-400'
               }`}>
                 <input
                   type="radio"
                   value="frequency"
-                  checked={scheduleMode === 'frequency'}
-                  onChange={(e) => setScheduleMode('frequency')}
+                  checked={currentMode === 'frequency'}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      handleScheduleModeChange('frequency');
+                    }
+                  }}
                   className="sr-only"
                 />
                 <div className="flex flex-col items-center space-y-1">
@@ -153,15 +216,19 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
               </label>
 
               <label className={`relative flex items-center justify-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                scheduleMode === 'cron'
+                currentMode === 'cron'
                   ? 'border-blue-500 bg-blue-50 text-blue-700'
                   : 'border-gray-300 hover:border-gray-400'
               }`}>
                 <input
                   type="radio"
                   value="cron"
-                  checked={scheduleMode === 'cron'}
-                  onChange={(e) => setScheduleMode('cron')}
+                  checked={currentMode === 'cron'}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      handleScheduleModeChange('cron');
+                    }
+                  }}
                   className="sr-only"
                 />
                 <div className="flex flex-col items-center space-y-1">
@@ -173,15 +240,15 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
           </div>
 
           {/* Frequency Configuration */}
-          {scheduleMode === 'frequency' && (
+          {currentMode === 'frequency' && (
             <div>
               <label htmlFor="frequency" className="block text-sm font-medium text-gray-700 mb-1">
                 Crawl Frequency
               </label>
               <select
                 id="frequency"
-                value={localFrequency}
-                onChange={(e) => setLocalFrequency(Number(e.target.value))}
+                value={crawlFrequencyHours || 24}
+                onChange={(e) => handleFrequencyChange(Number(e.target.value))}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
                 {FREQUENCY_OPTIONS.map((option) => (
@@ -197,7 +264,7 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
           )}
 
           {/* Cron Configuration */}
-          {scheduleMode === 'cron' && (
+          {currentMode === 'cron' && (
             <div>
               <label htmlFor="cronSchedule" className="block text-sm font-medium text-gray-700 mb-1">
                 Cron Expression
@@ -206,7 +273,7 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
                 type="text"
                 id="cronSchedule"
                 value={localCronSchedule}
-                onChange={(e) => handleCronChange(e.target.value)}
+                onChange={(e) => handleCronInputChange(e.target.value)}
                 className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
                   cronError ? 'border-red-300' : 'border-gray-300'
                 }`}
@@ -236,7 +303,7 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
                     <button
                       key={index}
                       type="button"
-                      onClick={() => handleCronChange(example.expression)}
+                      onClick={() => handleCronInputChange(example.expression)}
                       className="text-left px-2 py-1 text-xs bg-gray-50 hover:bg-gray-100 rounded border-l-2 border-blue-500"
                     >
                       <code className="font-mono text-blue-600">{example.expression}</code>
@@ -255,8 +322,8 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
             </label>
             <select
               id="maxDuration"
-              value={localDuration}
-              onChange={(e) => setLocalDuration(Number(e.target.value))}
+              value={maxCrawlDurationMinutes || 60}
+              onChange={(e) => handleDurationChange(Number(e.target.value))}
               className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
               {DURATION_OPTIONS.map((option) => (

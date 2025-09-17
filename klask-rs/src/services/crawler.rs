@@ -222,60 +222,100 @@ impl CrawlerService {
         repository: &Repository,
         repo_path: &Path,
     ) -> Result<GitRepository> {
+        let repo_path_owned = repo_path.to_owned();
+        let repository_url = repository.url.clone();
+        let repository_branch = repository.branch.clone();
+        
         if repo_path.exists() {
             debug!("Updating existing repository at: {:?}", repo_path);
-            let git_repo = GitRepository::open(repo_path)
-                .map_err(|e| anyhow!("Failed to open existing repository: {}", e))?;
             
-            // Fetch latest changes
-            {
-                let mut remote = git_repo.find_remote("origin")
-                    .map_err(|e| anyhow!("Failed to find origin remote: {}", e))?;
+            // Use spawn_blocking to run git2 operations in a blocking thread
+            let result = tokio::task::spawn_blocking(move || -> Result<GitRepository> {
+                // Try to open the existing repository
+                let git_repo = GitRepository::open(&repo_path_owned)?;
                 
-                remote.fetch(&["refs/heads/*:refs/remotes/origin/*"], None, None)
-                    .map_err(|e| anyhow!("Failed to fetch from remote: {}", e))?;
-            }
-            
-            // Reset to latest commit on the target branch
-            let branch_name = repository.branch.as_deref().unwrap_or("main");
-            let branch_ref = format!("refs/remotes/origin/{}", branch_name);
-            
-            if let Ok(reference) = git_repo.find_reference(&branch_ref) {
-                let target_commit = reference.target().unwrap();
-                let commit = git_repo.find_commit(target_commit)
-                    .map_err(|e| anyhow!("Failed to find target commit: {}", e))?;
+                // For GitHub repos, skip fetch to avoid authentication issues
+                if repository_url.contains("github.com") {
+                    debug!("Skipping fetch for GitHub repository to avoid auth issues");
+                    return Ok(git_repo);
+                }
                 
-                git_repo.reset(&commit.as_object(), git2::ResetType::Hard, None)
-                    .map_err(|e| anyhow!("Failed to reset to latest commit: {}", e))?;
-            }
+                // Try to fetch latest changes for non-GitHub repos
+                match git_repo.find_remote("origin") {
+                    Ok(mut remote) => {
+                        debug!("Fetching latest changes from origin");
+                        if let Err(e) = remote.fetch(&["refs/heads/*:refs/remotes/origin/*"], None, None) {
+                            warn!("Failed to fetch from remote, using existing local copy: {}", e);
+                            // Continue with existing local copy
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to find origin remote, using existing local copy: {}", e);
+                        // Continue with existing local copy
+                    }
+                }
+                
+                // Reset to latest commit on the target branch
+                let branch_name = repository_branch.as_deref().unwrap_or("main");
+                let branch_ref = format!("refs/remotes/origin/{}", branch_name);
+                
+                if let Ok(reference) = git_repo.find_reference(&branch_ref) {
+                    let target_commit = reference.target().ok_or_else(|| anyhow!("No target for reference"))?;
+                    let commit = git_repo.find_commit(target_commit)
+                        .map_err(|e| anyhow!("Failed to find target commit: {}", e))?;
+                    
+                    git_repo.reset(&commit.as_object(), git2::ResetType::Hard, None)
+                        .map_err(|e| anyhow!("Failed to reset to latest commit: {}", e))?;
+                }
+                
+                Ok(git_repo)
+            }).await?;
             
-            Ok(git_repo)
+            match result {
+                Ok(repo) => Ok(repo),
+                Err(e) => {
+                    // If we can't open it, delete and re-clone
+                    warn!("Failed to open existing repository, will delete and re-clone: {}", e);
+                    std::fs::remove_dir_all(repo_path)?;
+                    self.clone_fresh_repository(repository, repo_path).await
+                }
+            }
         } else {
-            debug!("Cloning repository to: {:?}", repo_path);
-            
-            // Try to use a public-friendly URL for GitHub repos
-            let clone_url = if repository.url.starts_with("https://github.com/") {
-                // Convert HTTPS GitHub URL to git:// protocol which doesn't require auth for public repos
-                repository.url.replace("https://github.com/", "git://github.com/")
-            } else {
-                repository.url.clone()
-            };
-            
-            debug!("Using clone URL: {}", clone_url);
-            
-            let git_repo = GitRepository::clone(&clone_url, repo_path)
+            self.clone_fresh_repository(repository, repo_path).await
+        }
+    }
+
+    async fn clone_fresh_repository(
+        &self,
+        repository: &Repository,
+        repo_path: &Path,
+    ) -> Result<GitRepository> {
+        debug!("Cloning repository to: {:?}", repo_path);
+        
+        // Try to use a public-friendly URL for GitHub repos
+        let clone_url = repository.url.clone();
+        let original_url = repository.url.clone();
+        let repository_branch = repository.branch.clone();
+        let repo_path_owned = repo_path.to_owned();
+        
+        debug!("Using clone URL: {}", clone_url);
+        
+        // Use spawn_blocking to run git2 clone operations in a blocking thread
+        let git_repo = tokio::task::spawn_blocking(move || -> Result<GitRepository> {
+            let git_repo = GitRepository::clone(&clone_url, &repo_path_owned)
                 .or_else(|_| {
                     // If git:// fails, try the original URL
-                    debug!("Git protocol failed, trying original URL: {}", repository.url);
-                    GitRepository::clone(&repository.url, repo_path)
+                    debug!("Git protocol failed, trying original URL: {}", original_url);
+                    GitRepository::clone(&original_url, &repo_path_owned)
                 })
                 .map_err(|e| anyhow!("Failed to clone repository: {}", e))?;
-            
+                
             // Checkout the specified branch if provided
-            if let Some(branch) = &repository.branch {
+            if let Some(branch) = &repository_branch {
                 let branch_ref = format!("refs/remotes/origin/{}", branch);
                 if let Ok(reference) = git_repo.find_reference(&branch_ref) {
-                    let target_commit = reference.target().unwrap();
+                    let target_commit = reference.target()
+                        .ok_or_else(|| anyhow!("No target for branch reference"))?;
                     let commit = git_repo.find_commit(target_commit)
                         .map_err(|e| anyhow!("Failed to find branch commit: {}", e))?;
                     
@@ -285,7 +325,9 @@ impl CrawlerService {
             }
             
             Ok(git_repo)
-        }
+        }).await??;
+        
+        Ok(git_repo)
     }
     
     pub async fn process_repository_files(
@@ -298,74 +340,90 @@ impl CrawlerService {
         // For Tantivy-only indexing, we don't need to track file deletions
         // since Tantivy will be rebuilt fresh for each crawl
         
-        // First pass: Count total eligible files for accurate progress reporting
-        let mut total_files = 0;
-        for entry in WalkDir::new(repo_path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-        {
-            let file_path = entry.path();
-            let relative_path = file_path.strip_prefix(repo_path)
-                .map_err(|e| anyhow!("Failed to get relative path: {}", e))?;
-            
-            let relative_path_str = relative_path.to_string_lossy().to_string();
-            
-            // Skip hidden files and directories
-            if relative_path_str.starts_with('.') {
-                continue;
-            }
-            
-            // Check file extension
-            if !self.is_supported_file(file_path) {
-                continue;
-            }
-            
-            // Check file size
-            if let Ok(metadata) = file_path.metadata() {
-                if metadata.len() > MAX_FILE_SIZE {
+        let repo_path_owned = repo_path.to_owned();
+        let repo_path_owned2 = repo_path.to_owned();
+        
+        // First pass: Count total eligible files for accurate progress reporting (in blocking thread)
+        let total_files = tokio::task::spawn_blocking(move || -> Result<usize> {
+            let mut total_files = 0;
+            for entry in WalkDir::new(&repo_path_owned)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().is_file())
+            {
+                let file_path = entry.path();
+                let relative_path = file_path.strip_prefix(&repo_path_owned)
+                    .map_err(|e| anyhow!("Failed to get relative path: {}", e))?;
+                
+                let relative_path_str = relative_path.to_string_lossy().to_string();
+                
+                // Skip hidden files and directories
+                if relative_path_str.starts_with('.') {
                     continue;
                 }
+                
+                // Check file extension
+                if !CrawlerService::is_supported_file_static(file_path) {
+                    continue;
+                }
+                
+                // Check file size
+                if let Ok(metadata) = file_path.metadata() {
+                    if metadata.len() > MAX_FILE_SIZE {
+                        continue;
+                    }
+                }
+                
+                total_files += 1;
             }
-            
-            total_files += 1;
-        }
+            Ok(total_files)
+        }).await??;
         
         debug!("Found {} eligible files to process in repository {}", total_files, repository.name);
         
-        // Walk through all files in the repository
-        for entry in WalkDir::new(repo_path)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-        {
+        // Collect all file paths to process (in blocking thread)
+        let files_to_process = tokio::task::spawn_blocking(move || -> Result<Vec<(PathBuf, String)>> {
+            let mut files = Vec::new();
+            for entry in WalkDir::new(&repo_path_owned2)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().is_file())
+            {
+                let file_path = entry.path();
+                let relative_path = file_path.strip_prefix(&repo_path_owned2)
+                    .map_err(|e| anyhow!("Failed to get relative path: {}", e))?;
+                
+                let relative_path_str = relative_path.to_string_lossy().to_string();
+                
+                // Skip hidden files and directories
+                if relative_path_str.starts_with('.') {
+                    continue;
+                }
+                
+                // Check file extension
+                if !CrawlerService::is_supported_file_static(file_path) {
+                    continue;
+                }
+                
+                // Check file size
+                if let Ok(metadata) = file_path.metadata() {
+                    if metadata.len() > MAX_FILE_SIZE {
+                        debug!("Skipping large file: {} ({} bytes)", relative_path_str, metadata.len());
+                        continue;
+                    }
+                }
+                
+                files.push((file_path.to_path_buf(), relative_path_str));
+            }
+            Ok(files)
+        }).await??;
+        
+        // Now process all files asynchronously
+        for (file_path, relative_path_str) in files_to_process {
             // Check for cancellation at the start of each file processing
             if cancellation_token.is_cancelled() {
                 info!("Crawl cancelled for repository: {}", repository.name);
                 return Ok(());
-            }
-            let file_path = entry.path();
-            let relative_path = file_path.strip_prefix(repo_path)
-                .map_err(|e| anyhow!("Failed to get relative path: {}", e))?;
-            
-            let relative_path_str = relative_path.to_string_lossy().to_string();
-            
-            // Skip hidden files and directories
-            if relative_path_str.starts_with('.') {
-                continue;
-            }
-            
-            // Check file extension
-            if !self.is_supported_file(file_path) {
-                continue;
-            }
-            
-            // Check file size
-            if let Ok(metadata) = file_path.metadata() {
-                if metadata.len() > MAX_FILE_SIZE {
-                    debug!("Skipping large file: {} ({} bytes)", relative_path_str, metadata.len());
-                    continue;
-                }
             }
             
             progress.files_processed += 1;
@@ -379,7 +437,7 @@ impl CrawlerService {
                 progress.files_indexed
             ).await;
             
-            match self.process_single_file(repository, file_path, &relative_path_str).await {
+            match self.process_single_file(repository, &file_path, &relative_path_str).await {
                 Ok(()) => {
                     progress.files_indexed += 1;
                     // Update indexed count
@@ -462,6 +520,10 @@ impl CrawlerService {
     }
     
     pub fn is_supported_file(&self, file_path: &Path) -> bool {
+        Self::is_supported_file_static(file_path)
+    }
+    
+    pub fn is_supported_file_static(file_path: &Path) -> bool {
         if let Some(extension) = file_path.extension().and_then(|ext| ext.to_str()) {
             SUPPORTED_EXTENSIONS.contains(&extension.to_lowercase().as_str())
         } else {

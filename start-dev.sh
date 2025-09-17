@@ -57,12 +57,12 @@ echo -e "\n${BLUE}Step 2: Database Setup${NC}"
 if [ "$DOCKER_AVAILABLE" = true ]; then
     echo -e "${YELLOW}Starting PostgreSQL with Docker...${NC}"
     cd klask-rs
-    docker-compose -f docker-compose.dev.yml up -d
+    docker compose -f docker-compose.dev.yml up -d
     
     echo "Waiting for PostgreSQL to be ready..."
     sleep 10
     
-    if docker-compose -f docker-compose.dev.yml ps | grep -q "Up"; then
+    if docker compose -f docker-compose.dev.yml ps | grep -q "Up"; then
         echo -e "${GREEN}✓ PostgreSQL is running${NC}"
     else
         echo -e "${RED}✗ Failed to start PostgreSQL${NC}"

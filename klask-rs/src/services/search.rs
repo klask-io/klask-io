@@ -6,8 +6,8 @@ use std::sync::Arc;
 use tantivy::collector::TopDocs;
 use tantivy::query::{QueryParser, BooleanQuery, TermQuery};
 use tantivy::schema::{Schema, Field, FAST, STORED, TEXT, Value};
-use tantivy::snippet::{Snippet, SnippetGenerator};
-use tantivy::{doc, DocAddress, Index, IndexReader, IndexWriter, Term};
+use tantivy::snippet::SnippetGenerator;
+use tantivy::{doc, Index, IndexReader, IndexWriter, Term};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -233,7 +233,7 @@ impl SearchService {
         ]);
 
         // Parse the main query
-        let mut base_query = query_parser.parse_query(&search_query.query)
+        let base_query = query_parser.parse_query(&search_query.query)
             .map_err(|e| anyhow!("Failed to parse query '{}': {}", search_query.query, e))?;
 
         // Build filter queries if filters are provided

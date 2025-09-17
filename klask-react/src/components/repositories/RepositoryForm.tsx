@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -29,11 +29,6 @@ const repositorySchema = z.object({
     .optional(),
   isGroup: z.boolean().default(false),
   enabled: z.boolean().default(true),
-  // Scheduling fields
-  autoCrawlEnabled: z.boolean().default(false),
-  cronSchedule: z.string().optional(),
-  crawlFrequencyHours: z.number().optional(),
-  maxCrawlDurationMinutes: z.number().default(60),
 }).refine((data) => {
   // For Git and GitLab, validate as URL
   if (data.repositoryType === 'Git' || data.repositoryType === 'GitLab') {
@@ -56,11 +51,19 @@ const repositorySchema = z.object({
 
 type RepositoryFormData = z.infer<typeof repositorySchema>;
 
+// Define a type that includes scheduling data
+type RepositoryFormSubmitData = RepositoryFormData & {
+  autoCrawlEnabled: boolean;
+  cronSchedule?: string;
+  crawlFrequencyHours?: number;
+  maxCrawlDurationMinutes: number;
+};
+
 interface RepositoryFormProps {
   repository?: Repository;
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: RepositoryFormData) => void;
+  onSubmit: (data: RepositoryFormSubmitData) => void;
   isLoading?: boolean;
   title?: string;
 }
@@ -84,12 +87,15 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
     maxCrawlDurationMinutes: repository?.maxCrawlDurationMinutes || 60,
   });
 
+  // Track if scheduling data has changed for edit mode
+  const [hasSchedulingChanged, setHasSchedulingChanged] = useState(false);
+
   const {
     register,
     handleSubmit,
     watch,
     reset,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isDirty },
   } = useForm<RepositoryFormData>({
     resolver: zodResolver(repositorySchema) as any,
     defaultValues: repository ? {
@@ -98,71 +104,117 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
       repositoryType: repository.repositoryType,
       branch: repository.branch || '',
       enabled: repository.enabled,
-      autoCrawlEnabled: repository.autoCrawlEnabled,
-      cronSchedule: repository.cronSchedule,
-      crawlFrequencyHours: repository.crawlFrequencyHours,
-      maxCrawlDurationMinutes: repository.maxCrawlDurationMinutes,
     } : {
       name: '',
       url: '',
       repositoryType: 'Git',
       branch: '',
       enabled: true,
-      autoCrawlEnabled: false,
-      maxCrawlDurationMinutes: 60,
     },
   });
 
   const watchedType = watch('repositoryType');
-
+  
+  // Debug: Monitor button state
   React.useEffect(() => {
-    if (repository) {
-      const formData = {
-        name: repository.name,
-        url: repository.url,
-        repositoryType: repository.repositoryType,
-        branch: repository.branch || '',
-        enabled: repository.enabled,
-        autoCrawlEnabled: repository.autoCrawlEnabled,
-        cronSchedule: repository.cronSchedule,
-        crawlFrequencyHours: repository.crawlFrequencyHours,
-        maxCrawlDurationMinutes: repository.maxCrawlDurationMinutes,
+    const shouldDisable = (() => {
+      if (!isValid || isLoading) return true;
+      if (!isEditing) return false;
+      return !isDirty && !hasSchedulingChanged;
+    })();
+    
+    console.log('Form state:', {
+      isValid,
+      isEditing,
+      isDirty,
+      hasSchedulingChanged,
+      buttonWillBeDisabled: shouldDisable,
+      errors: Object.keys(errors).length > 0 ? errors : 'none'
+    });
+  }, [isValid, isLoading, isEditing, isDirty, hasSchedulingChanged, errors]);
+
+  // Handle scheduling data changes
+  const handleScheduleChange = useCallback((newSchedulingData: typeof schedulingData) => {
+    setSchedulingData(newSchedulingData);
+    
+    if (isEditing && repository) {
+      // Check if scheduling data has changed
+      // For comparison, treat undefined, null, and empty string as equivalent
+      const areEqual = (a: any, b: any) => {
+        if ((a === undefined || a === null || a === '') && 
+            (b === undefined || b === null || b === '')) {
+          return true;
+        }
+        return a === b;
       };
-      reset(formData);
-      setSchedulingData({
-        autoCrawlEnabled: repository.autoCrawlEnabled,
-        cronSchedule: repository.cronSchedule,
-        crawlFrequencyHours: repository.crawlFrequencyHours,
-        maxCrawlDurationMinutes: repository.maxCrawlDurationMinutes || 60,
-      });
-    } else {
-      const formData = {
-        name: '',
-        url: '',
-        repositoryType: 'Git' as RepositoryType,
-        branch: '',
-        enabled: true,
-        autoCrawlEnabled: false,
-        maxCrawlDurationMinutes: 60,
-      };
-      reset(formData);
-      setSchedulingData({
-        autoCrawlEnabled: false,
-        cronSchedule: undefined,
-        crawlFrequencyHours: undefined,
-        maxCrawlDurationMinutes: 60,
-      });
+      
+      const hasChanged = 
+        repository.autoCrawlEnabled !== newSchedulingData.autoCrawlEnabled ||
+        !areEqual(repository.cronSchedule, newSchedulingData.cronSchedule) ||
+        !areEqual(repository.crawlFrequencyHours, newSchedulingData.crawlFrequencyHours) ||
+        (repository.maxCrawlDurationMinutes || 60) !== newSchedulingData.maxCrawlDurationMinutes;
+      
+      // Only log when there's an actual change
+      if (hasChanged) {
+        console.log('Schedule changed:', hasChanged);
+      }
+      
+      setHasSchedulingChanged(hasChanged);
     }
-  }, [repository, reset]);
+  }, [isEditing, repository]);
+
+  // Track the repository ID to detect when we switch repositories
+  const [currentRepositoryId, setCurrentRepositoryId] = React.useState(repository?.id);
+  
+  React.useEffect(() => {
+    // Only reset when we actually switch to a different repository
+    if (repository?.id !== currentRepositoryId) {
+      setCurrentRepositoryId(repository?.id);
+      
+      if (repository) {
+        const formData = {
+          name: repository.name,
+          url: repository.url,
+          repositoryType: repository.repositoryType,
+          branch: repository.branch || '',
+          enabled: repository.enabled,
+        };
+        reset(formData);
+        setSchedulingData({
+          autoCrawlEnabled: repository.autoCrawlEnabled,
+          cronSchedule: repository.cronSchedule,
+          crawlFrequencyHours: repository.crawlFrequencyHours,
+          maxCrawlDurationMinutes: repository.maxCrawlDurationMinutes || 60,
+        });
+        setHasSchedulingChanged(false);
+      } else {
+        const formData = {
+          name: '',
+          url: '',
+          repositoryType: 'Git' as RepositoryType,
+          branch: '',
+          enabled: true,
+        };
+        reset(formData);
+        setSchedulingData({
+          autoCrawlEnabled: false,
+          cronSchedule: undefined,
+          crawlFrequencyHours: undefined,
+          maxCrawlDurationMinutes: 60,
+        });
+        setHasSchedulingChanged(false);
+      }
+    }
+  }, [repository?.id, repository, reset, currentRepositoryId]);
 
   const handleFormSubmit = (data: RepositoryFormData) => {
     // Clean up branch field if empty and merge scheduling data
-    const cleanedData = {
+    const submitData: RepositoryFormSubmitData = {
       ...data,
       branch: data.branch?.trim() || undefined,
       ...schedulingData,
     };
-    onSubmit(cleanedData);
+    onSubmit(submitData);
   };
 
   const getTypeIcon = (type: RepositoryType) => {
@@ -215,7 +267,7 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit(handleFormSubmit as any)} className="space-y-6">
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
             {/* Repository Name */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -380,7 +432,8 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
                 cronSchedule={schedulingData.cronSchedule}
                 crawlFrequencyHours={schedulingData.crawlFrequencyHours}
                 maxCrawlDurationMinutes={schedulingData.maxCrawlDurationMinutes}
-                onScheduleChange={setSchedulingData as any}
+                onScheduleChange={handleScheduleChange}
+                repositoryId={repository?.id}
               />
             </div>
 
@@ -396,7 +449,16 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={!isValid || isLoading}
+                disabled={(() => {
+                  // Always disable if invalid or loading
+                  if (!isValid || isLoading) return true;
+                  
+                  // For new repositories, enable if valid
+                  if (!isEditing) return false;
+                  
+                  // For editing, enable if anything changed
+                  return !isDirty && !hasSchedulingChanged;
+                })()}
                 className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
                 {isLoading ? (

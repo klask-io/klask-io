@@ -477,6 +477,7 @@ const RepositoriesPage: React.FC = () => {
 
       {/* Repository Form Modal */}
       <RepositoryForm
+        key={editingRepository?.id || 'new'}
         repository={editingRepository || undefined}
         isOpen={showForm || !!editingRepository}
         onClose={() => {

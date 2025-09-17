@@ -11,7 +11,7 @@ use sqlx::{PgPool, Row};
 use chrono::{DateTime, Utc};
 use tracing::{debug, error, info};
 use crate::auth::extractors::{AppState, AdminUser};
-use crate::repositories::{UserRepository, RepositoryRepository, FileRepository, user_repository::UserStats};
+use crate::repositories::{UserRepository, user_repository::UserStats};
 use crate::services::seeding::{SeedingService, SeedingStats};
 
 #[derive(Debug, Serialize)]

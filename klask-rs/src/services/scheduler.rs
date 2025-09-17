@@ -41,6 +41,27 @@ impl SchedulerService {
         // Start the scheduler
         self.scheduler.start().await?;
         
+        // Spawn a background task to keep the scheduler running
+        let mut scheduler_clone = self.scheduler.clone();
+        tokio::spawn(async move {
+            loop {
+                // This is required to keep the scheduler running
+                // The scheduler needs to check for jobs periodically
+                if let Ok(duration) = scheduler_clone.time_till_next_job().await {
+                    if let Some(duration) = duration {
+                        debug!("Next job in {:?}", duration);
+                        tokio::time::sleep(duration).await;
+                    } else {
+                        // No jobs scheduled, wait a bit
+                        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                    }
+                } else {
+                    // Error getting next job time, wait a bit
+                    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                }
+            }
+        });
+        
         // Load all repositories with scheduling enabled
         self.reload_scheduled_repositories().await?;
         
@@ -70,7 +91,14 @@ impl SchedulerService {
         self.unschedule_repository(repository.id).await?;
 
         let schedule_expr = if let Some(ref cron_schedule) = repository.cron_schedule {
-            cron_schedule.clone()
+            // Convert 5-field cron to 6-field if needed (tokio-cron-scheduler uses 6 fields with seconds)
+            let parts: Vec<&str> = cron_schedule.split_whitespace().collect();
+            if parts.len() == 5 {
+                // Add "0" at the beginning for seconds
+                format!("0 {}", cron_schedule)
+            } else {
+                cron_schedule.clone()
+            }
         } else if let Some(frequency_hours) = repository.crawl_frequency_hours {
             // Convert hours to cron expression (run every X hours)
             // tokio-cron-scheduler uses seconds-based cron (6 fields)
@@ -91,11 +119,9 @@ impl SchedulerService {
             "0 * * * * *".to_string() // Every minute for testing
         };
 
-        // Validate cron expression
-        if let Err(e) = schedule_expr.parse::<cron::Schedule>() {
-            error!("Invalid cron expression '{}' for repository {}: {}", schedule_expr, repository.id, e);
-            return Err(anyhow::anyhow!("Invalid cron expression: {}", e));
-        }
+        // Skip validation here as tokio-cron-scheduler will validate itself
+        // The cron crate uses 5-field format while tokio-cron-scheduler uses 6-field
+        debug!("Will schedule with expression: {}", schedule_expr);
 
         let repository_id = repository.id;
         let max_duration = repository.max_crawl_duration_minutes.unwrap_or(60) as u64;
@@ -109,10 +135,12 @@ impl SchedulerService {
             repository_name, repository_id, schedule_expr);
 
         // Create the job
-        let job = Job::new_cron_job_async(schedule_expr.as_str(), move |_uuid, _l| {
+        let job = Job::new_cron_job_async(schedule_expr.as_str(), move |job_uuid, _job_lock| {
             let pool = pool.clone();
             let crawler_service = crawler_service.clone();
             let repository_name = repository_name.clone();
+            
+            info!("📅 Job created with UUID: {:?} for repository: {} ({})", job_uuid, repository_name, repository_id);
             
             Box::pin(async move {
                 info!("🚀 SCHEDULED CRAWL TRIGGERED for repository: {} ({})", repository_name, repository_id);
@@ -211,7 +239,7 @@ impl SchedulerService {
     }
 
     /// Get next scheduled run time for a repository
-    pub async fn get_next_run_time(&self, repository_id: Uuid) -> Option<DateTime<Utc>> {
+    pub async fn get_next_run_time(&self, _repository_id: Uuid) -> Option<DateTime<Utc>> {
         // TODO: Implement proper next run time retrieval with tokio_cron_scheduler
         None
     }
@@ -277,7 +305,7 @@ impl SchedulerService {
     /// Schedule a periodic task to reload repository schedules
     async fn schedule_periodic_reload(&self) -> Result<()> {
         let pool = self.pool.clone();
-        let scheduler_service = Arc::new(self);
+        let _scheduler_service = Arc::new(self);
         
         let job = Job::new_cron_job_async("0 */5 * * * *", move |_uuid, _l| { // Every 5 minutes
             let pool = pool.clone();
@@ -322,10 +350,23 @@ async fn update_next_crawl_time(pool: &PgPool, repository_id: Uuid) -> Result<()
         .ok_or_else(|| anyhow::anyhow!("Repository not found"))?;
 
     let next_crawl_at = if let Some(ref cron_schedule) = repository.cron_schedule {
-        // Parse cron schedule and calculate next run
-        match cron_schedule.parse::<cron::Schedule>() {
+        // Parse cron schedule and calculate next run using the cron library
+        // The cron library expects 5-field expressions (no seconds)
+        let parts: Vec<&str> = cron_schedule.split_whitespace().collect();
+        let five_field_cron = if parts.len() == 6 {
+            // Remove seconds field if present (skip first field)
+            parts[1..].join(" ")
+        } else {
+            cron_schedule.clone()
+        };
+        
+        // Use the cron library to parse and calculate next occurrence
+        match five_field_cron.parse::<cron::Schedule>() {
             Ok(schedule) => {
-                schedule.upcoming(Utc).next()
+                // Get the next occurrence after now
+                schedule.upcoming(chrono::Utc)
+                    .take(1)
+                    .next()
             },
             Err(e) => {
                 error!("Invalid cron expression '{}': {}", cron_schedule, e);

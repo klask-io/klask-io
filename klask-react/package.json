@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && vite build",
-    "build:fast": "vite build", 
+    "build:fast": "vite build",
     "typecheck": "tsc --project tsconfig.app.json --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
