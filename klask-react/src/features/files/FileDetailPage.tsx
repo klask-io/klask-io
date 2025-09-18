@@ -156,12 +156,17 @@ const FileDetailPage: React.FC = () => {
             {getErrorMessage(error) || 'The requested file could not be found.'}
           </p>
           <div className="space-x-3">
-            <Link to={buildSearchURL(searchQuery, searchState)} className="btn-primary">
+            <Link 
+              to={buildSearchURL(searchQuery, searchState)} 
+              state={searchState}
+              className="btn-primary"
+            >
               Back to Search
             </Link>
             {searchQuery && (
               <Link 
                 to={buildSearchURL(searchQuery, searchState)}
+                state={searchState}
                 className="btn-secondary"
               >
                 Return to Results
@@ -184,6 +189,7 @@ const FileDetailPage: React.FC = () => {
         <div className="flex items-center space-x-4">
           <Link
             to={buildSearchURL(searchQuery, searchState)}
+            state={searchState}
             className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
@@ -195,6 +201,7 @@ const FileDetailPage: React.FC = () => {
               <ChevronRightIcon className="h-4 w-4 text-gray-400" />
               <Link
                 to={buildSearchURL(searchQuery, searchState)}
+                state={searchState}
                 className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700"
               >
                 <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
@@ -311,7 +318,7 @@ const FileDetailPage: React.FC = () => {
                 customStyle={{
                   margin: 0,
                   padding: '24px',
-                  background: isDarkTheme ? '#1e1e1e' : '#fafafa',
+                  backgroundColor: isDarkTheme ? '#1e1e1e' : '#fafafa',
                   fontSize: '14px',
                   lineHeight: '1.5',
                 }}

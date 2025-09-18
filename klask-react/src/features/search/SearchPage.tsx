@@ -52,8 +52,6 @@ const SearchPage: React.FC = () => {
   
   // Track if we're initializing to avoid double URL updates
   const [isInitializing, setIsInitializing] = useState(true);
-  // Track if we just navigated back to avoid immediate URL overwrite
-  const [skipNextUrlUpdate, setSkipNextUrlUpdate] = useState(false);
   
   // Initialize from URL parameters and location state
   useEffect(() => {
@@ -66,6 +64,7 @@ const SearchPage: React.FC = () => {
     const urlPage = parseInt(urlParams.get('page') || '1', 10);
     
     // Priority: location.state (from navigation) > URL params
+    // The state can be the searchState object itself (when coming back from FileDetailPage)
     const stateQuery = location.state?.initialQuery as string;
     const stateFilters = location.state?.filters as SearchFilters;
     const stateAdvanced = location.state?.showAdvanced as boolean;
@@ -97,9 +96,6 @@ const SearchPage: React.FC = () => {
       
       const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
       window.history.replaceState(null, '', newURL);
-      
-      // Skip the next URL update since we just set it correctly
-      setSkipNextUrlUpdate(true);
     }
     
     // Set React state
@@ -110,15 +106,13 @@ const SearchPage: React.FC = () => {
     setIsInitializing(false);
   }, [location.state, location.search]);
   
-  // Update URL whenever search state changes (only after initialization)
+  // Update URL whenever search state changes (only after initialization and not from navigation)
   useEffect(() => {
     if (isInitializing) return;
-    if (skipNextUrlUpdate) {
-      setSkipNextUrlUpdate(false);
-      return;
-    }
+    // Don't update URL if we have navigation state (coming from file detail page)
+    if (location.state) return;
     updateURL(query, filters, showAdvanced, currentPage);
-  }, [query, filters, showAdvanced, currentPage, updateURL, isInitializing, skipNextUrlUpdate]);
+  }, [query, filters, showAdvanced, currentPage, updateURL, isInitializing, location.state]);
   
   const {
     data: availableFilters,
