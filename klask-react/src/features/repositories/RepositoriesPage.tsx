@@ -7,7 +7,6 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { SelectableRepositoryCard } from '../../components/repositories/SelectableRepositoryCard';
-import { GroupedRepositoryList } from '../../components/repositories/GroupedRepositoryList';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { RepositoryForm } from '../../components/repositories/RepositoryForm';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -87,34 +86,14 @@ const RepositoriesPage: React.FC = () => {
 
   const handleCreate = useCallback(async (data: any) => {
     try {
-      // For GitLab repositories, use the discovery endpoint
-      if (data.repositoryType === 'GitLab') {
-        const discoveredRepos = await apiClient.discoverGitlabProjects({
-          gitlabUrl: data.url?.trim() || undefined,
-          accessToken: data.accessToken || '',
-          namespace: data.gitlabNamespace?.trim() || undefined,
-          autoCrawlEnabled: data.autoCrawlEnabled,
-          cronSchedule: data.cronSchedule,
-          crawlFrequencyHours: data.crawlFrequencyHours,
-          maxCrawlDurationMinutes: data.maxCrawlDurationMinutes,
-        });
-        
-        if (discoveredRepos.length > 0) {
-          toast.success(`Successfully imported ${discoveredRepos.length} GitLab repositories`);
-          queryClient.invalidateQueries({ queryKey: ['repositories'] });
-        } else {
-          toast('No accessible repositories found on GitLab', { icon: '⚠️' });
-        }
-      } else {
-        // For other repository types, use the regular create endpoint
-        await createMutation.mutateAsync(data);
-        toast.success('Repository created successfully');
-      }
+      // Use the regular create endpoint for all repository types
+      await createMutation.mutateAsync(data);
+      toast.success('Repository created successfully');
       setShowForm(false);
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
-  }, [createMutation, queryClient]);
+  }, [createMutation]);
 
   const handleUpdate = useCallback(async (data: any) => {
     if (!editingRepository) return;
@@ -480,24 +459,22 @@ const RepositoriesPage: React.FC = () => {
           )}
         </div>
       ) : (
-        <GroupedRepositoryList
-          repositories={filteredRepositories}
-          selectedRepos={selectedRepos}
-          onToggleSelection={(repoId) => {
-            const isSelected = selectedRepos.includes(repoId);
-            handleSelectRepo(repoId, !isSelected);
-          }}
-          onEdit={setEditingRepository}
-          onDelete={handleDelete}
-          onCrawl={handleCrawl}
-          onStopCrawl={(repo) => {
-            // Handle stop crawl if needed
-            console.log('Stop crawl for', repo.name);
-          }}
-          onToggleEnabled={handleToggleEnabled}
-          activeProgress={activeProgress}
-          crawlingRepos={crawlingRepos}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredRepositories.map((repository) => (
+            <SelectableRepositoryCard
+              key={repository.id}
+              repository={repository}
+              selected={selectedRepos.includes(repository.id)}
+              onSelect={(selected) => handleSelectRepo(repository.id, selected)}
+              onEdit={setEditingRepository}
+              onDelete={handleDelete}
+              onCrawl={handleCrawl}
+              onToggleEnabled={handleToggleEnabled}
+              activeProgress={activeProgress}
+              isCrawling={crawlingRepos.has(repository.id)}
+            />
+          ))}
+        </div>
       )}
 
       {/* Repository Form Modal */}

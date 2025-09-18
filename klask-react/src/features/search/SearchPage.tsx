@@ -106,13 +106,18 @@ const SearchPage: React.FC = () => {
 
 
   const handleSearch = useCallback((searchQuery: string) => {
+    // Only reset to page 1 if the query actually changed
+    if (searchQuery !== query) {
+      setCurrentPage(1); // Reset to first page on new search
+    }
+    // Query unchanged - keeping current page'
+    
     setQuery(searchQuery);
-    setCurrentPage(1); // Reset to first page on new search
     if (searchQuery.trim()) {
       addToHistory(searchQuery.trim());
     }
     // URL will be updated by the useEffect automatically
-  }, [addToHistory]);
+  }, [addToHistory, query]);
 
   const handleFileClick = useCallback((result: SearchResult) => {
     navigate(`/files/doc/${result.doc_address}`, {
