@@ -70,10 +70,11 @@ const SearchPage: React.FC = () => {
     const stateAdvanced = location.state?.showAdvanced as boolean;
     const statePage = location.state?.page as number | undefined;
     
+    
     // Check if we're coming from navigation with state
     const hasNavigationState = !!(stateQuery || stateFilters || stateAdvanced !== undefined || statePage !== undefined);
     
-    // Set query
+    // Priority: navigation state > URL params
     const finalQuery = stateQuery || urlQuery || '';
     const finalFilters: SearchFilters = {
       project: stateFilters?.project || urlProject || undefined,
@@ -81,7 +82,7 @@ const SearchPage: React.FC = () => {
       extension: stateFilters?.extension || urlExtension || undefined,
     };
     const finalAdvanced = stateAdvanced !== undefined ? stateAdvanced : urlAdvanced;
-    const finalPage = statePage || urlPage; // Use state page if available, otherwise URL page
+    const finalPage = statePage || urlPage;
     
     // Update state in a batch to avoid multiple renders
     if (hasNavigationState) {
@@ -130,6 +131,7 @@ const SearchPage: React.FC = () => {
   } = usePaginatedSearch(query, filters as Record<string, string | undefined>, currentPage, {
     enabled: !!query.trim(),
   });
+  
 
   const results = searchData?.results || [];
   const totalResults = searchData?.total || 0;
