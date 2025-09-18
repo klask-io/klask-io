@@ -92,6 +92,20 @@ impl CrawlerService {
         info!("Starting crawl for repository: {} ({}) - Type: {:?}", 
               repository.name, repository.url, repository.repository_type);
         
+        // Delete all existing documents for this repository/project before crawling
+        // This ensures no duplicates when re-crawling
+        match self.search_service.delete_project_documents(&repository.name).await {
+            Ok(deleted_count) => {
+                if deleted_count > 0 {
+                    info!("Deleted {} existing documents for repository {} before crawling", deleted_count, repository.name);
+                }
+            },
+            Err(e) => {
+                warn!("Failed to delete existing documents for repository {}: {}", repository.name, e);
+                // Continue anyway - the upsert should handle duplicates
+            }
+        }
+        
         // Create cancellation token for this crawl
         let cancellation_token = CancellationToken::new();
         {

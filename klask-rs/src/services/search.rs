@@ -168,13 +168,17 @@ impl SearchService {
     ) -> Result<()> {
         let writer = self.writer.write().await;
         
-        // Delete existing document with the same file_id
-        let term = tantivy::Term::from_field_text(self.fields.file_id, &file_id.to_string());
-        writer.delete_term(term);
+        // Delete ALL existing documents with the same file_id to ensure no duplicates
+        let file_id_str = file_id.to_string();
+        let term = tantivy::Term::from_field_text(self.fields.file_id, &file_id_str);
+        
+        // Use a query to delete all matching documents
+        let query = TermQuery::new(term.clone(), tantivy::schema::IndexRecordOption::Basic);
+        writer.delete_query(Box::new(query));
         
         // Add the new document
         let doc = doc!(
-            self.fields.file_id => file_id.to_string(),
+            self.fields.file_id => file_id_str,
             self.fields.file_name => file_name,
             self.fields.file_path => file_path,
             self.fields.content => content,
@@ -197,7 +201,31 @@ impl SearchService {
     pub async fn commit(&self) -> Result<()> {
         let mut writer = self.writer.write().await;
         writer.commit()?;
+        // Reload reader to ensure latest changes are visible
+        self.reader.reload()?;
         Ok(())
+    }
+    
+    /// Delete all documents for a specific project (repository)
+    pub async fn delete_project_documents(&self, project: &str) -> Result<u64> {
+        let mut writer = self.writer.write().await;
+        
+        // Create a query to match all documents with this project
+        let term = tantivy::Term::from_field_text(self.fields.project, project);
+        let query = TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic);
+        
+        // Get count before deletion for logging
+        let searcher = self.reader.searcher();
+        let count_before = searcher.search(&query, &Count)? as u64;
+        
+        // Delete all matching documents
+        writer.delete_query(Box::new(query));
+        writer.commit()?;
+        
+        // Reload reader to see changes
+        self.reader.reload()?;
+        
+        Ok(count_before)
     }
 
     /// Reset the entire search index (delete all documents)
@@ -582,22 +610,18 @@ impl SearchService {
         let searcher = self.reader.searcher();
         debug!("Getting file by id: {}", file_id);
         
-        // Get all documents and search for matching file_id
-        let all_docs_query = tantivy::query::AllQuery;
-        let top_docs = searcher.search(&all_docs_query, &TopDocs::with_limit(10000))?;
-        debug!("Found {} total documents", top_docs.len());
+        // Use a targeted query to find the document with the matching file_id
+        let file_id_str = file_id.to_string();
+        let term = tantivy::Term::from_field_text(self.fields.file_id, &file_id_str);
+        let query = TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic);
         
-        for (score, doc_address) in top_docs {
-            let retrieved_doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
+        // Search for the specific document
+        let top_docs = searcher.search(&query, &TopDocs::with_limit(1))?;
+        
+        if let Some((score, doc_address)) = top_docs.first() {
+            let retrieved_doc = searcher.doc::<tantivy::TantivyDocument>(*doc_address)?;
             
-            // Check if this document has the matching file_id
-            if let Some(doc_file_id_str) = retrieved_doc
-                .get_first(self.fields.file_id)
-                .and_then(|v| v.as_str()) {
-                
-                if let Ok(doc_file_id) = Uuid::parse_str(doc_file_id_str) {
-                    if doc_file_id == file_id {
-                        debug!("Found matching document for file_id: {}", file_id);
+            debug!("Found matching document for file_id: {}", file_id);
                         
                         let file_name = retrieved_doc
                             .get_first(self.fields.file_name)
@@ -647,12 +671,9 @@ impl SearchService {
                             project,
                             version,
                             extension,
-                            score,
+                            score: *score,
                             line_number: None,
                         }));
-                    }
-                }
-            }
         }
         
         // If no matching document found

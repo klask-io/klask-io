@@ -7,6 +7,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { SelectableRepositoryCard } from '../../components/repositories/SelectableRepositoryCard';
+import { GroupedRepositoryList } from '../../components/repositories/GroupedRepositoryList';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { RepositoryForm } from '../../components/repositories/RepositoryForm';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
@@ -455,7 +456,7 @@ const RepositoriesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Repositories Grid */}
+      {/* Repositories List - Grouped for GitLab */}
       {filteredRepositories.length === 0 ? (
         <div className="text-center py-12">
           <FunnelIcon className="mx-auto h-16 w-16 text-gray-300 mb-4" />
@@ -479,23 +480,24 @@ const RepositoriesPage: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRepositories.map((repository) => (
-            <SelectableRepositoryCard
-              key={repository.id}
-              repository={repository}
-              selected={selectedRepos.includes(repository.id)}
-              onSelect={(selected) => handleSelectRepo(repository.id, selected)}
-              onEdit={setEditingRepository}
-              onDelete={handleDelete}
-              onCrawl={handleCrawl}
-              onToggleEnabled={handleToggleEnabled}
-              activeProgress={activeProgress}
-              isLoading={updateMutation.isPending && updateMutation.variables?.id === repository.id}
-              isCrawling={isRepositoryCrawling(repository.id)}
-            />
-          ))}
-        </div>
+        <GroupedRepositoryList
+          repositories={filteredRepositories}
+          selectedRepos={selectedRepos}
+          onToggleSelection={(repoId) => {
+            const isSelected = selectedRepos.includes(repoId);
+            handleSelectRepo(repoId, !isSelected);
+          }}
+          onEdit={setEditingRepository}
+          onDelete={handleDelete}
+          onCrawl={handleCrawl}
+          onStopCrawl={(repo) => {
+            // Handle stop crawl if needed
+            console.log('Stop crawl for', repo.name);
+          }}
+          onToggleEnabled={handleToggleEnabled}
+          activeProgress={activeProgress}
+          crawlingRepos={crawlingRepos}
+        />
       )}
 
       {/* Repository Form Modal */}

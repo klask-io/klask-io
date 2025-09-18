@@ -43,6 +43,7 @@ const FileDetailPage: React.FC = () => {
     if (state?.filters?.version) params.set('version', state.filters.version);
     if (state?.filters?.extension) params.set('extension', state.filters.extension);
     if (state?.showAdvanced) params.set('advanced', 'true');
+    if (state?.page && state.page > 1) params.set('page', state.page.toString());
     
     return `/search?${params.toString()}`;
   };

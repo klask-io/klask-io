@@ -318,7 +318,7 @@ class ApiClient {
   }
 
   async getUserStats(): Promise<UserStats> {
-    return this.request<UserStats>('/api/users/stats');
+    return this.request<UserStats>('/api/admin/users/stats');
   }
 
   // Admin API

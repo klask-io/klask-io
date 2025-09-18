@@ -151,7 +151,8 @@ const SearchPage: React.FC = () => {
         searchState: {
           initialQuery: query,
           filters: filters,
-          showAdvanced: showAdvanced
+          showAdvanced: showAdvanced,
+          page: currentPage
         }
       }
     });
