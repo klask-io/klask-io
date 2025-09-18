@@ -605,8 +605,6 @@ impl SearchService {
     }
 
     pub async fn get_file_by_id(&self, file_id: Uuid) -> Result<Option<SearchResult>> {
-        // Reload the reader to see the latest changes
-        self.reader.reload()?;
         let searcher = self.reader.searcher();
         debug!("Getting file by id: {}", file_id);
         

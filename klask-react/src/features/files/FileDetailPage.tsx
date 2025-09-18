@@ -158,7 +158,6 @@ const FileDetailPage: React.FC = () => {
           <div className="space-x-3">
             <Link 
               to={buildSearchURL(searchQuery, searchState)} 
-              state={searchState}
               className="btn-primary"
             >
               Back to Search
@@ -166,7 +165,6 @@ const FileDetailPage: React.FC = () => {
             {searchQuery && (
               <Link 
                 to={buildSearchURL(searchQuery, searchState)}
-                state={searchState}
                 className="btn-secondary"
               >
                 Return to Results
@@ -189,7 +187,6 @@ const FileDetailPage: React.FC = () => {
         <div className="flex items-center space-x-4">
           <Link
             to={buildSearchURL(searchQuery, searchState)}
-            state={searchState}
             className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
           >
             <ArrowLeftIcon className="h-4 w-4 mr-1" />
@@ -201,7 +198,6 @@ const FileDetailPage: React.FC = () => {
               <ChevronRightIcon className="h-4 w-4 text-gray-400" />
               <Link
                 to={buildSearchURL(searchQuery, searchState)}
-                state={searchState}
                 className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700"
               >
                 <MagnifyingGlassIcon className="h-4 w-4 mr-1" />

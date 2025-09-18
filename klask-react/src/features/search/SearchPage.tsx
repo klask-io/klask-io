@@ -53,67 +53,33 @@ const SearchPage: React.FC = () => {
   // Track if we're initializing to avoid double URL updates
   const [isInitializing, setIsInitializing] = useState(true);
   
-  // Initialize from URL parameters and location state
+  // Initialize from URL parameters ONLY - use URL as single source of truth
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
-    const urlQuery = urlParams.get('q');
-    const urlProject = urlParams.get('project');
-    const urlVersion = urlParams.get('version');
-    const urlExtension = urlParams.get('extension');
+    const urlQuery = urlParams.get('q') || '';
+    const urlProject = urlParams.get('project') || undefined;
+    const urlVersion = urlParams.get('version') || undefined;
+    const urlExtension = urlParams.get('extension') || undefined;
     const urlAdvanced = urlParams.get('advanced') === 'true';
     const urlPage = parseInt(urlParams.get('page') || '1', 10);
     
-    // Priority: location.state (from navigation) > URL params
-    // The state can be the searchState object itself (when coming back from FileDetailPage)
-    const stateQuery = location.state?.initialQuery as string;
-    const stateFilters = location.state?.filters as SearchFilters;
-    const stateAdvanced = location.state?.showAdvanced as boolean;
-    const statePage = location.state?.page as number | undefined;
-    
-    
-    // Check if we're coming from navigation with state
-    const hasNavigationState = !!(stateQuery || stateFilters || stateAdvanced !== undefined || statePage !== undefined);
-    
-    // Priority: navigation state > URL params
-    const finalQuery = stateQuery || urlQuery || '';
-    const finalFilters: SearchFilters = {
-      project: stateFilters?.project || urlProject || undefined,
-      version: stateFilters?.version || urlVersion || undefined,
-      extension: stateFilters?.extension || urlExtension || undefined,
-    };
-    const finalAdvanced = stateAdvanced !== undefined ? stateAdvanced : urlAdvanced;
-    const finalPage = statePage || urlPage;
-    
-    // Update state in a batch to avoid multiple renders
-    if (hasNavigationState) {
-      // Direct URL update without triggering effects
-      const params = new URLSearchParams();
-      if (finalQuery.trim()) params.set('q', finalQuery.trim());
-      if (finalFilters.project) params.set('project', finalFilters.project);
-      if (finalFilters.version) params.set('version', finalFilters.version);
-      if (finalFilters.extension) params.set('extension', finalFilters.extension);
-      if (finalAdvanced) params.set('advanced', 'true');
-      if (finalPage > 1) params.set('page', finalPage.toString());
-      
-      const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
-      window.history.replaceState(null, '', newURL);
-    }
-    
-    // Set React state
-    setQuery(finalQuery);
-    setFilters(finalFilters);
-    setShowAdvanced(finalAdvanced);
-    setCurrentPage(finalPage);
+    // Set React state from URL
+    setQuery(urlQuery);
+    setFilters({
+      project: urlProject,
+      version: urlVersion,
+      extension: urlExtension,
+    });
+    setShowAdvanced(urlAdvanced);
+    setCurrentPage(urlPage);
     setIsInitializing(false);
-  }, [location.state, location.search]);
+  }, [location.search]); // Only depend on URL, not on state
   
-  // Update URL whenever search state changes (only after initialization and not from navigation)
+  // Update URL whenever search state changes (only after initialization)
   useEffect(() => {
     if (isInitializing) return;
-    // Don't update URL if we have navigation state (coming from file detail page)
-    if (location.state) return;
     updateURL(query, filters, showAdvanced, currentPage);
-  }, [query, filters, showAdvanced, currentPage, updateURL, isInitializing, location.state]);
+  }, [query, filters, showAdvanced, currentPage, updateURL, isInitializing]);
   
   const {
     data: availableFilters,
