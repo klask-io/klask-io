@@ -49,6 +49,7 @@ pub struct SearchQuery {
     pub extension_filter: Option<String>,
     pub limit: usize,
     pub offset: usize,
+    pub include_facets: bool,
 }
 
 pub struct SearchService {
@@ -356,8 +357,15 @@ impl SearchService {
             }
         }
 
-        // Skip facets for performance - they can be loaded separately if needed
-        let facets = None;
+        // Collect facets on search results (not entire index) for performance
+        let facets = if search_query.include_facets 
+            && search_query.project_filter.is_none() 
+            && search_query.version_filter.is_none() 
+            && search_query.extension_filter.is_none() {
+            Some(self.collect_facets_from_results(&searcher, &final_query).await?)
+        } else {
+            None
+        };
 
         Ok(SearchResultsWithTotal {
             results,
@@ -712,6 +720,64 @@ impl SearchService {
     }
 
     /// Collect facets from the search index for filtering
+    async fn collect_facets_from_results(&self, searcher: &tantivy::Searcher, query: &dyn tantivy::query::Query) -> Result<SearchFacets> {
+        // Get up to 10k results for facet calculation (much faster than entire index)
+        const FACET_CALCULATION_LIMIT: usize = 10000;
+        let top_docs = searcher.search(query, &TopDocs::with_limit(FACET_CALCULATION_LIMIT))?;
+        
+        let mut project_counts: HashMap<String, u64> = HashMap::new();
+        let mut version_counts: HashMap<String, u64> = HashMap::new();
+        let mut extension_counts: HashMap<String, u64> = HashMap::new();
+        
+        // Count facets only from the search results
+        for (_score, doc_address) in top_docs {
+            let doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
+            
+            // Count project facets
+            if let Some(project) = doc.get_first(self.fields.project).and_then(|v| v.as_str()) {
+                if !project.is_empty() {
+                    *project_counts.entry(project.to_string()).or_insert(0) += 1;
+                }
+            }
+            
+            // Count version facets  
+            if let Some(version) = doc.get_first(self.fields.version).and_then(|v| v.as_str()) {
+                if !version.is_empty() {
+                    *version_counts.entry(version.to_string()).or_insert(0) += 1;
+                }
+            }
+            
+            // Count extension facets
+            if let Some(extension) = doc.get_first(self.fields.extension).and_then(|v| v.as_str()) {
+                if !extension.is_empty() {
+                    *extension_counts.entry(extension.to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+        
+        // Sort and limit to top 50 each for UI performance
+        let mut projects: Vec<(String, u64)> = project_counts.into_iter().collect();
+        projects.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        projects.truncate(50);
+        let projects_map: HashMap<String, u64> = projects.into_iter().collect();
+        
+        let mut versions: Vec<(String, u64)> = version_counts.into_iter().collect();
+        versions.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        versions.truncate(50);
+        let versions_map: HashMap<String, u64> = versions.into_iter().collect();
+        
+        let mut extensions: Vec<(String, u64)> = extension_counts.into_iter().collect();
+        extensions.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        extensions.truncate(50);
+        let extensions_map: HashMap<String, u64> = extensions.into_iter().collect();
+        
+        Ok(SearchFacets {
+            projects: projects_map,
+            versions: versions_map,
+            extensions: extensions_map,
+        })
+    }
+
     async fn collect_facets(&self, query: &str) -> Result<SearchFacets> {
         let searcher = self.reader.searcher();
         

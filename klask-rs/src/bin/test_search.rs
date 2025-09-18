@@ -78,6 +78,7 @@ async fn main() -> Result<()> {
         extension_filter: None,
         limit: 10,
         offset: 0,
+        include_facets: false,
     };
     
     match search_service.search(search_query).await {

@@ -21,6 +21,7 @@ pub struct SearchRequest {
     pub project: Option<String>,
     pub version: Option<String>,
     pub extension: Option<String>,
+    pub include_facets: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -88,6 +89,7 @@ async fn search_files(
         extension_filter: params.extension,
         limit: limit as usize,
         offset: offset as usize,
+        include_facets: params.include_facets.unwrap_or(false),
     };
     
     // Perform search using Tantivy
@@ -160,6 +162,7 @@ async fn get_search_filters(
         extension_filter: None,
         limit: 0, // We only need facets, not results
         offset: 0,
+        include_facets: true, // Always include facets for the filters endpoint
     };
     
     match app_state.search_service.search(search_query).await {
