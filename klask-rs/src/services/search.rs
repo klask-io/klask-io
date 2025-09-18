@@ -36,9 +36,9 @@ pub struct SearchResultsWithTotal {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchFacets {
-    pub projects: HashMap<String, u64>,
-    pub versions: HashMap<String, u64>,
-    pub extensions: HashMap<String, u64>,
+    pub projects: Vec<(String, u64)>,
+    pub versions: Vec<(String, u64)>,
+    pub extensions: Vec<(String, u64)>,
 }
 
 #[derive(Debug, Clone)]
@@ -759,22 +759,19 @@ impl SearchService {
         let mut projects: Vec<(String, u64)> = project_counts.into_iter().collect();
         projects.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
         projects.truncate(50);
-        let projects_map: HashMap<String, u64> = projects.into_iter().collect();
         
         let mut versions: Vec<(String, u64)> = version_counts.into_iter().collect();
         versions.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
         versions.truncate(50);
-        let versions_map: HashMap<String, u64> = versions.into_iter().collect();
         
         let mut extensions: Vec<(String, u64)> = extension_counts.into_iter().collect();
         extensions.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
         extensions.truncate(50);
-        let extensions_map: HashMap<String, u64> = extensions.into_iter().collect();
         
         Ok(SearchFacets {
-            projects: projects_map,
-            versions: versions_map,
-            extensions: extensions_map,
+            projects,
+            versions,
+            extensions,
         })
     }
 
@@ -829,9 +826,9 @@ impl SearchService {
         }
         
         Ok(SearchFacets {
-            projects,
-            versions,
-            extensions,
+            projects: projects.into_iter().map(|(k, v)| (k, v as u64)).collect(),
+            versions: versions.into_iter().map(|(k, v)| (k, v as u64)).collect(),
+            extensions: extensions.into_iter().map(|(k, v)| (k, v as u64)).collect(),
         })
     }
 }

@@ -22,6 +22,7 @@ const FilesPage = React.lazy(() => import('./features/files/FilesPage'));
 const FileBrowserPage = React.lazy(() => import('./features/files/FileBrowserPage'));
 const AdminDashboard = React.lazy(() => import('./features/admin/AdminDashboard'));
 const UserManagement = React.lazy(() => import('./features/admin/UserManagement'));
+const IndexManagement = React.lazy(() => import('./features/admin/IndexManagement'));
 const LoginPage = React.lazy(() => import('./features/auth/LoginPage'));
 const RegisterPage = React.lazy(() => import('./features/auth/RegisterPage'));
 const ProfilePage = React.lazy(() => import('./features/auth/ProfilePage'));
@@ -208,6 +209,16 @@ function App() {
                   <AdminRoute>
                     <Suspense fallback={<LoadingSpinner />}>
                       <RepositoryDetailPage />
+                    </Suspense>
+                  </AdminRoute>
+                } 
+              />
+              <Route 
+                path="admin/index" 
+                element={
+                  <AdminRoute>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <IndexManagement />
                     </Suspense>
                   </AdminRoute>
                 } 

@@ -154,14 +154,20 @@ class ApiClient {
     if (query.version) params.append('version', query.version);
     if (query.extension) params.append('extension', query.extension);
     if (query.maxResults) params.append('max_results', query.maxResults.toString());
+    
+    // Calculate page number from offset
+    if (query.offset !== undefined && query.maxResults) {
+      const page = Math.floor(query.offset / query.maxResults) + 1;
+      params.append('page', page.toString());
+    }
 
     return this.request<SearchResponse>(`/api/search?${params.toString()}`);
   }
 
   async getSearchFilters(): Promise<{
-    projects: string[];
-    versions: string[];
-    extensions: string[];
+    projects: Array<{value: string; count: number}>;
+    versions: Array<{value: string; count: number}>;
+    extensions: Array<{value: string; count: number}>;
   }> {
     return this.request('/api/search/filters');
   }
@@ -332,9 +338,6 @@ class ApiClient {
     return this.request<RepositoryStats>('/api/admin/repositories/stats');
   }
 
-  async getContentStats(): Promise<ContentStats> {
-    return this.request<ContentStats>('/api/admin/content/stats');
-  }
 
   async getAdminSearchStats(): Promise<SearchStats> {
     return this.request<SearchStats>('/api/admin/search/stats');
@@ -423,7 +426,6 @@ export const api = {
   getSystemStats: () => apiClient.getSystemStats(),
   getAdminUserStats: () => apiClient.getAdminUserStats(),
   getRepositoryStats: () => apiClient.getRepositoryStats(),
-  getContentStats: () => apiClient.getContentStats(),
   getAdminSearchStats: () => apiClient.getAdminSearchStats(),
   getRecentActivity: () => apiClient.getRecentActivity(),
 };

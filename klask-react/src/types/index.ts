@@ -356,25 +356,6 @@ export interface RepositoryStats {
   never_crawled: number;
 }
 
-export interface ExtensionStat {
-  extension: string;
-  count: number;
-  total_size: number;
-}
-
-export interface ProjectStat {
-  project: string;
-  file_count: number;
-  total_size: number;
-}
-
-export interface ContentStats {
-  total_files: number;
-  total_size_bytes: number;
-  files_by_extension: ExtensionStat[];
-  files_by_project: ProjectStat[];
-  recent_additions: number;
-}
 
 export interface SearchStats {
   total_documents: number;
@@ -418,7 +399,6 @@ export interface AdminDashboardData {
   system: SystemStats;
   users: UserStats;
   repositories: RepositoryStats;
-  content: ContentStats;
   search: SearchStats;
   recent_activity: RecentActivity;
 }

@@ -34,28 +34,6 @@ pub struct RepositoryStats {
     pub never_crawled: i64,
 }
 
-#[derive(Debug, Serialize)]
-pub struct ContentStats {
-    pub total_files: i64,
-    pub total_size_bytes: i64,
-    pub files_by_extension: Vec<ExtensionStat>,
-    pub files_by_project: Vec<ProjectStat>,
-    pub recent_additions: i64, // Last 24h
-}
-
-#[derive(Debug, Serialize)]
-pub struct ExtensionStat {
-    pub extension: String,
-    pub count: i64,
-    pub total_size: i64,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ProjectStat {
-    pub project: String,
-    pub file_count: i64,
-    pub total_size: i64,
-}
 
 #[derive(Debug, Serialize)]
 pub struct SearchStats {
@@ -106,7 +84,6 @@ pub struct AdminDashboardData {
     pub system: SystemStats,
     pub users: UserStats,
     pub repositories: RepositoryStats,
-    pub content: ContentStats,
     pub search: SearchStats,
     pub recent_activity: RecentActivity,
 }
@@ -125,14 +102,12 @@ pub async fn create_router() -> Result<Router<AppState>> {
         .route("/system", get(get_system_stats))
         .route("/users/stats", get(get_user_stats))
         .route("/repositories/stats", get(get_repository_stats))
-        .route("/content/stats", get(get_content_stats))
         .route("/search/stats", get(get_search_stats))
         .route("/activity/recent", get(get_recent_activity))
         .route("/seed", post(seed_database))
         .route("/seed/clear", post(clear_seed_data))
         .route("/seed/stats", get(get_seed_stats))
-        .route("/search/reset-index", post(reset_search_index))
-        .route("/search/reindex", post(reindex_all_files));
+        .route("/search/reset-index", post(reset_search_index));
 
     Ok(router)
 }
@@ -144,11 +119,10 @@ async fn get_dashboard_data(
     let pool = app_state.database.pool().clone();
 
     // Gather all stats in parallel using tokio::join!
-    let (system_result, users_result, repos_result, content_result, search_result, activity_result) = tokio::join!(
+    let (system_result, users_result, repos_result, search_result, activity_result) = tokio::join!(
         get_system_stats_impl(&app_state),
         get_user_stats_impl(&pool),
         get_repository_stats_impl(&pool),
-        get_content_stats_impl(&pool),
         get_search_stats_impl(&app_state),
         get_recent_activity_impl(&pool)
     );
@@ -165,10 +139,6 @@ async fn get_dashboard_data(
         error!("Failed to get repository stats: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    let content = content_result.map_err(|e| {
-        error!("Failed to get content stats: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
     let search = search_result.map_err(|e| {
         error!("Failed to get search stats: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
@@ -182,7 +152,6 @@ async fn get_dashboard_data(
         system,
         users,
         repositories,
-        content,
         search,
         recent_activity,
     };
@@ -220,15 +189,6 @@ async fn get_repository_stats(
     }
 }
 
-async fn get_content_stats(
-    State(app_state): State<AppState>,
-) -> Result<Json<ContentStats>, StatusCode> {
-    let pool = app_state.database.pool().clone();
-    match get_content_stats_impl(&pool).await {
-        Ok(stats) => Ok(Json(stats)),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
 
 async fn get_search_stats(
     State(app_state): State<AppState>,
@@ -330,72 +290,6 @@ async fn get_repository_stats_impl(pool: &PgPool) -> Result<RepositoryStats> {
     })
 }
 
-async fn get_content_stats_impl(pool: &PgPool) -> Result<ContentStats> {
-    let total_files = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM files"
-    )
-    .fetch_one(pool)
-    .await?;
-
-    // Use CAST to convert NUMERIC to BIGINT
-    let total_size_bytes = sqlx::query_scalar::<_, i64>(
-        "SELECT COALESCE(CAST(SUM(size) AS BIGINT), 0) FROM files"
-    )
-    .fetch_one(pool)
-    .await?;
-
-    let files_by_extension_rows = sqlx::query(
-        "SELECT extension, COUNT(*) as count, COALESCE(CAST(SUM(size) AS BIGINT), 0) as total_size
-         FROM files
-         GROUP BY extension
-         ORDER BY count DESC
-         LIMIT 10"
-    )
-    .fetch_all(pool)
-    .await?;
-
-    let files_by_extension = files_by_extension_rows
-        .into_iter()
-        .map(|row| ExtensionStat {
-            extension: row.get("extension"),
-            count: row.get("count"),
-            total_size: row.get("total_size"),
-        })
-        .collect();
-
-    let files_by_project_rows = sqlx::query(
-        "SELECT project, COUNT(*) as count, COALESCE(CAST(SUM(size) AS BIGINT), 0) as total_size
-         FROM files
-         GROUP BY project
-         ORDER BY count DESC
-         LIMIT 10"
-    )
-    .fetch_all(pool)
-    .await?;
-
-    let files_by_project = files_by_project_rows
-        .into_iter()
-        .map(|row| ProjectStat {
-            project: row.get("project"),
-            file_count: row.get("count"),
-            total_size: row.get("total_size"),
-        })
-        .collect();
-
-    let recent_additions = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM files WHERE created_at > NOW() - INTERVAL '24 hours'"
-    )
-    .fetch_one(pool)
-    .await?;
-
-    Ok(ContentStats {
-        total_files,
-        total_size_bytes,
-        files_by_extension,
-        files_by_project,
-        recent_additions,
-    })
-}
 
 async fn get_search_stats_impl(app_state: &AppState) -> Result<SearchStats> {
     // Get document count from search service
@@ -586,82 +480,3 @@ async fn reset_search_index(
     }
 }
 
-async fn reindex_all_files(
-    _admin_user: AdminUser,
-    State(app_state): State<AppState>,
-) -> Result<Json<IndexResetResponse>, StatusCode> {
-    info!("Admin user requested full reindexing");
-    
-    let pool = app_state.database.pool().clone();
-    
-    // Get document count before reindexing
-    let documents_before = app_state.search_service.get_document_count()
-        .unwrap_or(0);
-    
-    // Reset the index first
-    if let Err(e) = app_state.search_service.reset_index().await {
-        error!("Failed to reset index before reindexing: {:?}", e);
-        return Ok(Json(IndexResetResponse {
-            success: false,
-            message: format!("Failed to reset index: {}", e),
-            documents_before,
-            documents_after: documents_before,
-        }));
-    }
-    
-    // Get all files from database and reindex them
-    let files_result = sqlx::query!(
-        "SELECT id, name, path, content, project, version, extension FROM files"
-    )
-    .fetch_all(&pool)
-    .await;
-    
-    match files_result {
-        Ok(files) => {
-            let total_files = files.len();
-            let mut indexed_count = 0;
-            
-            for file in files {
-                if let Err(e) = app_state.search_service.index_file(
-                    file.id,
-                    &file.name,
-                    &file.path,
-                    &file.content.unwrap_or_default(),
-                    &file.project,
-                    &file.version,
-                    &file.extension,
-                ).await {
-                    error!("Failed to index file {}: {:?}", file.id, e);
-                } else {
-                    indexed_count += 1;
-                }
-            }
-            
-            // Commit the changes
-            if let Err(e) = app_state.search_service.commit().await {
-                error!("Failed to commit index changes: {:?}", e);
-            }
-            
-            let documents_after = app_state.search_service.get_document_count()
-                .unwrap_or(0);
-            
-            info!("Reindexed {} out of {} files", indexed_count, total_files);
-            
-            Ok(Json(IndexResetResponse {
-                success: true,
-                message: format!("Successfully reindexed {} out of {} files", indexed_count, total_files),
-                documents_before,
-                documents_after,
-            }))
-        }
-        Err(e) => {
-            error!("Failed to fetch files for reindexing: {:?}", e);
-            Ok(Json(IndexResetResponse {
-                success: false,
-                message: format!("Failed to fetch files: {}", e),
-                documents_before,
-                documents_after: 0,
-            }))
-        }
-    }
-}

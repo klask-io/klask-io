@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 import { InlineSpinner } from './LoadingSpinner';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'warning';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   icon?: React.ReactNode;
@@ -28,6 +28,7 @@ export const Button: React.FC<ButtonProps> = ({
     outline: 'border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white focus:ring-blue-500',
     ghost: 'text-secondary-700 hover:bg-secondary-100 focus:ring-secondary-500',
     danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
+    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white focus:ring-yellow-500',
   };
   
   const sizeClasses = {
@@ -58,7 +59,7 @@ export const Button: React.FC<ButtonProps> = ({
 };
 
 interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'warning';
   size?: 'sm' | 'md' | 'lg';
   icon: React.ReactNode;
   'aria-label': string;
@@ -78,6 +79,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
     secondary: 'bg-secondary-200 hover:bg-secondary-300 text-secondary-900 focus:ring-secondary-500',
     ghost: 'text-secondary-700 hover:bg-secondary-100 focus:ring-secondary-500',
     danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
+    warning: 'bg-yellow-600 hover:bg-yellow-700 text-white focus:ring-yellow-500',
   };
   
   const sizeClasses = {

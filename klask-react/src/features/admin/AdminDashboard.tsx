@@ -7,13 +7,14 @@ import {
   MagnifyingGlassIcon,
   DocumentDuplicateIcon,
   ClockIcon,
-  CogIcon
+  CogIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { MetricCard } from '../../components/admin/MetricCard';
 import { useAdminDashboard } from '../../hooks/useAdmin';
 
 const AdminDashboard: React.FC = () => {
-  const { data: dashboardData, isLoading, error } = useAdminDashboard();
+  const { data: dashboardData, isLoading, error, refetch } = useAdminDashboard();
 
   if (error) {
     return (
@@ -49,9 +50,20 @@ const AdminDashboard: React.FC = () => {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-        <div className="flex items-center space-x-2">
-          <div className="h-2 w-2 bg-green-400 rounded-full"></div>
-          <span className="text-sm text-gray-500">System Online</span>
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            title="Refresh dashboard data"
+          >
+            <ArrowPathIcon className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <div className="flex items-center space-x-2">
+            <div className="h-2 w-2 bg-green-400 rounded-full"></div>
+            <span className="text-sm text-gray-500">System Online</span>
+          </div>
         </div>
       </div>
 
@@ -111,18 +123,10 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Content & Search Stats */}
+          {/* Search Stats */}
           <div>
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Content & Search</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <MetricCard
-                title="Total Files"
-                value={dashboardData?.content?.total_files || 0}
-                description={formatBytes(dashboardData?.content?.total_size_bytes || 0)}
-                icon={DocumentDuplicateIcon}
-                color="green"
-              />
-              
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Search & Crawling</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <MetricCard
                 title="Search Index"
                 value={dashboardData?.search?.total_documents || 0}
@@ -132,24 +136,19 @@ const AdminDashboard: React.FC = () => {
               />
               
               <MetricCard
-                title="Recent Files"
-                value={dashboardData?.content?.recent_additions || 0}
-                description="Added in last 24h"
-                icon={DocumentDuplicateIcon}
-                color="yellow"
-                trend={{
-                  value: dashboardData?.content?.recent_additions ? Math.round((dashboardData.content.recent_additions / (dashboardData.content.total_files || 1)) * 100) : 0,
-                  direction: 'up',
-                  label: 'vs total'
-                }}
+                title="Recently Crawled"
+                value={dashboardData?.repositories?.recently_crawled || 0}
+                description="Repositories crawled in last 24h"
+                icon={CogIcon}
+                color="green"
               />
               
               <MetricCard
-                title="Crawl Status"
-                value={dashboardData?.repositories?.recently_crawled || 0}
-                description={`${dashboardData?.repositories?.never_crawled || 0} never crawled`}
-                icon={CogIcon}
-                color="indigo"
+                title="Never Crawled"
+                value={dashboardData?.repositories?.never_crawled || 0}
+                description="Repositories not yet indexed"
+                icon={DocumentDuplicateIcon}
+                color="yellow"
               />
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { SearchResult } from './SearchResult';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { Pagination } from '../ui/Pagination';
 import { 
   MagnifyingGlassIcon, 
   ExclamationTriangleIcon,
@@ -15,6 +16,12 @@ interface SearchResultsProps {
   error: string | null;
   totalResults: number;
   onFileClick: (result: SearchResultType) => void;
+  // Pagination props
+  currentPage?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
+  pageSize?: number;
+  // Legacy Load More props (optional)
   onLoadMore?: () => void;
   hasNextPage?: boolean;
   className?: string;
@@ -27,10 +34,17 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   error,
   totalResults,
   onFileClick,
+  // Pagination props
+  currentPage,
+  totalPages,
+  onPageChange,
+  pageSize = 20,
+  // Legacy Load More props
   onLoadMore,
   hasNextPage = false,
   className = '',
 }) => {
+  const usePagination = currentPage !== undefined && totalPages !== undefined && onPageChange !== undefined;
 
   // Empty state when no query
   if (!query.trim() && !isLoading) {
@@ -151,7 +165,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             </p>
           </div>
           
-          {results.length > 0 && (
+          {results.length > 0 && !usePagination && (
             <div className="text-sm text-gray-500">
               Showing {results.length} of {totalResults}
             </div>
@@ -170,8 +184,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
           />
         ))}
         
-        {/* Load More Indicator */}
-        {hasNextPage && (
+        {/* Load More Indicator (Legacy) */}
+        {!usePagination && hasNextPage && (
           <div className="flex items-center justify-center py-4">
             <LoadingSpinner size="md" />
             <span className="ml-2 text-gray-500">Loading more results...</span>
@@ -179,8 +193,21 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
         )}
       </div>
 
-      {/* Load More Button */}
-      {hasNextPage && !isLoading && (
+      {/* Pagination */}
+      {usePagination && totalPages! > 1 && (
+        <div className="px-6 py-4 border-t border-gray-200">
+          <Pagination
+            currentPage={currentPage!}
+            totalPages={totalPages!}
+            onPageChange={onPageChange!}
+            totalResults={totalResults}
+            pageSize={pageSize}
+          />
+        </div>
+      )}
+
+      {/* Load More Button (Legacy) */}
+      {!usePagination && hasNextPage && !isLoading && (
         <div className="px-6 py-4 border-t border-gray-200 text-center">
           <button
             onClick={onLoadMore}

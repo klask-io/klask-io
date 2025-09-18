@@ -24,6 +24,7 @@ export const Sidebar: React.FC = () => {
     { name: 'Admin Dashboard', href: '/admin', icon: Cog6ToothIcon },
     { name: 'Repositories', href: '/admin/repositories', icon: FolderIcon },
     { name: 'Users', href: '/admin/users', icon: UsersIcon },
+    { name: 'Index', href: '/admin/index', icon: MagnifyingGlassIcon },
   ];
 
   return (

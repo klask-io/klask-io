@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { SearchBar } from '../../components/search/SearchBar';
 import { SearchFiltersComponent, type SearchFilters } from '../../components/search/SearchFilters';
 import { SearchResults } from '../../components/search/SearchResults';
-import { useAdvancedSearch, useSearchFilters, useSearchHistory } from '../../hooks/useSearch';
+import { usePaginatedSearch, useSearchFilters, useSearchHistory } from '../../hooks/useSearch';
 import { getErrorMessage } from '../../lib/api';
 import type { SearchResult } from '../../types';
 import { 
@@ -19,30 +19,96 @@ const SearchPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<SearchFilters>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   
   const { history, addToHistory, clearHistory } = useSearchHistory();
   
-  // Initialize query from location state (when returning from file view)
+  // Function to update URL with current search state
+  const updateURL = useCallback((searchQuery: string, searchFilters: SearchFilters, advanced: boolean, page: number = 1) => {
+    const params = new URLSearchParams();
+    
+    if (searchQuery.trim()) {
+      params.set('q', searchQuery.trim());
+    }
+    if (searchFilters.project) {
+      params.set('project', searchFilters.project);
+    }
+    if (searchFilters.version) {
+      params.set('version', searchFilters.version);
+    }
+    if (searchFilters.extension) {
+      params.set('extension', searchFilters.extension);
+    }
+    if (advanced) {
+      params.set('advanced', 'true');
+    }
+    if (page > 1) {
+      params.set('page', page.toString());
+    }
+    
+    const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+    window.history.replaceState(null, '', newURL);
+  }, []);
+  
+  // Track if we're initializing to avoid double URL updates
+  const [isInitializing, setIsInitializing] = useState(true);
+  
+  // Initialize from URL parameters and location state
   useEffect(() => {
-    const initialQuery = location.state?.initialQuery as string;
-    const searchFilters = location.state?.filters as SearchFilters;
-    const advanced = location.state?.showAdvanced as boolean;
+    const urlParams = new URLSearchParams(location.search);
+    const urlQuery = urlParams.get('q');
+    const urlProject = urlParams.get('project');
+    const urlVersion = urlParams.get('version');
+    const urlExtension = urlParams.get('extension');
+    const urlAdvanced = urlParams.get('advanced') === 'true';
+    const urlPage = parseInt(urlParams.get('page') || '1', 10);
     
-    if (initialQuery) {
-      setQuery(initialQuery);
-    }
-    if (searchFilters) {
-      setFilters(searchFilters);
-    }
-    if (advanced !== undefined) {
-      setShowAdvanced(advanced);
+    // Priority: location.state (from navigation) > URL params
+    const stateQuery = location.state?.initialQuery as string;
+    const stateFilters = location.state?.filters as SearchFilters;
+    const stateAdvanced = location.state?.showAdvanced as boolean;
+    
+    // Check if we're coming from navigation with state
+    const hasNavigationState = !!(stateQuery || stateFilters || stateAdvanced !== undefined);
+    
+    // Set query
+    const finalQuery = stateQuery || urlQuery || '';
+    const finalFilters: SearchFilters = {
+      project: stateFilters?.project || urlProject || undefined,
+      version: stateFilters?.version || urlVersion || undefined,
+      extension: stateFilters?.extension || urlExtension || undefined,
+    };
+    const finalAdvanced = stateAdvanced !== undefined ? stateAdvanced : urlAdvanced;
+    const finalPage = hasNavigationState ? 1 : urlPage; // Reset to page 1 when coming from navigation
+    
+    // Update state in a batch to avoid multiple renders
+    if (hasNavigationState) {
+      // Direct URL update without triggering effects
+      const params = new URLSearchParams();
+      if (finalQuery.trim()) params.set('q', finalQuery.trim());
+      if (finalFilters.project) params.set('project', finalFilters.project);
+      if (finalFilters.version) params.set('version', finalFilters.version);
+      if (finalFilters.extension) params.set('extension', finalFilters.extension);
+      if (finalAdvanced) params.set('advanced', 'true');
+      if (finalPage > 1) params.set('page', finalPage.toString());
+      
+      const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+      window.history.replaceState(null, '', newURL);
     }
     
-    // Clear the location state to avoid re-applying on refresh
-    if (initialQuery || searchFilters || advanced !== undefined) {
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, [location.state]);
+    // Set React state
+    setQuery(finalQuery);
+    setFilters(finalFilters);
+    setShowAdvanced(finalAdvanced);
+    setCurrentPage(finalPage);
+    setIsInitializing(false);
+  }, [location.state, location.search]);
+  
+  // Update URL whenever search state changes (only after initialization)
+  useEffect(() => {
+    if (isInitializing) return;
+    updateURL(query, filters, showAdvanced, currentPage);
+  }, [query, filters, showAdvanced, currentPage, updateURL, isInitializing]);
   
   const {
     data: availableFilters,
@@ -51,26 +117,29 @@ const SearchPage: React.FC = () => {
   } = useSearchFilters();
 
   const {
-    results,
-    totalResults,
+    data: searchData,
     isLoading,
     isFetching,
     isError,
     error,
-    hasNextPage,
-    isFetchingNextPage,
-    fetchNextPage,
     refetch,
-  } = useAdvancedSearch(query, filters as Record<string, string | undefined>, {
+  } = usePaginatedSearch(query, filters as Record<string, string | undefined>, currentPage, {
     enabled: !!query.trim(),
   });
+
+  const results = searchData?.results || [];
+  const totalResults = searchData?.total || 0;
+  const pageSize = 20;
+  const totalPages = Math.ceil(totalResults / pageSize);
 
 
   const handleSearch = useCallback((searchQuery: string) => {
     setQuery(searchQuery);
+    setCurrentPage(1); // Reset to first page on new search
     if (searchQuery.trim()) {
       addToHistory(searchQuery.trim());
     }
+    // URL will be updated by the useEffect automatically
   }, [addToHistory]);
 
   const handleFileClick = useCallback((result: SearchResult) => {
@@ -91,6 +160,7 @@ const SearchPage: React.FC = () => {
   const handleHistoryClick = useCallback((historicalQuery: string) => {
     // Set query immediately and add to history
     setQuery(historicalQuery);
+    setCurrentPage(1); // Reset to first page
     if (historicalQuery.trim()) {
       addToHistory(historicalQuery.trim());
     }
@@ -103,11 +173,16 @@ const SearchPage: React.FC = () => {
     }, 50); // Give time for setQuery to take effect
   }, [addToHistory, refetch]);
 
-  const handleLoadMore = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const handleFiltersChange = useCallback((newFilters: SearchFilters) => {
+    setFilters(newFilters);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, []);
 
   const searchError = isError ? getErrorMessage(error) : null;
 
@@ -191,7 +266,7 @@ const SearchPage: React.FC = () => {
       {showAdvanced && (
         <SearchFiltersComponent
           filters={filters}
-          onFiltersChange={setFilters}
+          onFiltersChange={handleFiltersChange}
           availableFilters={{
             projects: availableFilters?.projects || [],
             versions: availableFilters?.versions || [],
@@ -231,8 +306,10 @@ const SearchPage: React.FC = () => {
         error={searchError}
         totalResults={totalResults}
         onFileClick={handleFileClick}
-        onLoadMore={handleLoadMore}
-        hasNextPage={hasNextPage}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        pageSize={pageSize}
       />
 
       {/* Search Tips - shown when no query */}

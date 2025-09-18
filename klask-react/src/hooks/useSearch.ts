@@ -83,7 +83,15 @@ export const useInfiniteSearch = (
 export const useSearchFilters = () => {
   return useQuery({
     queryKey: ['search', 'filters'],
-    queryFn: () => apiClient.getSearchFilters(),
+    queryFn: async () => {
+      const filters = await apiClient.getSearchFilters();
+      // Transform the response from {value, count} format to string arrays
+      return {
+        projects: filters.projects?.map((p: any) => p.value || p) || [],
+        versions: filters.versions?.map((v: any) => v.value || v) || [],
+        extensions: filters.extensions?.map((e: any) => e.value || e) || [],
+      };
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 3,
   });
@@ -133,6 +141,43 @@ export const useAdvancedSearch = (
     fetchNextPage: infiniteQuery.fetchNextPage,
     refetch: infiniteQuery.refetch,
   };
+};
+
+// Paginated search hook with numbered pages
+export const usePaginatedSearch = (
+  query: string,
+  filters: Record<string, string | undefined> = {},
+  page: number = 1,
+  options: UseSearchOptions = {}
+) => {
+  const pageSize = 20;
+  
+  // Create search query object
+  const searchQuery: SearchQuery = {
+    query: query.trim(),
+    project: filters.project,
+    version: filters.version,
+    extension: filters.extension,
+    maxResults: pageSize,
+    offset: (page - 1) * pageSize,
+  };
+
+  return useQuery({
+    queryKey: ['search', 'paginated', searchQuery, page],
+    queryFn: () => apiClient.search(searchQuery),
+    enabled: options.enabled !== false && !!query.trim(),
+    refetchOnWindowFocus: options.refetchOnWindowFocus || false,
+    staleTime: options.staleTime || 30000,
+    retry: (failureCount, error) => {
+      if (error && typeof error === 'object' && 'status' in error) {
+        const status = (error as any).status;
+        if (status >= 400 && status < 500) {
+          return false;
+        }
+      }
+      return failureCount < 3;
+    },
+  });
 };
 
 // Real-time search suggestions hook
