@@ -194,12 +194,11 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
                     <div key={repo.id} className="border-l-2 border-gray-200 pl-4">
                       <SelectableRepositoryCard
                         repository={repo}
-                        isSelected={selectedRepos.includes(repo.id)}
-                        onToggleSelection={() => onToggleSelection(repo.id)}
+                        selected={selectedRepos.includes(repo.id)}
+                        onSelect={(selected) => onToggleSelection(repo.id)}
                         onEdit={onEdit}
                         onDelete={onDelete}
                         onCrawl={onCrawl}
-                        onStopCrawl={onStopCrawl}
                         onToggleEnabled={onToggleEnabled}
                         activeProgress={activeProgress}
                         isCrawling={crawlingRepos.has(repo.id)}
@@ -218,12 +217,11 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
         <SelectableRepositoryCard
           key={repo.id}
           repository={repo}
-          isSelected={selectedRepos.includes(repo.id)}
-          onToggleSelection={() => onToggleSelection(repo.id)}
+          selected={selectedRepos.includes(repo.id)}
+          onSelect={(selected) => onToggleSelection(repo.id)}
           onEdit={onEdit}
           onDelete={onDelete}
           onCrawl={onCrawl}
-          onStopCrawl={onStopCrawl}
           onToggleEnabled={onToggleEnabled}
           activeProgress={activeProgress}
           isCrawling={crawlingRepos.has(repo.id)}

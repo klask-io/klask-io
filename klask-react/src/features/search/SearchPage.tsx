@@ -52,6 +52,8 @@ const SearchPage: React.FC = () => {
   
   // Track if we're initializing to avoid double URL updates
   const [isInitializing, setIsInitializing] = useState(true);
+  // Track if we just navigated back to avoid immediate URL overwrite
+  const [skipNextUrlUpdate, setSkipNextUrlUpdate] = useState(false);
   
   // Initialize from URL parameters and location state
   useEffect(() => {
@@ -67,9 +69,10 @@ const SearchPage: React.FC = () => {
     const stateQuery = location.state?.initialQuery as string;
     const stateFilters = location.state?.filters as SearchFilters;
     const stateAdvanced = location.state?.showAdvanced as boolean;
+    const statePage = location.state?.page as number | undefined;
     
     // Check if we're coming from navigation with state
-    const hasNavigationState = !!(stateQuery || stateFilters || stateAdvanced !== undefined);
+    const hasNavigationState = !!(stateQuery || stateFilters || stateAdvanced !== undefined || statePage !== undefined);
     
     // Set query
     const finalQuery = stateQuery || urlQuery || '';
@@ -79,7 +82,7 @@ const SearchPage: React.FC = () => {
       extension: stateFilters?.extension || urlExtension || undefined,
     };
     const finalAdvanced = stateAdvanced !== undefined ? stateAdvanced : urlAdvanced;
-    const finalPage = hasNavigationState ? 1 : urlPage; // Reset to page 1 when coming from navigation
+    const finalPage = statePage || urlPage; // Use state page if available, otherwise URL page
     
     // Update state in a batch to avoid multiple renders
     if (hasNavigationState) {
@@ -94,6 +97,9 @@ const SearchPage: React.FC = () => {
       
       const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
       window.history.replaceState(null, '', newURL);
+      
+      // Skip the next URL update since we just set it correctly
+      setSkipNextUrlUpdate(true);
     }
     
     // Set React state
@@ -107,8 +113,12 @@ const SearchPage: React.FC = () => {
   // Update URL whenever search state changes (only after initialization)
   useEffect(() => {
     if (isInitializing) return;
+    if (skipNextUrlUpdate) {
+      setSkipNextUrlUpdate(false);
+      return;
+    }
     updateURL(query, filters, showAdvanced, currentPage);
-  }, [query, filters, showAdvanced, currentPage, updateURL, isInitializing]);
+  }, [query, filters, showAdvanced, currentPage, updateURL, isInitializing, skipNextUrlUpdate]);
   
   const {
     data: availableFilters,
@@ -156,7 +166,7 @@ const SearchPage: React.FC = () => {
         }
       }
     });
-  }, [navigate, query, filters, showAdvanced]);
+  }, [navigate, query, filters, showAdvanced, currentPage]);
 
   const handleHistoryClick = useCallback((historicalQuery: string) => {
     // Set query immediately and add to history

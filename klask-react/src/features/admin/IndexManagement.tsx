@@ -25,7 +25,7 @@ export const IndexManagement: React.FC = () => {
 
   const resetIndexMutation = useMutation({
     mutationFn: async (): Promise<IndexResetResponse> => {
-      const response = await api.post('/api/admin/search/reset-index');
+      const response = await api.post<IndexResetResponse>('/api/admin/search/reset-index');
       return response;
     },
     onSuccess: (data) => {

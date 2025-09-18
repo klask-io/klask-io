@@ -85,7 +85,7 @@ const RepositoriesPage: React.FC = () => {
     }
   }, [selectedRepos.length, filteredRepositories.length]);
 
-  const handleCreate = useCallback(async (data: CreateRepositoryRequest) => {
+  const handleCreate = useCallback(async (data: any) => {
     try {
       // For GitLab repositories, use the discovery endpoint
       if (data.repositoryType === 'GitLab') {
@@ -103,7 +103,7 @@ const RepositoriesPage: React.FC = () => {
           toast.success(`Successfully imported ${discoveredRepos.length} GitLab repositories`);
           queryClient.invalidateQueries({ queryKey: ['repositories'] });
         } else {
-          toast.warning('No accessible repositories found on GitLab');
+          toast('No accessible repositories found on GitLab', { icon: '⚠️' });
         }
       } else {
         // For other repository types, use the regular create endpoint
@@ -116,7 +116,7 @@ const RepositoriesPage: React.FC = () => {
     }
   }, [createMutation, queryClient]);
 
-  const handleUpdate = useCallback(async (data: CreateRepositoryRequest) => {
+  const handleUpdate = useCallback(async (data: any) => {
     if (!editingRepository) return;
     
     try {

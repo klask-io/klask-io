@@ -16,7 +16,6 @@ import type {
   AdminDashboardData,
   SystemStats,
   RepositoryStats,
-  ContentStats,
   SearchStats,
   RecentActivity,
   CrawlProgressInfo,

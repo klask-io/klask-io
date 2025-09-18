@@ -33,6 +33,8 @@ export interface Repository {
   nextCrawlAt?: string;
   crawlFrequencyHours?: number;
   maxCrawlDurationMinutes?: number;
+  // GitLab specific fields
+  gitlabNamespace?: string;
 }
 
 export const RepositoryType = {

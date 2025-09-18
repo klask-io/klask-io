@@ -160,8 +160,18 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
   }, [isValid, isLoading, isEditing, isDirty, hasSchedulingChanged, errors]);
 
   // Handle scheduling data changes
-  const handleScheduleChange = useCallback((newSchedulingData: typeof schedulingData) => {
-    setSchedulingData(newSchedulingData);
+  const handleScheduleChange = useCallback((newSchedulingData: {
+    autoCrawlEnabled: boolean;
+    cronSchedule?: string;
+    crawlFrequencyHours?: number;
+    maxCrawlDurationMinutes?: number;
+  }) => {
+    setSchedulingData({
+      autoCrawlEnabled: newSchedulingData.autoCrawlEnabled,
+      cronSchedule: newSchedulingData.cronSchedule || undefined,
+      crawlFrequencyHours: newSchedulingData.crawlFrequencyHours || undefined,
+      maxCrawlDurationMinutes: newSchedulingData.maxCrawlDurationMinutes || 60,
+    });
     
     if (isEditing && repository) {
       // Check if scheduling data has changed
