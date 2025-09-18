@@ -235,6 +235,13 @@ impl SearchService {
         // Parse the main query
         let base_query = query_parser.parse_query(&search_query.query)
             .map_err(|e| anyhow!("Failed to parse query '{}': {}", search_query.query, e))?;
+        
+        // Create snippet generator once for the entire search
+        let snippet_generator = if search_query.limit > 0 {
+            Some(self.create_snippet_generator(&searcher, &*base_query)?)
+        } else {
+            None
+        };
 
         // Build filter queries if filters are provided
         let mut filter_queries = Vec::new();
@@ -325,7 +332,11 @@ impl SearchService {
                 // No need for post-query filtering anymore since we're using query-time filters
 
                 // Generate content snippet and extract line number
-                let (content_snippet, line_number) = self.generate_snippet_with_line_number(&search_query.query, &retrieved_doc)?;
+                let (content_snippet, line_number) = if let Some(ref generator) = snippet_generator {
+                    self.generate_optimized_snippet(generator, &search_query.query, &retrieved_doc)?
+                } else {
+                    ("".to_string(), None)
+                };
 
                 // Format DocAddress as "segment_ord:doc_id"
                 let doc_address_str = format!("{}:{}", doc_address.segment_ord, doc_address.doc_id);
@@ -345,14 +356,8 @@ impl SearchService {
             }
         }
 
-        // Collect facets if this is the initial query (no filters applied)
-        let facets = if search_query.project_filter.is_none() 
-            && search_query.version_filter.is_none() 
-            && search_query.extension_filter.is_none() {
-            Some(self.collect_facets(&search_query.query).await?)
-        } else {
-            None
-        };
+        // Skip facets for performance - they can be loaded separately if needed
+        let facets = None;
 
         Ok(SearchResultsWithTotal {
             results,
@@ -384,6 +389,36 @@ impl SearchService {
         } else {
             Ok("No content available".to_string())
         }
+    }
+
+    fn create_snippet_generator(&self, searcher: &tantivy::Searcher, query: &dyn tantivy::query::Query) -> Result<SnippetGenerator> {
+        let mut snippet_generator = SnippetGenerator::create(searcher, query, self.fields.content)?;
+        snippet_generator.set_max_num_chars(200);
+        Ok(snippet_generator)
+    }
+
+    fn generate_optimized_snippet(&self, generator: &SnippetGenerator, query: &str, doc: &tantivy::TantivyDocument) -> Result<(String, Option<u32>)> {
+        // Generate the snippet with HTML highlighting - this is now much faster
+        let snippet = generator.snippet_from_doc(doc);
+        let highlighted_html = snippet.to_html();
+        
+        // For line number, use a simple approach to avoid scanning the entire content
+        let line_number = if let Some(content) = doc.get_first(self.fields.content).and_then(|v| v.as_str()) {
+            // Only search for the first term to avoid performance issues
+            if let Some(first_term) = query.split_whitespace().next() {
+                if let Some(pos) = content.to_lowercase().find(&first_term.to_lowercase()) {
+                    Some(content[..pos].chars().filter(|&c| c == '\n').count() as u32 + 1)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        
+        Ok((highlighted_html, line_number))
     }
 
     fn generate_snippet_with_line_number(&self, query: &str, doc: &tantivy::TantivyDocument) -> Result<(String, Option<u32>)> {
