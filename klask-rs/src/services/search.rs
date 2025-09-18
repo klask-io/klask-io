@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use tantivy::collector::TopDocs;
+use tantivy::collector::{Count, TopDocs};
 use tantivy::query::{QueryParser, BooleanQuery, TermQuery};
 use tantivy::schema::{Schema, Field, FAST, STORED, TEXT, Value};
 use tantivy::snippet::SnippetGenerator;
@@ -265,79 +265,84 @@ impl SearchService {
             base_query
         };
 
-        // First, get total count without limit/offset
-        let total_count = searcher.search(&final_query, &TopDocs::with_limit(1000000))?;
-        let total = total_count.len() as u64;
+        // For performance with large indices, use Count collector for total
+        let total = searcher.search(&final_query, &Count)? as u64;
 
+        // Ensure limit is at least 1 to avoid Tantivy panic
+        let effective_limit = if search_query.limit == 0 { 1 } else { search_query.limit };
+        
         // Execute search with pagination
         let top_docs = searcher.search(
             &final_query, 
-            &TopDocs::with_limit(search_query.limit).and_offset(search_query.offset)
+            &TopDocs::with_limit(effective_limit).and_offset(search_query.offset)
         )?;
 
         let mut results = Vec::new();
         
-        for (score, doc_address) in top_docs {
-            let retrieved_doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
-            
-            let file_id_str = retrieved_doc
-                .get_first(self.fields.file_id)
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow!("Missing file_id in search result"))?;
-            
-            let file_id = Uuid::parse_str(file_id_str)
-                .map_err(|_| anyhow!("Invalid UUID format in file_id: {}", file_id_str))?;
+        // Only process results if limit > 0 (for facets-only searches, we don't need results)
+        if search_query.limit > 0 {
+            for (score, doc_address) in top_docs {
+                let retrieved_doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
+                
+                let file_id_str = retrieved_doc
+                    .get_first(self.fields.file_id)
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow!("Missing file_id in search result"))?;
+                
+                let file_id = Uuid::parse_str(file_id_str)
+                    .map_err(|_| anyhow!("Invalid UUID format in file_id: {}", file_id_str))?;
 
-            let file_name = retrieved_doc
-                .get_first(self.fields.file_name)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+                let file_name = retrieved_doc
+                    .get_first(self.fields.file_name)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
 
-            let file_path = retrieved_doc
-                .get_first(self.fields.file_path)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+                let file_path = retrieved_doc
+                    .get_first(self.fields.file_path)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
 
-            let project = retrieved_doc
-                .get_first(self.fields.project)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+                let project = retrieved_doc
+                    .get_first(self.fields.project)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
 
-            let version = retrieved_doc
-                .get_first(self.fields.version)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+                let version = retrieved_doc
+                    .get_first(self.fields.version)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
 
-            let extension = retrieved_doc
-                .get_first(self.fields.extension)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
+                let extension = retrieved_doc
+                    .get_first(self.fields.extension)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
 
-            // No need for post-query filtering anymore since we're using query-time filters
+                // No need for post-query filtering anymore since we're using query-time filters
 
-            // Generate content snippet and extract line number
-            let (content_snippet, line_number) = self.generate_snippet_with_line_number(&search_query.query, &retrieved_doc)?;
+                // Generate content snippet and extract line number
+                let (content_snippet, line_number) = self.generate_snippet_with_line_number(&search_query.query, &retrieved_doc)?;
 
-            // Format DocAddress as "segment_ord:doc_id"
-            let doc_address_str = format!("{}:{}", doc_address.segment_ord, doc_address.doc_id);
+                // Format DocAddress as "segment_ord:doc_id"
+                let doc_address_str = format!("{}:{}", doc_address.segment_ord, doc_address.doc_id);
 
-            results.push(SearchResult {
-                file_id,
-                doc_address: doc_address_str,
-                file_name,
-                file_path,
-                content_snippet,
-                project,
-                version,
-                extension,
-                score,
-                line_number,
-            });
+                results.push(SearchResult {
+                    file_id,
+                    doc_address: doc_address_str,
+                    file_name,
+                    file_path,
+                    content_snippet,
+                    project,
+                    version,
+                    extension,
+                    score,
+                    line_number,
+                });
+            }
         }
 
         // Collect facets if this is the initial query (no filters applied)

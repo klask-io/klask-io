@@ -73,7 +73,7 @@ async fn search_files(
     Query(params): Query<SearchRequest>,
 ) -> Result<Json<SearchResponse>, StatusCode> {
     let page = params.page.unwrap_or(1);
-    let limit = params.limit.unwrap_or(50);
+    let limit = params.limit.unwrap_or(50).min(1000); // Cap at 1000 results max
     let offset = (page - 1) * limit;
     
     // Get search query from either 'q' or 'query' parameter
