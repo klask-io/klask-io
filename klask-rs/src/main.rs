@@ -7,18 +7,21 @@ mod repositories;
 mod services;
 
 use anyhow::Result;
+use auth::{extractors::AppState, jwt::JwtService};
 use axum::{routing::get, Router};
 use config::AppConfig;
 use database::Database;
-use services::{SearchService, crawler::CrawlerService, progress::ProgressTracker, scheduler::SchedulerService, encryption::EncryptionService};
-use auth::{extractors::AppState, jwt::JwtService};
-use tower_http::cors::CorsLayer;
-use std::sync::Arc;
+use services::{
+    crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker,
+    scheduler::SchedulerService, SearchService,
+};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
-use tracing::{info, error};
+use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -26,15 +29,16 @@ async fn main() -> Result<()> {
     // Initialize tracing
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "klask_rs=debug,tower_http=debug,tantivy=error,git2=warn,sqlx=warn".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                "klask_rs=debug,tower_http=debug,tantivy=error,git2=warn,sqlx=warn".into()
+            }),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
     // Capture startup time
     let startup_time = Instant::now();
-    
+
     // Load configuration
     let config = AppConfig::new()?;
     let bind_address = format!("{}:{}", config.server.host, config.server.port);
@@ -42,7 +46,8 @@ async fn main() -> Result<()> {
     info!("Starting Klask-RS server on {}", bind_address);
 
     // Initialize database
-    let database = match Database::new(&config.database.url, config.database.max_connections).await {
+    let database = match Database::new(&config.database.url, config.database.max_connections).await
+    {
         Ok(db) => {
             info!("Database connected successfully");
             db
@@ -58,7 +63,10 @@ async fn main() -> Result<()> {
     // Initialize search service
     let search_service = match SearchService::new(&config.search.index_dir) {
         Ok(service) => {
-            info!("Search service initialized successfully at {}", config.search.index_dir);
+            info!(
+                "Search service initialized successfully at {}",
+                config.search.index_dir
+            );
             service
         }
         Err(e) => {
@@ -99,7 +107,12 @@ async fn main() -> Result<()> {
 
     // Initialize crawler service
     let search_service_arc = Arc::new(search_service);
-    let crawler_service = match CrawlerService::new(database.pool().clone(), search_service_arc.clone(), progress_tracker.clone(), encryption_service.clone()) {
+    let crawler_service = match CrawlerService::new(
+        database.pool().clone(),
+        search_service_arc.clone(),
+        progress_tracker.clone(),
+        encryption_service.clone(),
+    ) {
         Ok(service) => {
             info!("Crawler service initialized successfully");
             service
@@ -112,22 +125,23 @@ async fn main() -> Result<()> {
 
     // Initialize scheduler service
     let crawler_service_arc = Arc::new(crawler_service);
-    let scheduler_service = match SchedulerService::new(database.pool().clone(), crawler_service_arc.clone()).await {
-        Ok(service) => {
-            info!("Scheduler service initialized successfully");
-            // Start the scheduler
-            if let Err(e) = service.start().await {
-                error!("Failed to start scheduler service: {}", e);
-            } else {
-                info!("Scheduler service started successfully");
+    let scheduler_service =
+        match SchedulerService::new(database.pool().clone(), crawler_service_arc.clone()).await {
+            Ok(service) => {
+                info!("Scheduler service initialized successfully");
+                // Start the scheduler
+                if let Err(e) = service.start().await {
+                    error!("Failed to start scheduler service: {}", e);
+                } else {
+                    info!("Scheduler service started successfully");
+                }
+                service
             }
-            service
-        }
-        Err(e) => {
-            error!("Failed to initialize scheduler service: {}", e);
-            return Err(e);
-        }
-    };
+            Err(e) => {
+                error!("Failed to initialize scheduler service: {}", e);
+                return Err(e);
+            }
+        };
 
     // Create application state
     let app_state = AppState {
@@ -147,9 +161,9 @@ async fn main() -> Result<()> {
 
     // Create TCP listener
     let listener = tokio::net::TcpListener::bind(&bind_address).await?;
-    
+
     info!("Server listening on http://{}", bind_address);
-    
+
     // Start server
     axum::serve(listener, app).await?;
 
@@ -159,10 +173,13 @@ async fn main() -> Result<()> {
 async fn create_app(app_state: AppState) -> Result<Router> {
     let app = Router::new()
         .route("/", get(root_handler))
-        .route("/health", get({
-            let db = app_state.database.clone();
-            move || health_handler(db)
-        }))
+        .route(
+            "/health",
+            get({
+                let db = app_state.database.clone();
+                move || health_handler(db)
+            }),
+        )
         .nest("/api", api::create_router().await?)
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())

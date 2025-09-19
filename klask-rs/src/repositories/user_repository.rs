@@ -1,7 +1,7 @@
+use crate::models::User;
 use anyhow::Result;
 use sqlx::PgPool;
 use uuid::Uuid;
-use crate::models::User;
 
 pub struct UserRepository {
     pool: PgPool,
@@ -64,12 +64,12 @@ impl UserRepository {
     pub async fn list_users(&self, limit: Option<u32>, offset: Option<u32>) -> Result<Vec<User>> {
         let limit = limit.unwrap_or(50);
         let offset = offset.unwrap_or(0);
-        
+
         let users = sqlx::query_as::<_, User>(
             "SELECT id, username, email, password_hash, role, active, created_at, updated_at 
              FROM users 
              ORDER BY created_at DESC 
-             LIMIT $1 OFFSET $2"
+             LIMIT $1 OFFSET $2",
         )
         .bind(limit as i64)
         .bind(offset as i64)
@@ -79,8 +79,15 @@ impl UserRepository {
         Ok(users)
     }
 
-    pub async fn update_user(&self, id: Uuid, username: Option<&str>, email: Option<&str>) -> Result<User> {
-        let existing_user = self.get_user(id).await?
+    pub async fn update_user(
+        &self,
+        id: Uuid,
+        username: Option<&str>,
+        email: Option<&str>,
+    ) -> Result<User> {
+        let existing_user = self
+            .get_user(id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("User not found"))?;
 
         let updated_username = username.unwrap_or(&existing_user.username);
@@ -89,7 +96,7 @@ impl UserRepository {
         let updated_user = sqlx::query_as::<_, User>(
             "UPDATE users SET username = $2, email = $3, updated_at = NOW() 
              WHERE id = $1 
-             RETURNING id, username, email, password_hash, role, active, created_at, updated_at"
+             RETURNING id, username, email, password_hash, role, active, created_at, updated_at",
         )
         .bind(id)
         .bind(updated_username)
@@ -104,7 +111,7 @@ impl UserRepository {
         let updated_user = sqlx::query_as::<_, User>(
             "UPDATE users SET role = $2, updated_at = NOW() 
              WHERE id = $1 
-             RETURNING id, username, email, password_hash, role, active, created_at, updated_at"
+             RETURNING id, username, email, password_hash, role, active, created_at, updated_at",
         )
         .bind(id)
         .bind(&role)
@@ -118,7 +125,7 @@ impl UserRepository {
         let updated_user = sqlx::query_as::<_, User>(
             "UPDATE users SET active = $2, updated_at = NOW() 
              WHERE id = $1 
-             RETURNING id, username, email, password_hash, role, active, created_at, updated_at"
+             RETURNING id, username, email, password_hash, role, active, created_at, updated_at",
         )
         .bind(id)
         .bind(active)
@@ -149,16 +156,18 @@ impl UserRepository {
             .fetch_one(&self.pool)
             .await?;
 
-        let active_users = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE active = true")
-            .fetch_one(&self.pool)
-            .await?;
+        let active_users =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE active = true")
+                .fetch_one(&self.pool)
+                .await?;
 
-        let admin_users = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE role = 'Admin'")
-            .fetch_one(&self.pool)
-            .await?;
+        let admin_users =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE role = 'Admin'")
+                .fetch_one(&self.pool)
+                .await?;
 
         let recent_registrations = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '30 days'"
+            "SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '30 days'",
         )
         .fetch_one(&self.pool)
         .await?;

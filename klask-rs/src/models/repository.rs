@@ -14,7 +14,7 @@ pub struct Repository {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(skip_deserializing)]
     #[serde(rename = "accessToken")]
-    pub access_token: Option<String>,  // Store encrypted in DB, never send to frontend
+    pub access_token: Option<String>, // Store encrypted in DB, never send to frontend
     #[serde(rename = "gitlabNamespace")]
     pub gitlab_namespace: Option<String>,
     #[serde(rename = "isGroup")]

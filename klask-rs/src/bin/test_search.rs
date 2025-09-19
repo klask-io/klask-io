@@ -2,41 +2,47 @@
 use anyhow::Result;
 use klask_rs::models::*;
 use klask_rs::services::crawler::CrawlerService;
-use klask_rs::services::search::{SearchService, SearchQuery};
-use klask_rs::services::progress::ProgressTracker;
 use klask_rs::services::encryption::EncryptionService;
+use klask_rs::services::progress::ProgressTracker;
+use klask_rs::services::search::{SearchQuery, SearchService};
 use sqlx::PgPool;
 use std::sync::Arc;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    
+
     // Connect to database
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://klask:klask@localhost:5432/klask_rs".to_string());
-    
+
     info!("Connecting to database: {}", database_url);
     let pool = PgPool::connect(&database_url).await?;
-    
+
     // Initialize search service
     let search_service = Arc::new(SearchService::new("./test_search_index")?);
-    
+
     // Clear any existing index
     search_service.clear_index().await?;
     info!("Cleared existing search index");
-    
+
     // Initialize progress tracker
     let progress_tracker = Arc::new(ProgressTracker::new());
-    
+
     // Create a test encryption service
-    let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
-    
-    // Initialize crawler service  
-    let crawler_service = CrawlerService::new(pool.clone(), search_service.clone(), progress_tracker.clone(), encryption_service)?;
-    
+    let encryption_service =
+        Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+
+    // Initialize crawler service
+    let crawler_service = CrawlerService::new(
+        pool.clone(),
+        search_service.clone(),
+        progress_tracker.clone(),
+        encryption_service,
+    )?;
+
     // Create a test repository entry for /home/jeremie/temp/
     let test_repo = Repository {
         id: Uuid::new_v4(),
@@ -58,9 +64,9 @@ async fn main() -> Result<()> {
         crawl_frequency_hours: None,
         max_crawl_duration_minutes: Some(60),
     };
-    
+
     info!("Starting crawler for test repository: {}", test_repo.url);
-    
+
     // Crawl the repository - this should now include the commit fix
     match crawler_service.crawl_repository(&test_repo).await {
         Ok(()) => {
@@ -71,10 +77,10 @@ async fn main() -> Result<()> {
             return Err(e);
         }
     }
-    
+
     // Now test search functionality
     info!("Testing search for 'server'...");
-    
+
     let search_query = SearchQuery {
         query: "server".to_string(),
         project_filter: None,
@@ -84,27 +90,32 @@ async fn main() -> Result<()> {
         offset: 0,
         include_facets: false,
     };
-    
+
     match search_service.search(search_query).await {
         Ok(results) => {
-            info!("✅ Search completed! Found {} results", results.results.len());
-            
+            info!(
+                "✅ Search completed! Found {} results",
+                results.results.len()
+            );
+
             if results.results.is_empty() {
                 warn!("⚠️  No results found for 'server' - this indicates the commit fix may not be working");
                 return Ok(());
             }
-            
+
             // Display results
             for (i, result) in results.results.iter().enumerate() {
                 info!("Result {}: {}", i + 1, result.file_path);
                 info!("  Project: {}", result.project);
                 info!("  Extension: {}", result.extension);
                 info!("  Score: {:.2}", result.score);
-                info!("  Snippet: {}...", 
-                    result.content_snippet.chars().take(100).collect::<String>());
+                info!(
+                    "  Snippet: {}...",
+                    result.content_snippet.chars().take(100).collect::<String>()
+                );
                 info!("---");
             }
-            
+
             info!("🎉 Search functionality is working correctly!");
         }
         Err(e) => {
@@ -112,10 +123,10 @@ async fn main() -> Result<()> {
             return Err(e);
         }
     }
-    
+
     // Clean up test index
     let _ = std::fs::remove_dir_all("./test_search_index");
     info!("Cleaned up test index");
-    
+
     Ok(())
 }

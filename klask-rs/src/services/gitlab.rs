@@ -1,6 +1,6 @@
-use anyhow::{Result, Context};
-use serde::{Deserialize, Serialize};
+use anyhow::{Context, Result};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub struct GitLabService {
@@ -63,7 +63,8 @@ impl GitLabService {
             }
 
             tracing::debug!("Making GitLab API request to: {}", url);
-            let response = self.client
+            let response = self
+                .client
                 .get(&url)
                 .header("Authorization", format!("Bearer {}", access_token))
                 .send()
@@ -73,7 +74,12 @@ impl GitLabService {
             let status = response.status();
             if !status.is_success() {
                 let error_body = response.text().await.unwrap_or_default();
-                tracing::error!("GitLab API request failed - URL: {}, Status: {}, Body: {}", url, status, error_body);
+                tracing::error!(
+                    "GitLab API request failed - URL: {}, Status: {}, Body: {}",
+                    url,
+                    status,
+                    error_body
+                );
                 return Err(anyhow::anyhow!(
                     "GitLab API error: {} - {}",
                     status,
@@ -125,7 +131,8 @@ impl GitLabService {
                 per_page
             );
 
-            let response = self.client
+            let response = self
+                .client
                 .get(&url)
                 .header("Authorization", format!("Bearer {}", access_token))
                 .send()
@@ -174,7 +181,8 @@ impl GitLabService {
             urlencoding::encode(project_id)
         );
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", access_token))
             .send()
@@ -198,20 +206,14 @@ impl GitLabService {
     }
 
     /// Test if the access token is valid
-    pub async fn test_token(
-        &self,
-        gitlab_url: &str,
-        access_token: &str,
-    ) -> Result<bool> {
-        let url = format!(
-            "{}/api/v4/user",
-            gitlab_url.trim_end_matches('/')
-        );
+    pub async fn test_token(&self, gitlab_url: &str, access_token: &str) -> Result<bool> {
+        let url = format!("{}/api/v4/user", gitlab_url.trim_end_matches('/'));
 
         tracing::debug!("Testing GitLab token with URL: {}", url);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
-            .header("PRIVATE-TOKEN",  access_token)
+            .header("PRIVATE-TOKEN", access_token)
             .send()
             .await
             .context("Failed to test GitLab token")?;
@@ -222,7 +224,12 @@ impl GitLabService {
             Ok(true)
         } else {
             let error_body = response.text().await.unwrap_or_default();
-            tracing::error!("GitLab token test failed - URL: {}, Status: {}, Body: {}", url, status, error_body);
+            tracing::error!(
+                "GitLab token test failed - URL: {}, Status: {}, Body: {}",
+                url,
+                status,
+                error_body
+            );
             Ok(false)
         }
     }

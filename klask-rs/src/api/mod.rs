@@ -1,14 +1,14 @@
 pub mod admin;
 pub mod auth;
 pub mod files;
-pub mod search;
 pub mod repositories;
 pub mod scheduler;
+pub mod search;
 pub mod users;
 
+use crate::auth::extractors::AppState;
 use anyhow::Result;
 use axum::{routing::get, Router};
-use crate::auth::extractors::AppState;
 
 pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()

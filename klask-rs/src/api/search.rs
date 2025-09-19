@@ -1,3 +1,5 @@
+use crate::auth::extractors::AppState;
+use crate::services::SearchQuery;
 use anyhow::Result;
 use axum::{
     extract::{Query, State},
@@ -8,8 +10,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use tracing;
-use crate::auth::extractors::AppState;
-use crate::services::SearchQuery;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
@@ -76,11 +76,10 @@ async fn search_files(
     let page = params.page.unwrap_or(1);
     let limit = params.limit.unwrap_or(50).min(1000); // Cap at 1000 results max
     let offset = (page - 1) * limit;
-    
+
     // Get search query from either 'q' or 'query' parameter
-    let query_string = params.q.or(params.query)
-        .ok_or(StatusCode::BAD_REQUEST)?;
-    
+    let query_string = params.q.or(params.query).ok_or(StatusCode::BAD_REQUEST)?;
+
     // Build search query
     let search_query = SearchQuery {
         query: query_string,
@@ -91,11 +90,12 @@ async fn search_files(
         offset: offset as usize,
         include_facets: params.include_facets.unwrap_or(false),
     };
-    
+
     // Perform search using Tantivy
     match app_state.search_service.search(search_query).await {
         Ok(search_response) => {
-            let results: Vec<SearchResult> = search_response.results
+            let results: Vec<SearchResult> = search_response
+                .results
                 .into_iter()
                 .map(|r| SearchResult {
                     id: r.file_id.to_string(),
@@ -111,22 +111,26 @@ async fn search_files(
                     line_number: r.line_number,
                 })
                 .collect();
-            
+
             // Convert facets to API format if present
-            let facets = search_response.facets.map(|service_facets| {
-                SearchFacets {
-                    projects: service_facets.projects.into_iter()
-                        .map(|(value, count)| FacetValue { value, count })
-                        .collect(),
-                    versions: service_facets.versions.into_iter()
-                        .map(|(value, count)| FacetValue { value, count })
-                        .collect(),
-                    extensions: service_facets.extensions.into_iter()
-                        .map(|(value, count)| FacetValue { value, count })
-                        .collect(),
-                }
+            let facets = search_response.facets.map(|service_facets| SearchFacets {
+                projects: service_facets
+                    .projects
+                    .into_iter()
+                    .map(|(value, count)| FacetValue { value, count })
+                    .collect(),
+                versions: service_facets
+                    .versions
+                    .into_iter()
+                    .map(|(value, count)| FacetValue { value, count })
+                    .collect(),
+                extensions: service_facets
+                    .extensions
+                    .into_iter()
+                    .map(|(value, count)| FacetValue { value, count })
+                    .collect(),
             });
-            
+
             let response = SearchResponse {
                 total: search_response.total,
                 results,
@@ -134,7 +138,7 @@ async fn search_files(
                 limit,
                 facets,
             };
-            
+
             Ok(Json(response))
         }
         Err(e) => {
@@ -164,18 +168,24 @@ async fn get_search_filters(
         offset: 0,
         include_facets: true, // Always include facets for the filters endpoint
     };
-    
+
     match app_state.search_service.search(search_query).await {
         Ok(search_response) => {
             if let Some(facets) = search_response.facets {
                 let filters = SearchFilters {
-                    projects: facets.projects.into_iter()
+                    projects: facets
+                        .projects
+                        .into_iter()
                         .map(|(value, count)| FacetValue { value, count })
                         .collect(),
-                    versions: facets.versions.into_iter()
+                    versions: facets
+                        .versions
+                        .into_iter()
                         .map(|(value, count)| FacetValue { value, count })
                         .collect(),
-                    extensions: facets.extensions.into_iter()
+                    extensions: facets
+                        .extensions
+                        .into_iter()
                         .map(|(value, count)| FacetValue { value, count })
                         .collect(),
                 };

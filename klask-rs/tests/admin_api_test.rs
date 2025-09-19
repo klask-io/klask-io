@@ -6,15 +6,15 @@ mod admin_api_tests {
         Router,
     };
     use axum_test::TestServer;
-    use serde_json::{json, Value};
-    use uuid::Uuid;
     use klask_rs::{
         api::admin::{
-            AdminDashboardData, SystemStats, RepositoryStats, ContentStats, 
-            SearchStats, RecentActivity
+            AdminDashboardData, ContentStats, RecentActivity, RepositoryStats, SearchStats,
+            SystemStats,
         },
         auth::extractors::AppState,
     };
+    use serde_json::{json, Value};
+    use uuid::Uuid;
 
     // Mock app state for testing
     async fn create_test_app_state() -> AppState {
@@ -67,8 +67,14 @@ mod admin_api_tests {
         };
 
         // Test calculations
-        assert_eq!(stats.total_repositories, stats.enabled_repositories + stats.disabled_repositories);
-        assert_eq!(stats.total_repositories, stats.git_repositories + stats.gitlab_repositories + stats.filesystem_repositories);
+        assert_eq!(
+            stats.total_repositories,
+            stats.enabled_repositories + stats.disabled_repositories
+        );
+        assert_eq!(
+            stats.total_repositories,
+            stats.git_repositories + stats.gitlab_repositories + stats.filesystem_repositories
+        );
         assert!(stats.recently_crawled + stats.never_crawled <= stats.total_repositories);
 
         // Test serialization
@@ -167,7 +173,7 @@ mod admin_api_tests {
 
         // Test ordering of popular queries (should be by count)
         for i in 1..stats.popular_queries.len() {
-            assert!(stats.popular_queries[i-1].count >= stats.popular_queries[i].count);
+            assert!(stats.popular_queries[i - 1].count >= stats.popular_queries[i].count);
         }
 
         // Test serialization
@@ -198,14 +204,12 @@ mod admin_api_tests {
                     role: "User".to_string(),
                 },
             ],
-            recent_repositories: vec![
-                klask_rs::api::admin::RecentRepository {
-                    name: "new-repo".to_string(),
-                    url: "https://github.com/example/new-repo.git".to_string(),
-                    repository_type: "Git".to_string(),
-                    created_at: now,
-                },
-            ],
+            recent_repositories: vec![klask_rs::api::admin::RecentRepository {
+                name: "new-repo".to_string(),
+                url: "https://github.com/example/new-repo.git".to_string(),
+                repository_type: "Git".to_string(),
+                created_at: now,
+            }],
             recent_crawls: vec![
                 klask_rs::api::admin::RecentCrawl {
                     repository_name: "active-repo".to_string(),
@@ -226,7 +230,7 @@ mod admin_api_tests {
 
         // Test that recent activities are ordered by time (most recent first)
         for i in 1..activity.recent_users.len() {
-            assert!(activity.recent_users[i-1].created_at >= activity.recent_users[i].created_at);
+            assert!(activity.recent_users[i - 1].created_at >= activity.recent_users[i].created_at);
         }
 
         // Test serialization
@@ -286,7 +290,10 @@ mod admin_api_tests {
         };
 
         // Test data consistency across sections
-        assert_eq!(dashboard_data.content.total_files, dashboard_data.search.total_documents);
+        assert_eq!(
+            dashboard_data.content.total_files,
+            dashboard_data.search.total_documents
+        );
 
         // Test serialization of complete dashboard
         let json_value = serde_json::to_value(&dashboard_data).unwrap();
@@ -340,7 +347,7 @@ mod admin_api_tests {
         assert!(empty_content_stats.files_by_project.is_empty());
     }
 
-    #[test] 
+    #[test]
     fn test_admin_stats_calculations() {
         // Test various calculation scenarios
 
@@ -356,10 +363,12 @@ mod admin_api_tests {
             never_crawled: 25,
         };
 
-        let enabled_percentage = (repo_stats.enabled_repositories as f64 / repo_stats.total_repositories as f64) * 100.0;
+        let enabled_percentage =
+            (repo_stats.enabled_repositories as f64 / repo_stats.total_repositories as f64) * 100.0;
         assert_eq!(enabled_percentage, 85.0);
 
-        let git_percentage = (repo_stats.git_repositories as f64 / repo_stats.total_repositories as f64) * 100.0;
+        let git_percentage =
+            (repo_stats.git_repositories as f64 / repo_stats.total_repositories as f64) * 100.0;
         assert_eq!(git_percentage, 60.0);
 
         // Test size calculations
@@ -422,8 +431,16 @@ mod admin_api_tests {
             recent_additions: 20,
         };
 
-        let project_total_files: i64 = content_stats.files_by_project.iter().map(|p| p.file_count).sum();
-        let project_total_size: i64 = content_stats.files_by_project.iter().map(|p| p.total_size).sum();
+        let project_total_files: i64 = content_stats
+            .files_by_project
+            .iter()
+            .map(|p| p.file_count)
+            .sum();
+        let project_total_size: i64 = content_stats
+            .files_by_project
+            .iter()
+            .map(|p| p.total_size)
+            .sum();
 
         assert_eq!(project_total_files, content_stats.total_files);
         assert_eq!(project_total_size, content_stats.total_size_bytes);

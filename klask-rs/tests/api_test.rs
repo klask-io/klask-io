@@ -1,18 +1,19 @@
 use axum::http::StatusCode;
 use axum_test::TestServer;
-use klask_rs::{api, Database};
-use klask_rs::services::{SearchService, crawler::CrawlerService, progress::ProgressTracker};
 use klask_rs::auth::{extractors::AppState, jwt::JwtService};
 use klask_rs::config::{AppConfig, AuthConfig};
-use tempfile::TempDir;
+use klask_rs::services::{crawler::CrawlerService, progress::ProgressTracker, SearchService};
+use klask_rs::{api, Database};
 use std::sync::Arc;
+use tempfile::TempDir;
 
 // Create a mock database for testing (we'll use a dummy implementation)
 async fn create_test_database() -> Database {
     // For now, we'll skip database connection in tests
     // In a real implementation, we'd use a test database or mock
     // This will fail at runtime if database operations are called, but that's OK for basic API tests
-    Database::new("postgres://test:test@localhost:9999/test", 1).await
+    Database::new("postgres://test:test@localhost:9999/test", 1)
+        .await
         .unwrap_or_else(|_| panic!("Database not available for testing"))
 }
 
@@ -26,7 +27,7 @@ fn create_test_search_service() -> SearchService {
 async fn create_test_app_state() -> Option<AppState> {
     if let Ok(database) = Database::new("postgres://test:test@localhost:9999/test", 1).await {
         let search_service = create_test_search_service();
-        
+
         // Create test auth config
         let auth_config = AuthConfig {
             jwt_secret: "test_secret".to_string(),
@@ -34,19 +35,23 @@ async fn create_test_app_state() -> Option<AppState> {
         };
         let jwt_service = JwtService::new(&auth_config).unwrap();
         let config = AppConfig::default();
-        
+
         // Create shared search service
         let shared_search_service = Arc::new(search_service);
-        
+
         // Create progress tracker
         let progress_tracker = Arc::new(ProgressTracker::new());
-        
+
         // Create crawler service
         let crawler_service = Arc::new(
-            CrawlerService::new(database.pool().clone(), shared_search_service.clone(), progress_tracker.clone())
-                .unwrap()
+            CrawlerService::new(
+                database.pool().clone(),
+                shared_search_service.clone(),
+                progress_tracker.clone(),
+            )
+            .unwrap(),
         );
-        
+
         Some(AppState {
             database,
             search_service: shared_search_service,
@@ -71,7 +76,7 @@ async fn test_health_endpoint() {
         // Test health endpoint
         let response = server.get("/status").await;
         assert_eq!(response.status_code(), StatusCode::OK);
-        
+
         let text = response.text();
         assert_eq!(text, "API is running");
     } else {
@@ -91,7 +96,7 @@ async fn test_search_endpoint() {
         // Test search endpoint with empty query
         let response = server.get("/search?query=test").await;
         assert_eq!(response.status_code(), StatusCode::OK);
-        
+
         // Should return empty results for now
         let json: serde_json::Value = response.json();
         assert_eq!(json["total"], 0);
@@ -123,7 +128,7 @@ async fn test_repository_update_preserves_fields() {
         });
 
         let create_response = server.post("/repositories").json(&create_payload).await;
-        
+
         if create_response.status_code() == StatusCode::OK {
             let created_repo: serde_json::Value = create_response.json();
             let repo_id = created_repo["id"].as_str().unwrap();
@@ -137,7 +142,8 @@ async fn test_repository_update_preserves_fields() {
                 "enabled": true
             });
 
-            let update_response = server.put(&format!("/repositories/{}", repo_id))
+            let update_response = server
+                .put(&format!("/repositories/{}", repo_id))
                 .json(&update_payload)
                 .await;
 
@@ -146,20 +152,37 @@ async fn test_repository_update_preserves_fields() {
 
                 // Verify that access token and namespace are preserved
                 assert_eq!(updated_repo["name"].as_str().unwrap(), "updated-repo-name");
-                assert_eq!(updated_repo["url"].as_str().unwrap(), "https://gitlab.example.com/user/updated-repo.git");
+                assert_eq!(
+                    updated_repo["url"].as_str().unwrap(),
+                    "https://gitlab.example.com/user/updated-repo.git"
+                );
                 assert_eq!(updated_repo["branch"].as_str().unwrap(), "develop");
-                
+
                 // These should be preserved from the original repository
-                assert!(updated_repo["accessToken"].is_string(), "Access token should be preserved");
-                assert_eq!(updated_repo["gitlabNamespace"].as_str().unwrap(), "test-user");
+                assert!(
+                    updated_repo["accessToken"].is_string(),
+                    "Access token should be preserved"
+                );
+                assert_eq!(
+                    updated_repo["gitlabNamespace"].as_str().unwrap(),
+                    "test-user"
+                );
                 assert_eq!(updated_repo["isGroup"].as_bool().unwrap(), false);
-                
-                println!("✅ Repository update correctly preserved access token and GitLab namespace");
+
+                println!(
+                    "✅ Repository update correctly preserved access token and GitLab namespace"
+                );
             } else {
-                println!("⚠️ Repository update failed with status: {:?}", update_response.status_code());
+                println!(
+                    "⚠️ Repository update failed with status: {:?}",
+                    update_response.status_code()
+                );
             }
         } else {
-            println!("⚠️ Repository creation failed with status: {:?}", create_response.status_code());
+            println!(
+                "⚠️ Repository creation failed with status: {:?}",
+                create_response.status_code()
+            );
         }
     } else {
         println!("Skipping repository update test - database not available");

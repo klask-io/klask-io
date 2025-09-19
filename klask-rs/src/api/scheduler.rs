@@ -1,15 +1,9 @@
+use crate::auth::extractors::{AdminUser, AppState};
 use anyhow::Result;
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Json,
-    routing::get,
-    Router,
-};
-use serde::Serialize;
+use axum::{extract::State, http::StatusCode, response::Json, routing::get, Router};
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 use uuid::Uuid;
-use crate::auth::extractors::{AppState, AdminUser};
 
 #[derive(Debug, Serialize)]
 pub struct SchedulerStatusResponse {
@@ -36,8 +30,7 @@ pub struct NextScheduledRunResponse {
 }
 
 pub async fn create_router() -> Result<Router<AppState>> {
-    let router = Router::new()
-        .route("/status", get(get_scheduler_status));
+    let router = Router::new().route("/status", get(get_scheduler_status));
 
     Ok(router)
 }
@@ -47,24 +40,26 @@ async fn get_scheduler_status(
     _admin_user: AdminUser, // Require admin authentication
 ) -> Result<Json<SchedulerStatusResponse>, StatusCode> {
     match &app_state.scheduler_service {
-        Some(scheduler_service) => {
-            match scheduler_service.get_status().await {
-                Ok(status) => {
-                    let response = SchedulerStatusResponse {
-                        is_running: status.is_running,
-                        scheduled_repositories_count: status.scheduled_repositories_count,
-                        auto_crawl_enabled_count: status.auto_crawl_enabled_count,
-                        next_runs: status.next_runs.into_iter().map(|run| NextScheduledRunResponse {
+        Some(scheduler_service) => match scheduler_service.get_status().await {
+            Ok(status) => {
+                let response = SchedulerStatusResponse {
+                    is_running: status.is_running,
+                    scheduled_repositories_count: status.scheduled_repositories_count,
+                    auto_crawl_enabled_count: status.auto_crawl_enabled_count,
+                    next_runs: status
+                        .next_runs
+                        .into_iter()
+                        .map(|run| NextScheduledRunResponse {
                             repository_id: run.repository_id,
                             repository_name: run.repository_name,
                             next_run_at: run.next_run_at,
                             schedule_expression: run.schedule_expression,
-                        }).collect(),
-                    };
-                    Ok(Json(response))
-                },
-                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+                        })
+                        .collect(),
+                };
+                Ok(Json(response))
             }
+            Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
         },
         None => {
             // Scheduler service not available

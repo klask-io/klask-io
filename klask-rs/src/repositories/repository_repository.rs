@@ -1,7 +1,7 @@
+use crate::models::Repository;
 use anyhow::Result;
 use sqlx::PgPool;
 use uuid::Uuid;
-use crate::models::Repository;
 
 pub struct RepositoryRepository {
     pool: PgPool,
@@ -59,7 +59,7 @@ impl RepositoryRepository {
 
     pub async fn update_last_crawled(&self, id: Uuid) -> Result<()> {
         sqlx::query(
-            "UPDATE repositories SET last_crawled = NOW(), updated_at = NOW() WHERE id = $1"
+            "UPDATE repositories SET last_crawled = NOW(), updated_at = NOW() WHERE id = $1",
         )
         .bind(id)
         .execute(&self.pool)
@@ -109,7 +109,14 @@ impl RepositoryRepository {
         self.get_repository(id).await
     }
 
-    pub async fn update_schedule(&self, id: Uuid, auto_crawl_enabled: bool, cron_schedule: Option<String>, crawl_frequency_hours: Option<i32>, max_crawl_duration_minutes: Option<i32>) -> Result<()> {
+    pub async fn update_schedule(
+        &self,
+        id: Uuid,
+        auto_crawl_enabled: bool,
+        cron_schedule: Option<String>,
+        crawl_frequency_hours: Option<i32>,
+        max_crawl_duration_minutes: Option<i32>,
+    ) -> Result<()> {
         sqlx::query(
             "UPDATE repositories SET auto_crawl_enabled = $2, cron_schedule = $3, crawl_frequency_hours = $4, max_crawl_duration_minutes = $5, updated_at = NOW() WHERE id = $1"
         )

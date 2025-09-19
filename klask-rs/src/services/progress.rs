@@ -1,9 +1,9 @@
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -31,7 +31,7 @@ pub struct CrawlProgressInfo {
     pub started_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
-    
+
     // GitLab hierarchical progress tracking
     pub projects_processed: Option<usize>,
     pub projects_total: Option<usize>,
@@ -72,20 +72,26 @@ impl CrawlProgressInfo {
             }
             _ => {}
         }
-        
+
         self.status = status;
         self.updated_at = Utc::now();
     }
 
-    pub fn update_progress(&mut self, files_processed: usize, files_total: Option<usize>, files_indexed: usize) {
+    pub fn update_progress(
+        &mut self,
+        files_processed: usize,
+        files_total: Option<usize>,
+        files_indexed: usize,
+    ) {
         self.files_processed = files_processed;
         self.files_total = files_total;
         self.files_indexed = files_indexed;
         self.updated_at = Utc::now();
-        
+
         if let Some(total) = files_total {
             if total > 0 {
-                self.progress_percentage = (files_processed as f32 / total as f32 * 100.0).min(100.0);
+                self.progress_percentage =
+                    (files_processed as f32 / total as f32 * 100.0).min(100.0);
             }
         }
     }
@@ -114,7 +120,11 @@ impl ProgressTracker {
         }
     }
 
-    pub async fn start_crawl(&self, repository_id: Uuid, repository_name: String) -> CrawlProgressInfo {
+    pub async fn start_crawl(
+        &self,
+        repository_id: Uuid,
+        repository_name: String,
+    ) -> CrawlProgressInfo {
         let progress = CrawlProgressInfo::new(repository_id, repository_name);
         let mut map = self.progress_map.write().await;
         map.insert(repository_id, progress.clone());
@@ -129,11 +139,11 @@ impl ProgressTracker {
     }
 
     pub async fn update_progress(
-        &self, 
-        repository_id: Uuid, 
-        files_processed: usize, 
-        files_total: Option<usize>, 
-        files_indexed: usize
+        &self,
+        repository_id: Uuid,
+        files_processed: usize,
+        files_total: Option<usize>,
+        files_indexed: usize,
     ) {
         let mut map = self.progress_map.write().await;
         if let Some(progress) = map.get_mut(&repository_id) {
@@ -170,7 +180,12 @@ impl ProgressTracker {
     pub async fn get_all_active_progress(&self) -> Vec<CrawlProgressInfo> {
         let map = self.progress_map.read().await;
         map.values()
-            .filter(|p| !matches!(p.status, CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled))
+            .filter(|p| {
+                !matches!(
+                    p.status,
+                    CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled
+                )
+            })
             .cloned()
             .collect()
     }
@@ -181,9 +196,9 @@ impl ProgressTracker {
         map.retain(|_, progress| {
             // Keep active crawls and recent completed ones
             match progress.status {
-                CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled => {
-                    progress.completed_at.map_or(true, |completed| completed > cutoff)
-                }
+                CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled => progress
+                    .completed_at
+                    .map_or(true, |completed| completed > cutoff),
                 _ => true, // Keep all active crawls
             }
         });
@@ -207,12 +222,17 @@ impl ProgressTracker {
     pub async fn is_crawling(&self, repository_id: Uuid) -> bool {
         let map = self.progress_map.read().await;
         map.get(&repository_id)
-            .map(|progress| !matches!(progress.status, CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled))
+            .map(|progress| {
+                !matches!(
+                    progress.status,
+                    CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled
+                )
+            })
             .unwrap_or(false)
     }
 
     // GitLab hierarchical progress tracking methods
-    
+
     /// Initialize GitLab project tracking
     pub async fn set_gitlab_projects_total(&self, repository_id: Uuid, projects_total: usize) {
         let mut map = self.progress_map.write().await;
@@ -224,7 +244,11 @@ impl ProgressTracker {
     }
 
     /// Update current GitLab project being processed
-    pub async fn set_current_gitlab_project(&self, repository_id: Uuid, project_name: Option<String>) {
+    pub async fn set_current_gitlab_project(
+        &self,
+        repository_id: Uuid,
+        project_name: Option<String>,
+    ) {
         let mut map = self.progress_map.write().await;
         if let Some(progress) = map.get_mut(&repository_id) {
             progress.current_project = project_name;

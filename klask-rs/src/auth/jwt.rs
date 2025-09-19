@@ -1,8 +1,8 @@
+use crate::auth::claims::TokenClaims;
+use crate::config::AuthConfig;
 use anyhow::Result;
 use chrono::Duration;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
-use crate::auth::claims::TokenClaims;
-use crate::config::AuthConfig;
 
 #[derive(Clone)]
 pub struct JwtService {
@@ -15,10 +15,10 @@ pub struct JwtService {
 impl JwtService {
     pub fn new(config: &AuthConfig) -> Result<Self> {
         let secret = config.jwt_secret.as_bytes();
-        
+
         // Parse expires_in from config (e.g., "24h", "1d", "60m")
         let expires_in = Self::parse_duration(&config.jwt_expires_in)?;
-        
+
         Ok(Self {
             encoding_key: EncodingKey::from_secret(secret),
             decoding_key: DecodingKey::from_secret(secret),
@@ -38,7 +38,12 @@ impl JwtService {
             .map_err(|e| anyhow::anyhow!("Failed to decode JWT: {}", e))
     }
 
-    pub fn create_token_for_user(&self, user_id: uuid::Uuid, username: String, role: String) -> Result<String> {
+    pub fn create_token_for_user(
+        &self,
+        user_id: uuid::Uuid,
+        username: String,
+        role: String,
+    ) -> Result<String> {
         let claims = TokenClaims::new(user_id, username, role, self.expires_in);
         self.encode_token(&claims)
     }

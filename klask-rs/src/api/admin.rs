@@ -1,3 +1,6 @@
+use crate::auth::extractors::{AdminUser, AppState};
+use crate::repositories::{user_repository::UserStats, UserRepository};
+use crate::services::seeding::{SeedingService, SeedingStats};
 use anyhow::Result;
 use axum::{
     extract::State,
@@ -6,13 +9,10 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
-use chrono::{DateTime, Utc};
 use tracing::{debug, error, info};
-use crate::auth::extractors::{AppState, AdminUser};
-use crate::repositories::{UserRepository, user_repository::UserStats};
-use crate::services::seeding::{SeedingService, SeedingStats};
 
 #[derive(Debug, Serialize)]
 pub struct SystemStats {
@@ -33,7 +33,6 @@ pub struct RepositoryStats {
     pub recently_crawled: i64, // Last 24h
     pub never_crawled: i64,
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct SearchStats {
@@ -169,9 +168,7 @@ async fn get_system_stats(
     }
 }
 
-async fn get_user_stats(
-    State(app_state): State<AppState>,
-) -> Result<Json<UserStats>, StatusCode> {
+async fn get_user_stats(State(app_state): State<AppState>) -> Result<Json<UserStats>, StatusCode> {
     let pool = app_state.database.pool().clone();
     match get_user_stats_impl(&pool).await {
         Ok(stats) => Ok(Json(stats)),
@@ -188,7 +185,6 @@ async fn get_repository_stats(
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
-
 
 async fn get_search_stats(
     State(app_state): State<AppState>,
@@ -234,34 +230,31 @@ async fn get_user_stats_impl(pool: &PgPool) -> Result<UserStats> {
 }
 
 async fn get_repository_stats_impl(pool: &PgPool) -> Result<RepositoryStats> {
-    let total_repositories = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories"
-    )
-    .fetch_one(pool)
-    .await?;
+    let total_repositories = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories")
+        .fetch_one(pool)
+        .await?;
 
-    let enabled_repositories = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories WHERE enabled = true"
-    )
-    .fetch_one(pool)
-    .await?;
+    let enabled_repositories =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories WHERE enabled = true")
+            .fetch_one(pool)
+            .await?;
 
     let disabled_repositories = total_repositories - enabled_repositories;
 
     let git_repositories = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories WHERE repository_type = 'Git'"
+        "SELECT COUNT(*) FROM repositories WHERE repository_type = 'Git'",
     )
     .fetch_one(pool)
     .await?;
 
     let gitlab_repositories = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories WHERE repository_type = 'GitLab'"
+        "SELECT COUNT(*) FROM repositories WHERE repository_type = 'GitLab'",
     )
     .fetch_one(pool)
     .await?;
 
     let filesystem_repositories = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories WHERE repository_type = 'FileSystem'"
+        "SELECT COUNT(*) FROM repositories WHERE repository_type = 'FileSystem'",
     )
     .fetch_one(pool)
     .await?;
@@ -273,7 +266,7 @@ async fn get_repository_stats_impl(pool: &PgPool) -> Result<RepositoryStats> {
     .await?;
 
     let never_crawled = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories WHERE last_crawled IS NULL"
+        "SELECT COUNT(*) FROM repositories WHERE last_crawled IS NULL",
     )
     .fetch_one(pool)
     .await?;
@@ -289,7 +282,6 @@ async fn get_repository_stats_impl(pool: &PgPool) -> Result<RepositoryStats> {
         never_crawled,
     })
 }
-
 
 async fn get_search_stats_impl(app_state: &AppState) -> Result<SearchStats> {
     // Get document count from search service
@@ -307,7 +299,7 @@ async fn get_search_stats_impl(app_state: &AppState) -> Result<SearchStats> {
         total_documents,
         index_size_mb,
         avg_search_time_ms: None, // TODO: Track search performance
-        popular_queries: vec![], // TODO: Track popular queries
+        popular_queries: vec![],  // TODO: Track popular queries
     })
 }
 
@@ -318,7 +310,7 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
          FROM users
          WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
          ORDER BY created_at DESC
-         LIMIT 5"
+         LIMIT 5",
     )
     .fetch_all(pool)
     .await?;
@@ -329,7 +321,9 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
             username: row.get("username"),
             email: row.get("email"),
             created_at: row.get("created_at"),
-            role: row.get::<Option<String>, _>("role").unwrap_or_else(|| "User".to_string()),
+            role: row
+                .get::<Option<String>, _>("role")
+                .unwrap_or_else(|| "User".to_string()),
         })
         .collect();
 
@@ -339,7 +333,7 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
          FROM repositories
          WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
          ORDER BY created_at DESC
-         LIMIT 5"
+         LIMIT 5",
     )
     .fetch_all(pool)
     .await?;
@@ -349,7 +343,9 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
         .map(|row| RecentRepository {
             name: row.get("name"),
             url: row.get("url"),
-            repository_type: row.get::<Option<String>, _>("repository_type").unwrap_or_else(|| "Unknown".to_string()),
+            repository_type: row
+                .get::<Option<String>, _>("repository_type")
+                .unwrap_or_else(|| "Unknown".to_string()),
             created_at: row.get("created_at"),
         })
         .collect();
@@ -360,7 +356,7 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
          FROM repositories 
          WHERE last_crawled IS NOT NULL 
          ORDER BY last_crawled DESC 
-         LIMIT 10"
+         LIMIT 10",
     )
     .fetch_all(pool)
     .await?;
@@ -389,18 +385,18 @@ async fn seed_database(
     info!("Admin user requested database seeding");
     let pool = app_state.database.pool().clone();
     let seeding_service = SeedingService::new(pool);
-    
+
     seeding_service.seed_all().await.map_err(|e| {
         error!("Database seeding failed: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    
+
     info!("Database seeding completed successfully");
     let stats = seeding_service.get_stats().await.map_err(|e| {
         error!("Failed to get seeding stats: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    
+
     Ok(Json(stats))
 }
 
@@ -411,18 +407,18 @@ async fn clear_seed_data(
     info!("Admin user requested seed data clearing");
     let pool = app_state.database.pool().clone();
     let seeding_service = SeedingService::new(pool);
-    
+
     seeding_service.clear_all().await.map_err(|e| {
         error!("Failed to clear seed data: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    
+
     info!("Seed data cleared successfully");
     let stats = seeding_service.get_stats().await.map_err(|e| {
         error!("Failed to get seeding stats after clearing: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    
+
     Ok(Json(stats))
 }
 
@@ -432,12 +428,12 @@ async fn get_seed_stats(
     debug!("Getting seeding stats for admin user");
     let pool = app_state.database.pool().clone();
     let seeding_service = SeedingService::new(pool);
-    
+
     let stats = seeding_service.get_stats().await.map_err(|e| {
         error!("Failed to get seeding stats: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    
+
     Ok(Json(stats))
 }
 // Search index management endpoints
@@ -447,20 +443,18 @@ async fn reset_search_index(
     State(app_state): State<AppState>,
 ) -> Result<Json<IndexResetResponse>, StatusCode> {
     info!("Admin user requested search index reset");
-    
+
     // Get document count before reset
-    let documents_before = app_state.search_service.get_document_count()
-        .unwrap_or(0);
-    
+    let documents_before = app_state.search_service.get_document_count().unwrap_or(0);
+
     // Reset the index
     match app_state.search_service.reset_index().await {
         Ok(_) => {
             info!("Search index reset successfully");
-            
+
             // Get document count after reset (should be 0)
-            let documents_after = app_state.search_service.get_document_count()
-                .unwrap_or(0);
-            
+            let documents_after = app_state.search_service.get_document_count().unwrap_or(0);
+
             Ok(Json(IndexResetResponse {
                 success: true,
                 message: "Search index has been reset successfully".to_string(),
@@ -479,4 +473,3 @@ async fn reset_search_index(
         }
     }
 }
-

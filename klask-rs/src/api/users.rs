@@ -1,3 +1,6 @@
+use crate::auth::extractors::{AdminUser, AppState};
+use crate::models::{User, UserRole};
+use crate::repositories::{user_repository::UserStats, UserRepository};
 use anyhow::Result;
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
@@ -12,9 +15,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::auth::extractors::{AppState, AdminUser};
-use crate::models::{User, UserRole};
-use crate::repositories::{UserRepository, user_repository::UserStats};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateUserRequest {
@@ -81,12 +81,13 @@ async fn list_users(
     _admin_user: AdminUser, // Require admin authentication
 ) -> Result<Json<Vec<UserResponse>>, StatusCode> {
     let user_repository = UserRepository::new(app_state.database.pool().clone());
-    
+
     match user_repository.list_users(query.limit, query.offset).await {
         Ok(users) => {
-            let user_responses: Vec<UserResponse> = users.into_iter().map(UserResponse::from).collect();
+            let user_responses: Vec<UserResponse> =
+                users.into_iter().map(UserResponse::from).collect();
             Ok(Json(user_responses))
-        },
+        }
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
@@ -97,7 +98,7 @@ async fn get_user(
     _admin_user: AdminUser, // Require admin authentication
 ) -> Result<Json<UserResponse>, StatusCode> {
     let user_repository = UserRepository::new(app_state.database.pool().clone());
-    
+
     match user_repository.get_user(id).await {
         Ok(Some(user)) => Ok(Json(UserResponse::from(user))),
         Ok(None) => Err(StatusCode::NOT_FOUND),
@@ -111,22 +112,22 @@ async fn create_user(
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<Json<UserResponse>, StatusCode> {
     let user_repository = UserRepository::new(app_state.database.pool().clone());
-    
+
     // Check if username or email already exists
     if let Ok(Some(_)) = user_repository.find_by_username(&payload.username).await {
         return Err(StatusCode::CONFLICT);
     }
-    
+
     if let Ok(Some(_)) = user_repository.find_by_email(&payload.email).await {
         return Err(StatusCode::CONFLICT);
     }
-    
+
     // Hash password using argon2
     let password_hash = match hash_password(&payload.password) {
         Ok(hash) => hash,
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
-    
+
     let new_user = User {
         id: Uuid::new_v4(),
         username: payload.username,
@@ -137,7 +138,7 @@ async fn create_user(
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     };
-    
+
     match user_repository.create_user(&new_user).await {
         Ok(user) => Ok(Json(UserResponse::from(user))),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -151,14 +152,14 @@ async fn update_user(
     Json(payload): Json<UpdateUserRequest>,
 ) -> Result<Json<UserResponse>, StatusCode> {
     let user_repository = UserRepository::new(app_state.database.pool().clone());
-    
+
     // Check if user exists
     match user_repository.get_user(id).await {
-        Ok(Some(_)) => {},
+        Ok(Some(_)) => {}
         Ok(None) => return Err(StatusCode::NOT_FOUND),
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
-    
+
     // Check for username/email conflicts if they're being updated
     if let Some(ref username) = payload.username {
         if let Ok(Some(existing_user)) = user_repository.find_by_username(username).await {
@@ -167,7 +168,7 @@ async fn update_user(
             }
         }
     }
-    
+
     if let Some(ref email) = payload.email {
         if let Ok(Some(existing_user)) = user_repository.find_by_email(email).await {
             if existing_user.id != id {
@@ -175,14 +176,13 @@ async fn update_user(
             }
         }
     }
-    
+
     // Update basic user info if provided
     let mut updated_user = if payload.username.is_some() || payload.email.is_some() {
-        match user_repository.update_user(
-            id, 
-            payload.username.as_deref(), 
-            payload.email.as_deref()
-        ).await {
+        match user_repository
+            .update_user(id, payload.username.as_deref(), payload.email.as_deref())
+            .await
+        {
             Ok(user) => user,
             Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
         }
@@ -193,7 +193,7 @@ async fn update_user(
             Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
         }
     };
-    
+
     // Update role if provided
     if let Some(role) = payload.role {
         updated_user = match user_repository.update_user_role(id, role).await {
@@ -201,7 +201,7 @@ async fn update_user(
             Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
         };
     }
-    
+
     // Update status if provided
     if let Some(active) = payload.active {
         updated_user = match user_repository.update_user_status(id, active).await {
@@ -209,7 +209,7 @@ async fn update_user(
             Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
         };
     }
-    
+
     Ok(Json(UserResponse::from(updated_user)))
 }
 
@@ -220,7 +220,7 @@ async fn update_user_role(
     Json(payload): Json<UserRole>,
 ) -> Result<Json<UserResponse>, StatusCode> {
     let user_repository = UserRepository::new(app_state.database.pool().clone());
-    
+
     match user_repository.update_user_role(id, payload).await {
         Ok(user) => Ok(Json(UserResponse::from(user))),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -234,7 +234,7 @@ async fn update_user_status(
     Json(active): Json<bool>,
 ) -> Result<Json<UserResponse>, StatusCode> {
     let user_repository = UserRepository::new(app_state.database.pool().clone());
-    
+
     match user_repository.update_user_status(id, active).await {
         Ok(user) => Ok(Json(UserResponse::from(user))),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -247,19 +247,19 @@ async fn delete_user(
     admin_user: AdminUser, // Require admin authentication
 ) -> Result<StatusCode, StatusCode> {
     let user_repository = UserRepository::new(app_state.database.pool().clone());
-    
+
     // Prevent self-deletion
     if admin_user.0.user.id == id {
         return Err(StatusCode::BAD_REQUEST);
     }
-    
+
     // Check if user exists
     match user_repository.get_user(id).await {
-        Ok(Some(_)) => {},
+        Ok(Some(_)) => {}
         Ok(None) => return Err(StatusCode::NOT_FOUND),
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
-    
+
     match user_repository.delete_user(id).await {
         Ok(_) => Ok(StatusCode::NO_CONTENT),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -271,7 +271,7 @@ async fn get_user_stats(
     _admin_user: AdminUser, // Require admin authentication
 ) -> Result<Json<UserStats>, StatusCode> {
     let user_repository = UserRepository::new(app_state.database.pool().clone());
-    
+
     match user_repository.get_user_stats().await {
         Ok(stats) => Ok(Json(stats)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),

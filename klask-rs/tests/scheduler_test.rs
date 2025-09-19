@@ -1,19 +1,16 @@
 #[cfg(test)]
 mod scheduler_tests {
-    use std::sync::Arc;
-    use uuid::Uuid;
-    use chrono::{DateTime, Utc, Timelike, Datelike};
-    use tokio_test;
-    use sqlx::{PgPool, Row};
-    use tempfile::TempDir;
+    use chrono::{DateTime, Datelike, Timelike, Utc};
     use klask_rs::{
-        services::{
-            scheduler::SchedulerService,
-            crawler::CrawlerService,
-        },
         models::repository::{Repository, RepositoryType},
         repositories::repository_repository::RepositoryRepository,
+        services::{crawler::CrawlerService, scheduler::SchedulerService},
     };
+    use sqlx::{PgPool, Row};
+    use std::sync::Arc;
+    use tempfile::TempDir;
+    use tokio_test;
+    use uuid::Uuid;
 
     // Mock structs for testing
     #[derive(Debug, Clone)]
@@ -74,31 +71,39 @@ mod scheduler_tests {
     async fn test_cron_expression_validation() {
         // Test valid cron expressions
         let valid_expressions = vec![
-            "0 0 * * * *",      // Every hour
-            "0 */6 * * * *",    // Every 6 hours
-            "0 0 0 * * *",      // Daily at midnight
-            "0 0 0 * * 1",      // Weekly on Monday
-            "0 0 0 1 * *",      // Monthly on 1st
+            "0 0 * * * *",   // Every hour
+            "0 */6 * * * *", // Every 6 hours
+            "0 0 0 * * *",   // Daily at midnight
+            "0 0 0 * * 1",   // Weekly on Monday
+            "0 0 0 1 * *",   // Monthly on 1st
         ];
 
         for expr in valid_expressions {
             let result = expr.parse::<cron::Schedule>();
-            assert!(result.is_ok(), "Should parse valid cron expression: {}", expr);
+            assert!(
+                result.is_ok(),
+                "Should parse valid cron expression: {}",
+                expr
+            );
         }
 
         // Test invalid cron expressions
         let invalid_expressions = vec![
             "invalid",
-            "0 0 0 * *",        // Too few fields
-            "0 0 0 * * * *",    // Too many fields
-            "60 0 0 * * *",     // Invalid seconds
-            "0 60 0 * * *",     // Invalid minutes
-            "0 0 25 * * *",     // Invalid hours
+            "0 0 0 * *",     // Too few fields
+            "0 0 0 * * * *", // Too many fields
+            "60 0 0 * * *",  // Invalid seconds
+            "0 60 0 * * *",  // Invalid minutes
+            "0 0 25 * * *",  // Invalid hours
         ];
 
         for expr in invalid_expressions {
             let result = expr.parse::<cron::Schedule>();
-            assert!(result.is_err(), "Should reject invalid cron expression: {}", expr);
+            assert!(
+                result.is_err(),
+                "Should reject invalid cron expression: {}",
+                expr
+            );
         }
     }
 
@@ -115,21 +120,25 @@ mod scheduler_tests {
         for (hours, expected_cron) in test_cases {
             let cron_expr = format!("0 0 */{} * * *", hours);
             assert_eq!(cron_expr, expected_cron);
-            
+
             // Verify the generated expression is valid
             let result = cron_expr.parse::<cron::Schedule>();
-            assert!(result.is_ok(), "Generated cron expression should be valid: {}", cron_expr);
+            assert!(
+                result.is_ok(),
+                "Generated cron expression should be valid: {}",
+                cron_expr
+            );
         }
     }
 
     #[tokio::test]
     async fn test_next_run_calculation() {
-        use cron::Schedule;
         use chrono::TimeZone;
+        use cron::Schedule;
 
         // Test calculating next run times for various cron expressions
         let now = Utc.with_ymd_and_hms(2024, 1, 1, 12, 0, 0).unwrap();
-        
+
         // Test hourly schedule
         let hourly: Schedule = "0 0 * * * *".parse().unwrap();
         let next_hourly = hourly.after(&now).next().unwrap();
@@ -168,12 +177,11 @@ mod scheduler_tests {
             .with_cron_schedule("0 0 */8 * * *")
             .with_frequency_hours(4);
 
-        let repo_with_neither = MockRepository::new("neither-repo")
-            .with_auto_crawl();
+        let repo_with_neither = MockRepository::new("neither-repo").with_auto_crawl();
 
         // Cron schedule should take precedence
         assert!(repo_with_cron.cron_schedule.is_some());
-        
+
         // Frequency hours should be used as fallback
         assert!(repo_with_frequency.crawl_frequency_hours.is_some());
 
@@ -200,10 +208,10 @@ mod scheduler_tests {
 
         // Convert to Duration for timeout
         let default_duration = std::time::Duration::from_secs(
-            (repo_default.max_crawl_duration_minutes.unwrap_or(60) as u64) * 60
+            (repo_default.max_crawl_duration_minutes.unwrap_or(60) as u64) * 60,
         );
         let custom_duration = std::time::Duration::from_secs(
-            (repo_custom.max_crawl_duration_minutes.unwrap() as u64) * 60
+            (repo_custom.max_crawl_duration_minutes.unwrap() as u64) * 60,
         );
 
         assert_eq!(default_duration.as_secs(), 3600); // 60 minutes
@@ -250,13 +258,16 @@ mod scheduler_tests {
         let cutoff_time = now - chrono::Duration::hours(cleanup_threshold_hours);
 
         assert!(old_time < cutoff_time, "Old time should be before cutoff");
-        assert!(recent_time > cutoff_time, "Recent time should be after cutoff");
+        assert!(
+            recent_time > cutoff_time,
+            "Recent time should be after cutoff"
+        );
     }
 
     #[test]
     fn test_repository_schedule_priority() {
         // Test priority logic: cron_schedule > crawl_frequency_hours > disabled
-        
+
         struct TestCase {
             name: &'static str,
             auto_crawl: bool,
@@ -333,12 +344,12 @@ mod scheduler_tests {
     async fn test_concurrent_schedule_operations() {
         // Test concurrent schedule operations to ensure thread safety
         use std::collections::HashMap;
-        use tokio::sync::RwLock;
         use std::sync::Arc;
+        use tokio::sync::RwLock;
 
         // Simulate the job_ids map from SchedulerService
         let job_ids: Arc<RwLock<HashMap<Uuid, Uuid>>> = Arc::new(RwLock::new(HashMap::new()));
-        
+
         let mut handles = vec![];
 
         // Spawn multiple tasks that add/remove schedule entries
@@ -384,19 +395,26 @@ mod scheduler_tests {
         let invalid_expressions = vec![
             "",
             "invalid",
-            "0 0 0 32 * *",     // Invalid day of month
-            "0 0 25 * * *",     // Invalid hour
-            "0 60 * * * *",     // Invalid minute
+            "0 0 0 32 * *", // Invalid day of month
+            "0 0 25 * * *", // Invalid hour
+            "0 60 * * * *", // Invalid minute
         ];
 
         for expr in invalid_expressions {
             let result = expr.parse::<cron::Schedule>();
-            assert!(result.is_err(), "Should reject invalid expression: '{}'", expr);
+            assert!(
+                result.is_err(),
+                "Should reject invalid expression: '{}'",
+                expr
+            );
         }
 
         // Edge case: negative frequency hours (should be handled by validation)
         let negative_frequency = -1;
-        assert!(negative_frequency < 0, "Negative frequency should be invalid");
+        assert!(
+            negative_frequency < 0,
+            "Negative frequency should be invalid"
+        );
 
         // Edge case: zero frequency hours (should be handled by validation)
         let zero_frequency = 0;

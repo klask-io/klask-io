@@ -1,19 +1,15 @@
-use axum::{
-    async_trait,
-    extract::FromRequestParts,
-    http::request::Parts,
-};
-use std::sync::Arc;
-use std::collections::HashMap;
-use std::time::Instant;
-use uuid::Uuid;
-use tokio::sync::RwLock;
-use tracing::{debug, error, warn};
 use crate::auth::{claims::TokenClaims, errors::AuthError, jwt::JwtService};
-use crate::models::user::{User, UserRole};
 use crate::database::Database;
+use crate::models::user::{User, UserRole};
 use crate::repositories::user_repository::UserRepository;
 use crate::services::progress::ProgressTracker;
+use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Instant;
+use tokio::sync::RwLock;
+use tracing::{debug, error, warn};
+use uuid::Uuid;
 
 // Application state that will be shared across handlers
 #[derive(Clone)]
@@ -36,11 +32,13 @@ pub struct AuthenticatedUser {
 }
 
 #[async_trait]
-impl FromRequestParts<AppState> for AuthenticatedUser 
-{
+impl FromRequestParts<AppState> for AuthenticatedUser {
     type Rejection = AuthError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
         debug!("Extracting AuthenticatedUser from request");
         // Extract app state
         let app_state = state;
@@ -50,7 +48,7 @@ impl FromRequestParts<AppState> for AuthenticatedUser
             Ok(t) => {
                 debug!("Token extracted from header");
                 t
-            },
+            }
             Err(e) => {
                 debug!("Failed to extract token: {:?}", e);
                 return Err(e);
@@ -58,12 +56,10 @@ impl FromRequestParts<AppState> for AuthenticatedUser
         };
 
         // Decode and validate token
-        let claims = app_state.jwt_service
-            .decode_token(&token)
-            .map_err(|e| {
-                error!("Failed to decode token: {:?}", e);
-                AuthError::InvalidToken(e.to_string())
-            })?;
+        let claims = app_state.jwt_service.decode_token(&token).map_err(|e| {
+            error!("Failed to decode token: {:?}", e);
+            AuthError::InvalidToken(e.to_string())
+        })?;
 
         debug!("Token decoded successfully for user ID: {}", claims.sub);
 
@@ -95,7 +91,10 @@ impl FromRequestParts<AppState> for AuthenticatedUser
             return Err(AuthError::UserInactive);
         }
 
-        debug!("AuthenticatedUser extracted successfully: {}", user.username);
+        debug!(
+            "AuthenticatedUser extracted successfully: {}",
+            user.username
+        );
         Ok(AuthenticatedUser { user, claims })
     }
 }
@@ -105,18 +104,20 @@ impl FromRequestParts<AppState> for AuthenticatedUser
 pub struct AdminUser(pub AuthenticatedUser);
 
 #[async_trait]
-impl FromRequestParts<AppState> for AdminUser
-{
+impl FromRequestParts<AppState> for AdminUser {
     type Rejection = AuthError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
         debug!("Attempting to extract AdminUser from request");
 
         let auth_user = match AuthenticatedUser::from_request_parts(parts, state).await {
             Ok(user) => {
                 debug!("Authenticated user extracted: {:?}", user.user.username);
                 user
-            },
+            }
             Err(e) => {
                 error!("Failed to extract authenticated user: {:?}", e);
                 return Err(e);
@@ -124,11 +125,17 @@ impl FromRequestParts<AppState> for AdminUser
         };
 
         if auth_user.user.role != UserRole::Admin {
-            warn!("User {} attempted to access admin endpoint without admin role", auth_user.user.username);
+            warn!(
+                "User {} attempted to access admin endpoint without admin role",
+                auth_user.user.username
+            );
             return Err(AuthError::InsufficientPermissions);
         }
 
-        debug!("AdminUser extracted successfully for user: {}", auth_user.user.username);
+        debug!(
+            "AdminUser extracted successfully for user: {}",
+            auth_user.user.username
+        );
         Ok(AdminUser(auth_user))
     }
 }
@@ -137,11 +144,13 @@ impl FromRequestParts<AppState> for AdminUser
 pub struct OptionalUser(pub Option<AuthenticatedUser>);
 
 #[async_trait]
-impl FromRequestParts<AppState> for OptionalUser 
-{
+impl FromRequestParts<AppState> for OptionalUser {
     type Rejection = std::convert::Infallible;
 
-    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
         match AuthenticatedUser::from_request_parts(parts, state).await {
             Ok(user) => Ok(OptionalUser(Some(user))),
             Err(_) => Ok(OptionalUser(None)),

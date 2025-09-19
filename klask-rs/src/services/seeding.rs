@@ -1,12 +1,12 @@
 use anyhow::Result;
-use sqlx::PgPool;
-use uuid::Uuid;
-use chrono::{Utc, Duration};
-use tracing::{info, error, debug};
+use chrono::{Duration, Utc};
 use serde::Serialize;
+use sqlx::PgPool;
+use tracing::{debug, error, info};
+use uuid::Uuid;
 
-use crate::models::{User, UserRole, Repository, RepositoryType};
-use crate::repositories::{UserRepository, RepositoryRepository};
+use crate::models::{Repository, RepositoryType, User, UserRole};
+use crate::repositories::{RepositoryRepository, UserRepository};
 
 #[derive(Debug, Serialize)]
 pub struct SeedingStats {
@@ -25,37 +25,36 @@ impl SeedingService {
 
     pub async fn seed_all(&self) -> Result<()> {
         info!("Starting database seeding...");
-        
+
         self.seed_users().await?;
         self.seed_repositories().await?;
-        
+
         info!("Database seeding completed successfully!");
         Ok(())
     }
 
     pub async fn clear_all(&self) -> Result<()> {
         info!("Clearing all seed data...");
-        
-        // Clear in reverse order due to foreign key constraints  
-        sqlx::query("DELETE FROM repositories").execute(&self.pool).await?;
+
+        // Clear in reverse order due to foreign key constraints
+        sqlx::query("DELETE FROM repositories")
+            .execute(&self.pool)
+            .await?;
         sqlx::query("DELETE FROM users").execute(&self.pool).await?;
-        
+
         info!("All seed data cleared!");
         Ok(())
     }
 
     pub async fn get_stats(&self) -> Result<SeedingStats> {
-        let users_created = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM users"
-        )
-        .fetch_one(&self.pool)
-        .await?;
+        let users_created = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
+            .fetch_one(&self.pool)
+            .await?;
 
-        let repositories_created = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM repositories"
-        )
-        .fetch_one(&self.pool)
-        .await?;
+        let repositories_created =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories")
+                .fetch_one(&self.pool)
+                .await?;
 
         Ok(SeedingStats {
             users_created,
@@ -66,13 +65,14 @@ impl SeedingService {
     async fn seed_users(&self) -> Result<()> {
         info!("Seeding users...");
         let user_repo = UserRepository::new(self.pool.clone());
-        
+
         let users = vec![
             User {
                 id: Uuid::new_v4(),
                 username: "admin".to_string(),
                 email: "admin@klask.io".to_string(),
-                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS".to_string(), // "admin123"
+                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS"
+                    .to_string(), // "admin123"
                 role: UserRole::Admin,
                 active: true,
                 created_at: Utc::now() - Duration::days(30),
@@ -82,7 +82,8 @@ impl SeedingService {
                 id: Uuid::new_v4(),
                 username: "demo".to_string(),
                 email: "demo@klask.io".to_string(),
-                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS".to_string(), // "demo123"
+                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS"
+                    .to_string(), // "demo123"
                 role: UserRole::User,
                 active: true,
                 created_at: Utc::now() - Duration::days(15),
@@ -92,7 +93,8 @@ impl SeedingService {
                 id: Uuid::new_v4(),
                 username: "viewer".to_string(),
                 email: "viewer@klask.io".to_string(),
-                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS".to_string(), // "viewer123"
+                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS"
+                    .to_string(), // "viewer123"
                 role: UserRole::User,
                 active: true,
                 created_at: Utc::now() - Duration::days(7),
@@ -102,7 +104,8 @@ impl SeedingService {
                 id: Uuid::new_v4(),
                 username: "inactive".to_string(),
                 email: "inactive@klask.io".to_string(),
-                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS".to_string(), // "inactive123"
+                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS"
+                    .to_string(), // "inactive123"
                 role: UserRole::User,
                 active: false, // Inactive user
                 created_at: Utc::now() - Duration::days(60),
@@ -114,7 +117,7 @@ impl SeedingService {
             match user_repo.create_user(&user).await {
                 Ok(_) => {
                     debug!("Created user: {}", user.username);
-                },
+                }
                 Err(e) => {
                     if e.to_string().contains("duplicate key value") {
                         debug!("User {} already exists, skipping", user.username);
@@ -133,7 +136,7 @@ impl SeedingService {
     async fn seed_repositories(&self) -> Result<()> {
         info!("Seeding repositories...");
         let repo_repo = RepositoryRepository::new(self.pool.clone());
-        
+
         let repositories = vec![
             Repository {
                 id: Uuid::new_v4(),
@@ -236,7 +239,7 @@ impl SeedingService {
             match repo_repo.create_repository(&repo).await {
                 Ok(_) => {
                     debug!("Created repository: {}", repo.name);
-                },
+                }
                 Err(e) => {
                     if e.to_string().contains("duplicate key value") {
                         debug!("Repository {} already exists, skipping", repo.name);

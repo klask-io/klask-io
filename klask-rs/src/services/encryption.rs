@@ -17,7 +17,7 @@ impl EncryptionService {
             key_string.as_bytes().to_vec()
         } else {
             // Hash the key to get exactly 32 bytes
-            use sha2::{Sha256, Digest};
+            use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
             hasher.update(key_string.as_bytes());
             hasher.finalize().to_vec()
@@ -33,9 +33,10 @@ impl EncryptionService {
     pub fn encrypt(&self, plaintext: &str) -> Result<String> {
         // Generate a random nonce (96 bits for AES-GCM)
         let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
-        
+
         // Encrypt the plaintext
-        let ciphertext = self.cipher
+        let ciphertext = self
+            .cipher
             .encrypt(&nonce, plaintext.as_bytes())
             .map_err(|e| anyhow::anyhow!("Encryption failed: {:?}", e))?;
 
@@ -63,7 +64,8 @@ impl EncryptionService {
         let nonce = Nonce::from_slice(nonce_bytes);
 
         // Decrypt
-        let plaintext = self.cipher
+        let plaintext = self
+            .cipher
             .decrypt(nonce, ciphertext)
             .map_err(|e| anyhow::anyhow!("Decryption failed: {:?}", e))?;
 
@@ -79,11 +81,11 @@ mod tests {
     #[test]
     fn test_encryption_decryption() {
         let service = EncryptionService::new("my-secret-encryption-key-32bytes").unwrap();
-        
+
         let original = "my-secret-token";
         let encrypted = service.encrypt(original).unwrap();
         let decrypted = service.decrypt(&encrypted).unwrap();
-        
+
         assert_eq!(original, decrypted);
         assert_ne!(original, encrypted);
     }

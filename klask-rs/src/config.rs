@@ -37,7 +37,7 @@ impl AppConfig {
     pub fn new() -> Result<Self> {
         // Load .env file if it exists
         dotenvy::dotenv().ok();
-        
+
         // Set default values
         let config = Self {
             server: ServerConfig {
