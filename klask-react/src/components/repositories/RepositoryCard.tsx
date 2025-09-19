@@ -167,27 +167,36 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
     }
   };
 
+  const formatCrawlDuration = (progressInfo: CrawlProgressInfo | null) => {
+    if (!progressInfo) return null;
+    
+    const startTime = new Date(progressInfo.started_at);
+    const endTime = progressInfo.completed_at 
+      ? new Date(progressInfo.completed_at)
+      : new Date(progressInfo.updated_at);
+    
+    const durationMs = endTime.getTime() - startTime.getTime();
+    const durationSeconds = Math.floor(durationMs / 1000);
+    
+    if (durationSeconds < 60) {
+      return `${durationSeconds}s`;
+    } else if (durationSeconds < 3600) {
+      const minutes = Math.floor(durationSeconds / 60);
+      const seconds = durationSeconds % 60;
+      return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+    } else {
+      const hours = Math.floor(durationSeconds / 3600);
+      const minutes = Math.floor((durationSeconds % 3600) / 60);
+      return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    }
+  };
+
   return (
     <div className={`bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}>
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3 min-w-0 flex-1">
-            <div className="flex-shrink-0">
-              {getTypeIcon(repository.repositoryType)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 truncate">
-                {repository.name}
-              </h3>
-              <p className="text-sm text-gray-500 truncate">
-                {repository.url}
-              </p>
-            </div>
-          </div>
-
-          {/* Actions Menu */}
-          <div className="relative flex-shrink-0">
+      <div className="p-6 relative">
+        {/* Actions Menu - positioned absolutely in top-right */}
+        <div className="absolute top-2 right-2">
+          <div className="relative">
             <button
               onClick={handleMenuClick}
               className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
@@ -279,31 +288,54 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
           </div>
         </div>
 
+        {/* Header */}
+        <div className="mb-4 pr-12">
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="flex-shrink-0">
+              {getTypeIcon(repository.repositoryType)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 truncate">
+                {repository.name}
+              </h3>
+              <p className="text-sm text-gray-500 truncate">
+                {repository.url}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Status */}
         <div className="flex items-center space-x-4 mb-4">
           <div className="flex items-center space-x-2">
             {getStatusIcon()}
             <span className={`text-sm font-medium ${getStatusColor()}`}>
               {getStatusText()}
+              {crawlProgress && actuallyIsCrawling && formatCrawlDuration(crawlProgress) && (
+                <span className="text-xs text-gray-500 ml-2">
+                  ({formatCrawlDuration(crawlProgress)})
+                </span>
+              )}
             </span>
           </div>
-          
-          <div className="flex items-center space-x-2 text-gray-500">
-            <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-              {repository.repositoryType}
+        </div>
+
+        {/* Badges - positioned above metadata, horizontal and right-aligned */}
+        <div className="flex justify-end items-center gap-2 mb-3">
+          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+            {repository.repositoryType}
+          </span>
+          {repository.branch && (
+            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+              {repository.branch}
             </span>
-            {repository.branch && (
-              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                {repository.branch}
-              </span>
-            )}
-            {repository.autoCrawlEnabled && (
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded flex items-center space-x-1">
-                <BoltIcon className="h-3 w-3" />
-                <span>Auto-crawl</span>
-              </span>
-            )}
-          </div>
+          )}
+          {repository.autoCrawlEnabled && (
+            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded flex items-center space-x-1">
+              <BoltIcon className="h-3 w-3" />
+              <span>Auto-crawl</span>
+            </span>
+          )}
         </div>
 
         {/* Metadata */}

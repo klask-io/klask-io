@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  klask-backend:
+    build:
+      context: ./klask-rs
+      dockerfile: Dockerfile
+    container_name: klask-backend
+    ports:
+      - "3000:3000"
+    networks:
+      - klask-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/status"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  klask-frontend:
+    build:
+      context: ./klask-react
+      dockerfile: Dockerfile
+    container_name: klask-frontend
+    ports:
+      - "3001:8080"
+    depends_on:
+      - klask-backend
+    networks:
+      - klask-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+networks:
+  klask-network:
+    driver: bridge

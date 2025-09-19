@@ -1,11 +1,12 @@
 # Multi-stage build for Rust backend
-FROM rust:1.75-bullseye as builder
+FROM rust:slim-trixie as builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     libpq-dev \
+    perl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -28,12 +29,12 @@ COPY migrations/ ./migrations/
 RUN touch src/main.rs && cargo build --release
 
 # Runtime stage
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-    libssl1.1 \
+    libssl3 \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
