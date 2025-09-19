@@ -62,18 +62,22 @@ impl GitLabService {
                 url.push_str(&format!("&search_namespaces=true&search={}", ns));
             }
 
+            tracing::debug!("Making GitLab API request to: {}", url);
             let response = self.client
                 .get(&url)
-                .header("PRIVATE-TOKEN", access_token)
+                .header("Authorization", format!("Bearer {}", access_token))
                 .send()
                 .await
                 .context("Failed to fetch GitLab projects")?;
 
-            if !response.status().is_success() {
+            let status = response.status();
+            if !status.is_success() {
+                let error_body = response.text().await.unwrap_or_default();
+                tracing::error!("GitLab API request failed - URL: {}, Status: {}, Body: {}", url, status, error_body);
                 return Err(anyhow::anyhow!(
                     "GitLab API error: {} - {}",
-                    response.status(),
-                    response.text().await.unwrap_or_default()
+                    status,
+                    error_body
                 ));
             }
 
@@ -123,7 +127,7 @@ impl GitLabService {
 
             let response = self.client
                 .get(&url)
-                .header("PRIVATE-TOKEN", access_token)
+                .header("Authorization", format!("Bearer {}", access_token))
                 .send()
                 .await
                 .context("Failed to fetch GitLab group projects")?;
@@ -172,7 +176,7 @@ impl GitLabService {
 
         let response = self.client
             .get(&url)
-            .header("PRIVATE-TOKEN", access_token)
+            .header("Authorization", format!("Bearer {}", access_token))
             .send()
             .await
             .context("Failed to fetch GitLab project")?;
@@ -204,13 +208,22 @@ impl GitLabService {
             gitlab_url.trim_end_matches('/')
         );
 
+        tracing::debug!("Testing GitLab token with URL: {}", url);
         let response = self.client
             .get(&url)
-            .header("PRIVATE-TOKEN", access_token)
+            .header("PRIVATE-TOKEN",  access_token)
             .send()
             .await
             .context("Failed to test GitLab token")?;
 
-        Ok(response.status().is_success())
+        let status = response.status();
+        if status.is_success() {
+            tracing::info!("GitLab token test successful: {}", status);
+            Ok(true)
+        } else {
+            let error_body = response.text().await.unwrap_or_default();
+            tracing::error!("GitLab token test failed - URL: {}, Status: {}, Body: {}", url, status, error_body);
+            Ok(false)
+        }
     }
 }

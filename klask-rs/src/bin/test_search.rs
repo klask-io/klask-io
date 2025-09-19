@@ -4,6 +4,7 @@ use klask_rs::models::*;
 use klask_rs::services::crawler::CrawlerService;
 use klask_rs::services::search::{SearchService, SearchQuery};
 use klask_rs::services::progress::ProgressTracker;
+use klask_rs::services::encryption::EncryptionService;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tracing::{info, warn, error};
@@ -30,8 +31,11 @@ async fn main() -> Result<()> {
     // Initialize progress tracker
     let progress_tracker = Arc::new(ProgressTracker::new());
     
+    // Create a test encryption service
+    let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+    
     // Initialize crawler service  
-    let crawler_service = CrawlerService::new(pool.clone(), search_service.clone(), progress_tracker.clone())?;
+    let crawler_service = CrawlerService::new(pool.clone(), search_service.clone(), progress_tracker.clone(), encryption_service)?;
     
     // Create a test repository entry for /home/jeremie/temp/
     let test_repo = Repository {

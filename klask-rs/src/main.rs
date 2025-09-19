@@ -10,7 +10,7 @@ use anyhow::Result;
 use axum::{routing::get, Router};
 use config::AppConfig;
 use database::Database;
-use services::{SearchService, crawler::CrawlerService, progress::ProgressTracker, scheduler::SchedulerService};
+use services::{SearchService, crawler::CrawlerService, progress::ProgressTracker, scheduler::SchedulerService, encryption::EncryptionService};
 use auth::{extractors::AppState, jwt::JwtService};
 use tower_http::cors::CorsLayer;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "klask_rs=debug,tower_http=debug,tantivy=warn".into()),
+                .unwrap_or_else(|_| "klask_rs=debug,tower_http=debug,tantivy=error,git2=warn,sqlx=warn".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -79,13 +79,27 @@ async fn main() -> Result<()> {
         }
     };
 
+    // Initialize encryption service
+    let encryption_key = std::env::var("ENCRYPTION_KEY")
+        .unwrap_or_else(|_| "your-secret-encryption-key-32bytes".to_string());
+    let encryption_service = match EncryptionService::new(&encryption_key) {
+        Ok(service) => {
+            info!("Encryption service initialized successfully");
+            Arc::new(service)
+        }
+        Err(e) => {
+            error!("Failed to initialize encryption service: {}", e);
+            return Err(e);
+        }
+    };
+
     // Initialize progress tracker
     let progress_tracker = Arc::new(ProgressTracker::new());
     info!("Progress tracker initialized successfully");
 
     // Initialize crawler service
     let search_service_arc = Arc::new(search_service);
-    let crawler_service = match CrawlerService::new(database.pool().clone(), search_service_arc.clone(), progress_tracker.clone()) {
+    let crawler_service = match CrawlerService::new(database.pool().clone(), search_service_arc.clone(), progress_tracker.clone(), encryption_service.clone()) {
         Ok(service) => {
             info!("Crawler service initialized successfully");
             service
