@@ -1,10 +1,6 @@
-version: '3.8'
-
 services:
   klask-backend:
-    build:
-      context: ./klask-rs
-      dockerfile: Dockerfile
+    image: klask-backend-final:latest
     container_name: klask-backend
     ports:
       - "3000:3000"
@@ -17,9 +13,7 @@ services:
       retries: 3
 
   klask-frontend:
-    build:
-      context: ./klask-react
-      dockerfile: Dockerfile
+    image: klask-frontend:latest
     container_name: klask-frontend
     ports:
       - "3001:8080"
