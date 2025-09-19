@@ -217,6 +217,12 @@ export interface CrawlProgressInfo {
   started_at: string;
   updated_at: string;
   completed_at?: string;
+  // GitLab hierarchical progress tracking
+  projects_processed?: number;
+  projects_total?: number;
+  current_project?: string;
+  current_project_files_processed?: number;
+  current_project_files_total?: number;
 }
 
 // Scheduling Types

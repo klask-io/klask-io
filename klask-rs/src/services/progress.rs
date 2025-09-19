@@ -31,6 +31,13 @@ pub struct CrawlProgressInfo {
     pub started_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
+    
+    // GitLab hierarchical progress tracking
+    pub projects_processed: Option<usize>,
+    pub projects_total: Option<usize>,
+    pub current_project: Option<String>,
+    pub current_project_files_processed: Option<usize>,
+    pub current_project_files_total: Option<usize>,
 }
 
 impl CrawlProgressInfo {
@@ -49,6 +56,11 @@ impl CrawlProgressInfo {
             started_at: now,
             updated_at: now,
             completed_at: None,
+            projects_processed: None,
+            projects_total: None,
+            current_project: None,
+            current_project_files_processed: None,
+            current_project_files_total: None,
         }
     }
 
@@ -197,5 +209,61 @@ impl ProgressTracker {
         map.get(&repository_id)
             .map(|progress| !matches!(progress.status, CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled))
             .unwrap_or(false)
+    }
+
+    // GitLab hierarchical progress tracking methods
+    
+    /// Initialize GitLab project tracking
+    pub async fn set_gitlab_projects_total(&self, repository_id: Uuid, projects_total: usize) {
+        let mut map = self.progress_map.write().await;
+        if let Some(progress) = map.get_mut(&repository_id) {
+            progress.projects_total = Some(projects_total);
+            progress.projects_processed = Some(0);
+            progress.updated_at = Utc::now();
+        }
+    }
+
+    /// Update current GitLab project being processed
+    pub async fn set_current_gitlab_project(&self, repository_id: Uuid, project_name: Option<String>) {
+        let mut map = self.progress_map.write().await;
+        if let Some(progress) = map.get_mut(&repository_id) {
+            progress.current_project = project_name;
+            progress.current_project_files_processed = None;
+            progress.current_project_files_total = None;
+            progress.updated_at = Utc::now();
+        }
+    }
+
+    /// Set total files for current GitLab project
+    pub async fn set_current_project_files_total(&self, repository_id: Uuid, files_total: usize) {
+        let mut map = self.progress_map.write().await;
+        if let Some(progress) = map.get_mut(&repository_id) {
+            progress.current_project_files_total = Some(files_total);
+            progress.current_project_files_processed = Some(0);
+            progress.updated_at = Utc::now();
+        }
+    }
+
+    /// Update files processed in current GitLab project
+    pub async fn update_current_project_files(&self, repository_id: Uuid, files_processed: usize) {
+        let mut map = self.progress_map.write().await;
+        if let Some(progress) = map.get_mut(&repository_id) {
+            progress.current_project_files_processed = Some(files_processed);
+            progress.updated_at = Utc::now();
+        }
+    }
+
+    /// Complete current GitLab project and move to next
+    pub async fn complete_current_gitlab_project(&self, repository_id: Uuid) {
+        let mut map = self.progress_map.write().await;
+        if let Some(progress) = map.get_mut(&repository_id) {
+            if let Some(processed) = progress.projects_processed {
+                progress.projects_processed = Some(processed + 1);
+            }
+            progress.current_project = None;
+            progress.current_project_files_processed = None;
+            progress.current_project_files_total = None;
+            progress.updated_at = Utc::now();
+        }
     }
 }

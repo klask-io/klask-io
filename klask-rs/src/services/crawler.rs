@@ -465,7 +465,7 @@ impl CrawlerService {
                 warn!("Failed to process all branches, falling back to default branch: {}", e);
                 // Fallback to processing just the current branch
                 let branch_name = repository.branch.as_deref().unwrap_or("HEAD");
-                self.process_repository_files_internal(repository, repo_path, branch_name, progress, cancellation_token).await
+                self.process_repository_files_internal(repository, repo_path, branch_name, progress, cancellation_token, None).await
             }
         }
     }
@@ -525,7 +525,7 @@ impl CrawlerService {
         if branches.is_empty() {
             info!("No branches found, using default branch");
             let branch_name = repository.branch.as_deref().unwrap_or("main");
-            return self.process_repository_files_internal(repository, repo_path, branch_name, progress, cancellation_token).await;
+            return self.process_repository_files_internal(repository, repo_path, branch_name, progress, cancellation_token, None).await;
         }
         
         info!("Found {} branches for repository {}: {:?}", branches.len(), repository.name, branches);
@@ -551,6 +551,281 @@ impl CrawlerService {
         }
         
         Ok(())
+    }
+
+    async fn process_all_branches_with_tracking(
+        &self,
+        repository: &Repository,
+        repo_path: &Path,
+        progress: &mut CrawlProgress,
+        cancellation_token: &CancellationToken,
+        parent_repository_id: Uuid,
+        _project_start_files: usize,
+    ) -> Result<()> {
+        // Just call the normal process_all_branches but pass through the tracking info
+        // to each branch processing call
+        info!("Discovering branches for repository: {}", repository.name);
+        
+        // Get all branches using git2
+        let repo_path_owned = repo_path.to_owned();
+        let branches = tokio::task::spawn_blocking(move || -> Result<Vec<String>> {
+            let git_repo = GitRepository::open(&repo_path_owned)?;
+            let mut branches = Vec::new();
+            let mut branch_set = std::collections::HashSet::new();
+            
+            // Get local branches first
+            info!("Checking local branches...");
+            if let Ok(branch_iter) = git_repo.branches(Some(git2::BranchType::Local)) {
+                for branch_result in branch_iter {
+                    if let Ok((branch, _)) = branch_result {
+                        if let Ok(Some(name)) = branch.name() {
+                            info!("Found local branch: {}", name);
+                            branch_set.insert(name.to_string());
+                        }
+                    }
+                }
+            }
+            
+            // ALWAYS get remote branches too (not just when local is empty)
+            info!("Checking remote branches...");
+            if let Ok(branch_iter) = git_repo.branches(Some(git2::BranchType::Remote)) {
+                for branch_result in branch_iter {
+                    if let Ok((branch, _)) = branch_result {
+                        if let Ok(Some(name)) = branch.name() {
+                            info!("Found remote branch: {}", name);
+                            // Remove "origin/" prefix for remote branches
+                            let clean_name = name.strip_prefix("origin/").unwrap_or(name);
+                            if clean_name != "HEAD" {
+                                branch_set.insert(clean_name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Convert set to vector
+            branches.extend(branch_set.into_iter());
+            
+            Ok(branches)
+        }).await??;
+        
+        if branches.is_empty() {
+            info!("No branches found, using default branch");
+            let branch_name = repository.branch.as_deref().unwrap_or("main");
+            return self.process_repository_files_internal(repository, repo_path, branch_name, progress, cancellation_token, Some((parent_repository_id, _project_start_files))).await;
+        }
+        
+        info!("Found {} branches for repository {}: {:?}", branches.len(), repository.name, branches);
+        
+        // Process each branch
+        for branch_name in branches {
+            if cancellation_token.is_cancelled() {
+                return Ok(());
+            }
+            
+            info!("Processing branch '{}' for repository {}", branch_name, repository.name);
+            
+            // Switch to the branch and process files with tracking
+            match self.checkout_and_process_branch_with_tracking(repository, repo_path, &branch_name, progress, cancellation_token, parent_repository_id, _project_start_files).await {
+                Ok(()) => {
+                    info!("Successfully processed branch '{}' for repository {}", branch_name, repository.name);
+                }
+                Err(e) => {
+                    warn!("Failed to process branch '{}' for repository {}: {}", branch_name, repository.name, e);
+                    progress.errors.push(format!("Branch '{}': {}", branch_name, e));
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    async fn checkout_and_process_branch_with_tracking(
+        &self,
+        repository: &Repository,
+        repo_path: &Path,
+        branch_name: &str,
+        progress: &mut CrawlProgress,
+        cancellation_token: &CancellationToken,
+        parent_repository_id: Uuid,
+        _project_start_files: usize,
+    ) -> Result<()> {
+        // Reuse the existing checkout logic but call with tracking
+        let repo_path_owned = repo_path.to_owned();
+        let branch_name_owned = branch_name.to_string();
+        let repository_clone = repository.clone();
+        
+        // Decrypt GitLab token if needed before entering spawn_blocking
+        let decrypted_token = if repository.url.contains("gitlab.com") || repository.url.contains("gitlab") {
+            if let Some(encrypted_token) = &repository.access_token {
+                match self.encryption_service.decrypt(encrypted_token) {
+                    Ok(token) => Some(token),
+                    Err(e) => {
+                        warn!("Failed to decrypt GitLab token for fetch: {}", e);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        
+        // Just do the checkout part (reuse existing code structure)
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let git_repo = GitRepository::open(&repo_path_owned)?;
+            
+            // First, try to fetch latest changes from remote
+            info!("Fetching latest changes for branch '{}'", branch_name_owned);
+            if let Ok(mut remote) = git_repo.find_remote("origin") {
+                // Setup authentication for GitLab repositories
+                let mut callbacks = git2::RemoteCallbacks::new();
+                
+                if repository_clone.url.contains("gitlab.com") || repository_clone.url.contains("gitlab") {
+                    if let Some(token) = decrypted_token.clone() {
+                        debug!("Setting up GitLab authentication for fetch");
+                        callbacks.credentials(move |_url, username_from_url, _allowed_types| {
+                            // For GitLab, we can use the token as password with 'oauth2' as username
+                            if let Some(username) = username_from_url {
+                                git2::Cred::userpass_plaintext(username, &token)
+                            } else {
+                                git2::Cred::userpass_plaintext("oauth2", &token)
+                            }
+                        });
+                    }
+                }
+                
+                // Try to fetch all branches with authentication
+                let mut fetch_options = git2::FetchOptions::new();
+                fetch_options.remote_callbacks(callbacks);
+                let fetch_result = remote.fetch(
+                    &["+refs/heads/*:refs/remotes/origin/*"], 
+                    Some(&mut fetch_options), 
+                    None
+                );
+                
+                match fetch_result {
+                    Ok(_) => {
+                        info!("Successfully fetched latest changes");
+                    }
+                    Err(e) => warn!("Failed to fetch changes (will use local version): {}", e),
+                }
+            } else {
+                warn!("No 'origin' remote found, using local branches only");
+            }
+            
+            // Always use the remote branch as the source of truth
+            let branch_ref = if let Ok(remote_reference) = git_repo.find_reference(&format!("refs/remotes/origin/{}", branch_name_owned)) {
+                // Get the commit that the remote branch points to
+                let target_commit = remote_reference.target().ok_or_else(|| anyhow!("No target for remote reference"))?;
+                let commit = git_repo.find_commit(target_commit)?;
+                
+                // Log remote branch commit info for debugging
+                let commit_id = commit.id();
+                let commit_message = commit.message().unwrap_or("(no message)");
+                info!("Remote branch 'origin/{}' points to commit {} - {}", 
+                      branch_name_owned, commit_id, commit_message.lines().next().unwrap_or(""));
+                
+                // Check if local branch exists
+                if let Ok(_) = git_repo.find_reference(&format!("refs/heads/{}", branch_name_owned)) {
+                    // Local branch exists, check if it's the current HEAD
+                    let is_current_branch = if let Ok(head_ref) = git_repo.head() {
+                        if let Some(head_name) = head_ref.shorthand() {
+                            head_name == branch_name_owned
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+                    
+                    if is_current_branch {
+                        // We're on this branch, just reset to the remote commit instead of force updating
+                        info!("Resetting current branch '{}' to match remote", branch_name_owned);
+                        git_repo.reset(&commit.as_object(), git2::ResetType::Hard, None)?;
+                    } else {
+                        // We're not on this branch, safe to force update it
+                        info!("Updating local branch '{}' to match remote", branch_name_owned);
+                        git_repo.branch(&branch_name_owned, &commit, true)?; // true = force
+                    }
+                } else {
+                    // Create local branch from remote
+                    info!("Creating local branch '{}' from remote", branch_name_owned);
+                    git_repo.branch(&branch_name_owned, &commit, false)?;
+                }
+                
+                git_repo.find_reference(&format!("refs/heads/{}", branch_name_owned))?
+            } else {
+                return Err(anyhow!("Remote branch 'origin/{}' not found", branch_name_owned));
+            };
+            
+            // Checkout the branch (only if we're not already on it)
+            let current_branch = if let Ok(head_ref) = git_repo.head() {
+                head_ref.shorthand().map(|s| s.to_string())
+            } else {
+                None
+            };
+            
+            if current_branch.as_deref() != Some(&branch_name_owned) {
+                info!("Checking out branch '{}'", branch_name_owned);
+                let target_commit = branch_ref.target().ok_or_else(|| anyhow!("No target for reference"))?;
+                let commit = git_repo.find_commit(target_commit)?;
+                git_repo.reset(&commit.as_object(), git2::ResetType::Hard, None)?;
+            } else {
+                info!("Already on branch '{}'", branch_name_owned);
+            }
+            
+            // Get commit info for verification
+            let target_commit = branch_ref.target().ok_or_else(|| anyhow!("No target for reference"))?;
+            let commit = git_repo.find_commit(target_commit)?;
+            let commit_id = commit.id();
+            let commit_message = commit.message().unwrap_or("(no message)");
+            info!("Successfully processed branch '{}' at commit {} - {}", 
+                  branch_name_owned, commit_id, commit_message.lines().next().unwrap_or(""));
+            
+            Ok(())
+        }).await??;
+        
+        // Add a small delay to ensure filesystem is fully synced after git checkout
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        
+        // Verify the checkout worked by checking git status in the working directory
+        let repo_path_owned = repo_path.to_owned();
+        let branch_name_owned = branch_name.to_string();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let git_repo = GitRepository::open(&repo_path_owned)?;
+            
+            // Get current HEAD to verify we're on the right commit
+            if let Ok(head_ref) = git_repo.head() {
+                if let Some(target) = head_ref.target() {
+                    if let Ok(commit) = git_repo.find_commit(target) {
+                        let commit_id = commit.id();
+                        info!("Verified checkout: Working directory is at commit {} for branch '{}'", commit_id, branch_name_owned);
+                    }
+                }
+            }
+            
+            Ok(())
+        }).await??;
+        
+        // Reset the project file counter for this branch (each branch is processed independently)
+        let branch_start_files = progress.files_processed;
+        
+        // Update the current project name to include the branch FIRST
+        let project_with_branch = format!("{} ({})", repository.name, branch_name);
+        self.progress_tracker.set_current_gitlab_project(parent_repository_id, Some(project_with_branch)).await;
+        
+        // Then recalculate total files for this specific branch
+        let branch_files = self.collect_supported_files(repo_path)?;
+        self.progress_tracker.set_current_project_files_total(parent_repository_id, branch_files.len()).await;
+        
+        info!("Processing branch '{}' with {} files", branch_name, branch_files.len());
+        
+        // Process files for this branch with tracking
+        let result = self.process_repository_files_internal(repository, repo_path, branch_name, progress, cancellation_token, Some((parent_repository_id, branch_start_files))).await;
+        
+        result
     }
 
     async fn checkout_and_process_branch(
@@ -733,7 +1008,7 @@ impl CrawlerService {
         }).await??;
         
         // Process files for this branch
-        self.process_repository_files_internal(repository, repo_path, branch_name, progress, cancellation_token).await
+        self.process_repository_files_internal(repository, repo_path, branch_name, progress, cancellation_token, None).await
     }
 
     async fn process_repository_files_internal(
@@ -743,6 +1018,7 @@ impl CrawlerService {
         branch_name: &str,
         progress: &mut CrawlProgress,
         cancellation_token: &CancellationToken,
+        gitlab_tracking: Option<(Uuid, usize)>, // (parent_id, _project_start_files_count)
     ) -> Result<()> {
         // For Tantivy-only indexing, we don't need to track file deletions
         // since Tantivy will be rebuilt fresh for each crawl
@@ -847,6 +1123,12 @@ impl CrawlerService {
                 progress.files_indexed
             ).await;
             
+            // Update GitLab project files progress if applicable
+            if let Some((parent_id, project_start)) = gitlab_tracking {
+                let project_files_processed = progress.files_processed - project_start;
+                self.progress_tracker.update_current_project_files(parent_id, project_files_processed).await;
+            }
+            
             match self.process_single_file(repository, &file_path, &relative_path_str, branch_name).await {
                 Ok(()) => {
                     progress.files_indexed += 1;
@@ -858,6 +1140,12 @@ impl CrawlerService {
                         Some(total_files), 
                         progress.files_indexed
                     ).await;
+                    
+                    // Update GitLab project files progress if applicable (files indexed in current project)
+                    if let Some((parent_id, project_start)) = gitlab_tracking {
+                        let project_files_processed = progress.files_processed - project_start;
+                        self.progress_tracker.update_current_project_files(parent_id, project_files_processed).await;
+                    }
                 }
                 Err(e) => {
                     let error_msg = format!("Failed to process file {}: {}", relative_path_str, e);
@@ -1101,6 +1389,9 @@ impl CrawlerService {
         
         info!("Discovered {} GitLab projects for repository {}", projects.len(), repository.name);
         
+        // Initialize hierarchical progress tracking for GitLab
+        self.progress_tracker.set_gitlab_projects_total(repository.id, projects.len()).await;
+        
         // Create base directory for this GitLab repository
         let base_repo_path = self.temp_dir.join(format!("{}-{}", repository.name, repository.id));
         std::fs::create_dir_all(&base_repo_path)?;
@@ -1120,6 +1411,12 @@ impl CrawlerService {
             
             info!("Processing GitLab project {}/{}: {}", 
                   project_index + 1, projects.len(), project.path_with_namespace);
+            
+            // Update current project in progress tracker
+            self.progress_tracker.set_current_gitlab_project(
+                repository.id, 
+                Some(project.path_with_namespace.clone())
+            ).await;
             
             // Create sub-directory for this project
             let project_path = base_repo_path.join(&project.path_with_namespace);
@@ -1155,8 +1452,8 @@ impl CrawlerService {
                         errors: Vec::new(),
                     };
                     
-                    // Process files in this project
-                    match self.process_repository_files(&project_repository, &project_path, &mut project_progress, &cancellation_token).await {
+                    // Process files in this project with hierarchical tracking
+                    match self.process_repository_files_with_gitlab_tracking(&project_repository, &project_path, &mut project_progress, &cancellation_token, repository.id).await {
                         Ok(()) => {
                             info!("Successfully processed GitLab project: {}", project.path_with_namespace);
                             total_files_processed += project_progress.files_processed;
@@ -1169,6 +1466,9 @@ impl CrawlerService {
                             all_errors.push(error_msg);
                         }
                     }
+                    
+                    // Complete this project in the tracker
+                    self.progress_tracker.complete_current_gitlab_project(repository.id).await;
                 }
                 Err(e) => {
                     let error_msg = format!("Failed to clone GitLab project {}: {}", project.path_with_namespace, e);
@@ -1194,6 +1494,82 @@ impl CrawlerService {
         self.cleanup_cancellation_token(repository.id).await;
         
         info!("Completed GitLab repository crawl for: {}", repository.name);
+        Ok(())
+    }
+
+    /// Process repository files with GitLab hierarchical progress tracking
+    async fn process_repository_files_with_gitlab_tracking(
+        &self,
+        repository: &Repository,
+        repo_path: &Path,
+        progress: &mut CrawlProgress,
+        cancellation_token: &CancellationToken,
+        parent_repository_id: Uuid,
+    ) -> Result<()> {
+        // First, collect all files to get total count
+        let all_files = self.collect_supported_files(repo_path)?;
+        
+        // Set total files for current project
+        self.progress_tracker.set_current_project_files_total(parent_repository_id, all_files.len()).await;
+        
+        info!("Found {} files for GitLab project: {}", all_files.len(), repository.name);
+        
+        // Track the starting point for this project's files
+        let _project_start_files = progress.files_processed;
+        
+        // Process files using existing multi-branch logic
+        match self.process_all_branches_with_tracking(repository, repo_path, progress, cancellation_token, parent_repository_id, _project_start_files).await {
+            Ok(_) => {
+                // Update final count (files processed for this project only)
+                let project_files_processed = progress.files_processed - _project_start_files;
+                self.progress_tracker.update_current_project_files(parent_repository_id, project_files_processed).await;
+                Ok(())
+            }
+            Err(e) => {
+                warn!("Failed to process all branches for GitLab project {}, falling back to default branch: {}", repository.name, e);
+                // Fallback to processing just the current branch
+                let branch_name = repository.branch.as_deref().unwrap_or("HEAD");
+                match self.process_repository_files_internal(repository, repo_path, branch_name, progress, cancellation_token, Some((parent_repository_id, _project_start_files))).await {
+                    Ok(_) => {
+                        // Update final count (files processed for this project only)
+                        let project_files_processed = progress.files_processed - _project_start_files;
+                        self.progress_tracker.update_current_project_files(parent_repository_id, project_files_processed).await;
+                        Ok(())
+                    }
+                    Err(e) => Err(e)
+                }
+            }
+        }
+    }
+
+    /// Collect all supported files in a directory (helper method)
+    fn collect_supported_files(&self, repo_path: &Path) -> Result<Vec<PathBuf>> {
+        let mut files = Vec::new();
+        self.collect_files_recursive(repo_path, &mut files)?;
+        Ok(files.into_iter().filter(|path| Self::is_supported_file_static(path)).collect())
+    }
+
+    /// Recursively collect files (helper method)
+    fn collect_files_recursive(&self, dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            
+            if path.is_dir() {
+                // Skip hidden directories and common ignore patterns
+                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if dir_name.starts_with('.') || 
+                       dir_name == "node_modules" || 
+                       dir_name == "target" || 
+                       dir_name == "__pycache__" {
+                        continue;
+                    }
+                }
+                self.collect_files_recursive(&path, files)?;
+            } else if path.is_file() {
+                files.push(path);
+            }
+        }
         Ok(())
     }
 }

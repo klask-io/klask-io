@@ -1,4 +1,5 @@
 import React from 'react';
+import type { CrawlProgressInfo } from '../../types';
 
 export interface ProgressBarProps {
   progress: number; // 0-100
@@ -160,6 +161,162 @@ export const CrawlProgressBar: React.FC<CrawlProgressBarProps> = ({
           <div className="truncate" title={currentFile}>
             <span className="text-gray-500">Current file: </span>
             <span className="font-mono">{currentFile}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export interface GitLabHierarchicalProgressBarProps {
+  progressInfo: CrawlProgressInfo;
+  className?: string;
+}
+
+export const GitLabHierarchicalProgressBar: React.FC<GitLabHierarchicalProgressBarProps> = ({
+  progressInfo,
+  className = '',
+}) => {
+  const {
+    repository_name,
+    status,
+    progress_percentage,
+    files_processed,
+    files_total,
+    files_indexed,
+    current_file,
+    projects_processed,
+    projects_total,
+    current_project,
+    current_project_files_processed,
+    current_project_files_total,
+  } = progressInfo;
+
+  const getVariant = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'success';
+      case 'failed':
+        return 'error';
+      case 'cancelled':
+        return 'warning';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'starting':
+        return 'Starting GitLab discovery...';
+      case 'cloning':
+        return 'Discovering GitLab projects...';
+      case 'processing':
+        return 'Processing projects...';
+      case 'indexing':
+        return 'Indexing content...';
+      case 'completed':
+        return 'GitLab crawl completed';
+      case 'failed':
+        return 'GitLab crawl failed';
+      case 'cancelled':
+        return 'GitLab crawl cancelled';
+      default:
+        return status;
+    }
+  };
+
+  // Calculate project progress percentage
+  const projectProgress = projects_total && projects_processed 
+    ? (projects_processed / projects_total) * 100 
+    : 0;
+
+  // Calculate current project file progress percentage
+  const currentProjectProgress = current_project_files_total && current_project_files_processed
+    ? (current_project_files_processed / current_project_files_total) * 100
+    : 0;
+
+  const isGitLabRepository = projects_total !== undefined && projects_total > 0;
+
+  return (
+    <div className={`space-y-3 ${className}`}>
+      {/* Repository Header */}
+      <div className="flex justify-between items-center">
+        <div className="flex-1">
+          <h4 className="text-sm font-medium text-gray-900">{repository_name}</h4>
+          <p className="text-xs text-gray-500">{getStatusText(status)}</p>
+        </div>
+        <div className="text-right">
+          {isGitLabRepository ? (
+            <>
+              <span className="text-sm font-medium text-gray-700">
+                {projects_processed || 0} / {projects_total} projects
+              </span>
+              <p className="text-xs text-gray-500">
+                {Math.round(projectProgress)}%
+              </p>
+            </>
+          ) : (
+            <span className="text-sm font-medium text-gray-700">
+              {Math.round(progress_percentage)}%
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Main Progress Bar */}
+      {isGitLabRepository ? (
+        /* For GitLab: Main progress = Projects progress */
+        <ProgressBar
+          progress={projectProgress}
+          variant={getVariant(status)}
+          showLabel={false}
+          size="md"
+        />
+      ) : (
+        /* For other repos: Main progress = Overall progress */
+        <ProgressBar
+          progress={progress_percentage}
+          variant={getVariant(status)}
+          showLabel={false}
+          size="md"
+        />
+      )}
+
+      {/* GitLab Current Project Files Progress */}
+      {isGitLabRepository && current_project && (
+        <div className="space-y-1 pl-2 border-l-2 border-gray-200">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-medium text-gray-600 truncate" title={current_project}>
+              📂 {current_project}
+            </span>
+            {current_project_files_total && (
+              <span className="text-xs text-gray-500">
+                {current_project_files_processed || 0} / {current_project_files_total} files
+              </span>
+            )}
+          </div>
+          {current_project_files_total && (
+            <ProgressBar
+              progress={currentProjectProgress}
+              variant="default"
+              showLabel={false}
+              size="sm"
+            />
+          )}
+        </div>
+      )}
+
+      {/* Summary Information */}
+      <div className="space-y-1 text-xs text-gray-600">
+        <div className="flex justify-between">
+          <span>Total files processed: {files_processed}</span>
+          <span>Files indexed: {files_indexed}</span>
+        </div>
+        {current_file && (
+          <div className="truncate" title={current_file}>
+            <span className="text-gray-500">Current file: </span>
+            <span className="font-mono">{current_file}</span>
           </div>
         )}
       </div>
