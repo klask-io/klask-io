@@ -48,7 +48,7 @@ export const createTestQueryClient = () => new QueryClient({
 });
 
 // Mock API responses
-export const mockApiResponse = <T>(data: T): Response =>
+export const mockApiResponse = <T,>(data: T): Response =>
   ({
     json: () => Promise.resolve(data),
     ok: true,

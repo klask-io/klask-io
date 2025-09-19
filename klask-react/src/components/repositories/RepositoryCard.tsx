@@ -126,7 +126,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
 
   const handleConfirmStopCrawl = async () => {
     try {
-      await stopCrawlMutation.mutateAsync(repository.id);
+      await stopCrawlMutation?.mutateAsync(repository.id);
       if (onStopCrawl) {
         onStopCrawl(repository);
       }
@@ -246,15 +246,15 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                   {actuallyIsCrawling ? (
                     <button
                       onClick={handleStopCrawlClick}
-                      disabled={stopCrawlMutation.isPending}
+                      disabled={stopCrawlMutation?.isPending}
                       className="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {stopCrawlMutation.isPending ? (
+                      {stopCrawlMutation?.isPending ? (
                         <LoadingSpinner size="sm" className="mr-3" />
                       ) : (
                         <StopCircleIcon className="h-4 w-4 mr-3" />
                       )}
-                      {stopCrawlMutation.isPending ? 'Stopping...' : 'Stop Crawl'}
+                      {stopCrawlMutation?.isPending ? 'Stopping...' : 'Stop Crawl'}
                     </button>
                   ) : (
                     <button
@@ -409,15 +409,15 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
           {actuallyIsCrawling ? (
             <button
               onClick={handleStopCrawlClick}
-              disabled={stopCrawlMutation.isPending || isLoading}
+              disabled={stopCrawlMutation?.isPending || isLoading}
               className="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {stopCrawlMutation.isPending ? (
+              {stopCrawlMutation?.isPending ? (
                 <LoadingSpinner size="sm" className="h-3 w-3 mr-1" />
               ) : (
                 <StopCircleIcon className="h-3 w-3 mr-1" />
               )}
-              {stopCrawlMutation.isPending ? 'Stopping' : 'Stop'}
+              {stopCrawlMutation?.isPending ? 'Stopping' : 'Stop'}
             </button>
           ) : (
             <button
@@ -450,7 +450,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
         confirmText="Stop Crawl"
         cancelText="Cancel"
         variant="warning"
-        isLoading={stopCrawlMutation.isPending}
+        isLoading={stopCrawlMutation?.isPending}
       />
     </div>
   );
