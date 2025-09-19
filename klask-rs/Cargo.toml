@@ -54,11 +54,8 @@ git2 = "0.19"
 walkdir = "2.5"
 mime_guess = "2.0"
 
-# HTTP client for API calls
-reqwest = { version = "0.12", features = ["json"] }
-
-# OpenSSL with vendored feature to compile from source
-openssl = { version = "0.10", features = ["vendored"] }
+# HTTP client for API calls (using rustls instead of openssl)
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 urlencoding = "2.1"
 
 # Encryption for tokens

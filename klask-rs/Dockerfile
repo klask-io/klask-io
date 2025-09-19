@@ -1,12 +1,10 @@
 # Multi-stage build for Rust backend
 FROM rust:slim-trixie as builder
 
-# Install system dependencies
+# Install system dependencies (no more openssl/perl needed with rustls!)
 RUN apt-get update && apt-get install -y \
     pkg-config \
-    libssl-dev \
     libpq-dev \
-    perl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -19,13 +17,16 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 
 # Build dependencies (this layer will be cached unless Cargo.toml changes)
+ENV SQLX_OFFLINE=true
 RUN cargo build --release && rm src/main.rs
 
-# Copy source code
+# Copy source code and sqlx cache
 COPY src/ ./src/
 COPY migrations/ ./migrations/
+COPY .sqlx/ ./.sqlx/
 
 # Build the application
+ENV SQLX_OFFLINE=true
 RUN touch src/main.rs && cargo build --release
 
 # Runtime stage
