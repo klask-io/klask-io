@@ -48,9 +48,23 @@ pub trait Repository {
     type CreateData;
     type UpdateData;
 
-    fn create(&self, data: Self::CreateData) -> impl std::future::Future<Output = Result<Self::Entity>> + Send;
-    fn find_by_id(&self, id: uuid::Uuid) -> impl std::future::Future<Output = Result<Option<Self::Entity>>> + Send;
-    fn update(&self, id: uuid::Uuid, data: Self::UpdateData) -> impl std::future::Future<Output = Result<Self::Entity>> + Send;
+    fn create(
+        &self,
+        data: Self::CreateData,
+    ) -> impl std::future::Future<Output = Result<Self::Entity>> + Send;
+    fn find_by_id(
+        &self,
+        id: uuid::Uuid,
+    ) -> impl std::future::Future<Output = Result<Option<Self::Entity>>> + Send;
+    fn update(
+        &self,
+        id: uuid::Uuid,
+        data: Self::UpdateData,
+    ) -> impl std::future::Future<Output = Result<Self::Entity>> + Send;
     fn delete(&self, id: uuid::Uuid) -> impl std::future::Future<Output = Result<()>> + Send;
-    fn list(&self, limit: Option<u32>, offset: Option<u32>) -> impl std::future::Future<Output = Result<Vec<Self::Entity>>> + Send;
+    fn list(
+        &self,
+        limit: Option<u32>,
+        offset: Option<u32>,
+    ) -> impl std::future::Future<Output = Result<Vec<Self::Entity>>> + Send;
 }

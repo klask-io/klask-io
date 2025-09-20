@@ -1,7 +1,9 @@
 use crate::models::{Repository, RepositoryType};
 use crate::services::{
-    encryption::EncryptionService, gitlab::GitLabService, progress::ProgressTracker,
-    search::{SearchService, FileData},
+    encryption::EncryptionService,
+    gitlab::GitLabService,
+    progress::ProgressTracker,
+    search::{FileData, SearchService},
 };
 use anyhow::{anyhow, Result};
 use git2::Repository as GitRepository;
@@ -115,7 +117,6 @@ impl CrawlerService {
             cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
         })
     }
-
 
     /// Generate a deterministic UUID for a file based on repository, specific branch, and path
     fn generate_deterministic_file_id_with_branch(
@@ -959,7 +960,9 @@ impl CrawlerService {
                 );
 
                 // Check if local branch exists
-                if git_repo.find_reference(&format!("refs/heads/{}", branch_name_owned)).is_ok()
+                if git_repo
+                    .find_reference(&format!("refs/heads/{}", branch_name_owned))
+                    .is_ok()
                 {
                     // Local branch exists, check if it's the current HEAD
                     let is_current_branch = if let Ok(head_ref) = git_repo.head() {
@@ -1209,7 +1212,9 @@ impl CrawlerService {
                 );
 
                 // Check if local branch exists
-                if git_repo.find_reference(&format!("refs/heads/{}", branch_name_owned)).is_ok()
+                if git_repo
+                    .find_reference(&format!("refs/heads/{}", branch_name_owned))
+                    .is_ok()
                 {
                     // Local branch exists, check if it's the current HEAD
                     let is_current_branch = if let Ok(head_ref) = git_repo.head() {

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use klask_rs::models::{Repository, RepositoryType};
-use klask_rs::services::search::{SearchService, FileData};
+use klask_rs::services::search::{FileData, SearchService};
 use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;

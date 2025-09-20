@@ -430,7 +430,11 @@ async fn update_next_crawl_time(pool: &PgPool, repository_id: Uuid) -> Result<()
                 None
             }
         }
-    } else { repository.crawl_frequency_hours.map(|frequency_hours| Utc::now() + chrono::Duration::hours(frequency_hours as i64)) };
+    } else {
+        repository
+            .crawl_frequency_hours
+            .map(|frequency_hours| Utc::now() + chrono::Duration::hours(frequency_hours as i64))
+    };
 
     if let Some(next_time) = next_crawl_at {
         sqlx::query("UPDATE repositories SET next_crawl_at = $1 WHERE id = $2")

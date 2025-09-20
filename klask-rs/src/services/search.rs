@@ -433,7 +433,6 @@ impl SearchService {
         })
     }
 
-
     fn create_snippet_generator(
         &self,
         searcher: &tantivy::Searcher,
@@ -459,7 +458,10 @@ impl SearchService {
             if let Some(content) = doc.get_first(self.fields.content).and_then(|v| v.as_str()) {
                 // Only search for the first term to avoid performance issues
                 if let Some(first_term) = query.split_whitespace().next() {
-                    content.to_lowercase().find(&first_term.to_lowercase()).map(|pos| content[..pos].chars().filter(|&c| c == '\n').count() as u32 + 1)
+                    content
+                        .to_lowercase()
+                        .find(&first_term.to_lowercase())
+                        .map(|pos| content[..pos].chars().filter(|&c| c == '\n').count() as u32 + 1)
                 } else {
                     None
                 }
@@ -469,7 +471,6 @@ impl SearchService {
 
         Ok((highlighted_html, line_number))
     }
-
 
     pub async fn delete_file(&self, file_id: Uuid) -> Result<()> {
         let writer = self.writer.write().await;
@@ -789,7 +790,6 @@ impl SearchService {
             extensions,
         })
     }
-
 }
 
 #[allow(dead_code)]
