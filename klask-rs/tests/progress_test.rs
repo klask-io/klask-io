@@ -3,7 +3,7 @@ mod progress_tests {
     use chrono::Utc;
     use klask_rs::services::progress::{CrawlProgressInfo, CrawlStatus, ProgressTracker};
     use std::sync::Arc;
-    use tokio_test;
+
     use uuid::Uuid;
 
     #[tokio::test]

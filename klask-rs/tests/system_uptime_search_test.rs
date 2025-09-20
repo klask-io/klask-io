@@ -8,7 +8,6 @@ use klask_rs::{
         search::SearchService,
     },
 };
-use sqlx::PgPool;
 use std::{
     collections::HashMap,
     sync::{Arc, LazyLock},
@@ -16,7 +15,6 @@ use std::{
 };
 use tempfile::TempDir;
 use tokio::sync::{Mutex as AsyncMutex, RwLock};
-use uuid::Uuid;
 
 // Global mutex to ensure tests don't interfere with each other
 static TEST_MUTEX: LazyLock<Arc<AsyncMutex<()>>> = LazyLock::new(|| Arc::new(AsyncMutex::new(())));

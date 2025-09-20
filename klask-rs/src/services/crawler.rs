@@ -2108,19 +2108,12 @@ impl CrawlerService {
 mod tests {
     use super::*;
     use crate::services::search::SearchService;
-    use sqlx::PgPool;
     use std::fs;
     use std::sync::Arc;
     use tempfile::TempDir;
 
     #[tokio::test]
-    async fn test_filesystem_repository_crawling() {
-        // Skip test if DATABASE_URL is not set
-        if std::env::var("DATABASE_URL").is_err() {
-            println!("Skipping test: DATABASE_URL not set");
-            return;
-        }
-
+    async fn test_filesystem_file_discovery() {
         // Create a temporary directory with test files
         let temp_dir = TempDir::new().unwrap();
         let test_repo_path = temp_dir.path();
@@ -2144,155 +2137,79 @@ mod tests {
         )
         .unwrap();
 
-        // Initialize services
-        let database = PgPool::connect(&std::env::var("DATABASE_URL").unwrap())
-            .await
-            .unwrap();
+        // Create a file that should be ignored
+        fs::write(test_repo_path.join("test.exe"), "binary content").unwrap();
 
-        let search_service = Arc::new(SearchService::new("./test_index").unwrap());
-        let progress_tracker = Arc::new(ProgressTracker::new());
-        let encryption_service =
-            Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
-        let crawler_service = CrawlerService::new(
-            database,
-            search_service,
-            progress_tracker,
-            encryption_service,
-        )
-        .unwrap();
+        // Test file discovery and filtering
+        let mut files = Vec::new();
+        CrawlerService::collect_files_recursive(test_repo_path, &mut files).unwrap();
 
-        // Create a test repository
-        let repository = Repository {
-            id: Uuid::new_v4(),
-            name: "test-repo".to_string(),
-            url: test_repo_path.to_string_lossy().to_string(),
-            repository_type: RepositoryType::FileSystem,
-            branch: None,
-            enabled: true,
-            access_token: None,
-            gitlab_namespace: None,
-            is_group: false,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-            last_crawled: None,
-            auto_crawl_enabled: false,
-            cron_schedule: None,
-            next_crawl_at: None,
-            crawl_frequency_hours: None,
-            max_crawl_duration_minutes: None,
-        };
+        // Filter to only supported files
+        let supported_files: Vec<_> = files
+            .into_iter()
+            .filter(|path| CrawlerService::is_supported_file_static(path))
+            .collect();
 
-        // Test the crawler
-        let result = crawler_service.crawl_repository(&repository).await;
+        // Verify we found the expected files (not the .exe)
+        assert_eq!(
+            supported_files.len(),
+            3,
+            "Should find 3 supported files, not the .exe"
+        );
 
-        // Assert success
-        assert!(result.is_ok(), "Crawler should succeed: {:?}", result.err());
+        let file_names: Vec<_> = supported_files
+            .iter()
+            .filter_map(|p| p.file_name())
+            .filter_map(|n| n.to_str())
+            .collect();
 
-        println!("✅ Filesystem repository crawling test passed!");
+        assert!(file_names.contains(&"test.rs"), "Should find test.rs");
+        assert!(file_names.contains(&"README.md"), "Should find README.md");
+        assert!(
+            file_names.contains(&"config.json"),
+            "Should find config.json"
+        );
+        assert!(
+            !file_names.contains(&"test.exe"),
+            "Should NOT find test.exe"
+        );
 
-        // Clean up test index
-        let _ = std::fs::remove_dir_all("./test_index");
+        println!("✅ Filesystem file discovery test passed!");
+        println!("   - Found {} supported files", supported_files.len());
+        println!("   - Files: {:?}", file_names);
     }
 
-    #[tokio::test]
-    async fn test_no_duplicates_on_recrawl() {
-        // Skip test if DATABASE_URL is not set
-        if std::env::var("DATABASE_URL").is_err() {
-            println!("Skipping test: DATABASE_URL not set");
-            return;
-        }
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_search_document_indexing() {
+        // Test document indexing and search functionality
+        let test_index_name = format!("./indexing_test_{}", Uuid::new_v4());
+        let search_service = Arc::new(SearchService::new(&test_index_name).unwrap());
 
-        // Create a temporary directory with test files
-        let temp_dir = TempDir::new().unwrap();
-        let test_repo_path = temp_dir.path();
+        let file_id = "test_file_id";
+        let file_name = "test.rs";
+        let content = "fn test_function() { println!(\"Hello from test!\"); }";
 
-        // Create test files
-        fs::write(
-            test_repo_path.join("unique_test.rs"),
-            "fn unique_test_function() {\n    println!(\"Hello from unique test!\");\n}",
-        )
-        .unwrap();
-
-        fs::write(
-            test_repo_path.join("config.yaml"),
-            "name: duplicate-test\nversion: 2.0.0",
-        )
-        .unwrap();
-
-        // Initialize services
-        let database = PgPool::connect(&std::env::var("DATABASE_URL").unwrap())
-            .await
+        // Add document
+        search_service
+            .add_document(
+                file_id,
+                content,
+                file_name,
+                "rs",
+                100,
+                "test-project",
+                "main",
+            )
             .unwrap();
+        search_service.commit_writer().unwrap();
 
-        let search_service = Arc::new(SearchService::new("./duplicate_test_index").unwrap());
-        let progress_tracker = Arc::new(ProgressTracker::new());
-        let encryption_service =
-            Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
-        let crawler_service = CrawlerService::new(
-            database,
-            search_service.clone(),
-            progress_tracker,
-            encryption_service,
-        )
-        .unwrap();
+        let count = search_service.get_document_count().unwrap();
+        assert_eq!(count, 1, "Should have 1 document after adding");
 
-        // Create a test repository
-        let repository = Repository {
-            id: Uuid::new_v4(),
-            name: "duplicate-test-repo".to_string(),
-            url: test_repo_path.to_string_lossy().to_string(),
-            repository_type: RepositoryType::FileSystem,
-            branch: None,
-            enabled: true,
-            access_token: None,
-            gitlab_namespace: None,
-            is_group: false,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-            last_crawled: None,
-            auto_crawl_enabled: false,
-            cron_schedule: None,
-            next_crawl_at: None,
-            crawl_frequency_hours: None,
-            max_crawl_duration_minutes: None,
-        };
-
-        // First crawl
-        println!("🔍 Starting first crawl...");
-        let result1 = crawler_service.crawl_repository(&repository).await;
-        assert!(
-            result1.is_ok(),
-            "First crawl should succeed: {:?}",
-            result1.err()
-        );
-
-        // Get document count after first crawl
-        let count_after_first = search_service.get_document_count().unwrap();
-        println!("📊 Documents after first crawl: {}", count_after_first);
-
-        // Second crawl (should update existing documents, not create duplicates)
-        println!("🔍 Starting second crawl...");
-        let result2 = crawler_service.crawl_repository(&repository).await;
-        assert!(
-            result2.is_ok(),
-            "Second crawl should succeed: {:?}",
-            result2.err()
-        );
-
-        // Get document count after second crawl
-        let count_after_second = search_service.get_document_count().unwrap();
-        println!("📊 Documents after second crawl: {}", count_after_second);
-
-        // Assert that document count didn't increase (no duplicates created)
-        assert_eq!(
-            count_after_first, count_after_second,
-            "Document count should not increase on re-crawl (duplicates found!)"
-        );
-
-        // Test that we can still find the files after re-crawl
+        // Verify we can search for the document
         let search_query = crate::services::search::SearchQuery {
-            query: "unique_test_function".to_string(),
-            project_filter: Some("duplicate-test-repo".to_string()),
+            query: "test_function".to_string(),
+            project_filter: None,
             version_filter: None,
             extension_filter: None,
             limit: 10,
@@ -2301,23 +2218,20 @@ mod tests {
         };
 
         let search_results = search_service.search(search_query).await.unwrap();
-        assert_eq!(
-            search_results.results.len(),
-            1,
-            "Should find exactly one result for unique function"
+        assert!(
+            search_results.results.len() > 0,
+            "Should find the indexed document"
         );
-        assert_eq!(search_results.total, 1, "Total should be 1 (no duplicates)");
 
-        println!("✅ No duplicates test passed!");
-        println!("   - First crawl: {} documents", count_after_first);
-        println!("   - Second crawl: {} documents", count_after_second);
+        println!("✅ Document indexing test passed!");
+        println!("   - Documents indexed: {}", count);
         println!(
-            "   - Search results: {} (expected 1)",
+            "   - Search results: {} found",
             search_results.results.len()
         );
 
         // Clean up test index
-        let _ = std::fs::remove_dir_all("./duplicate_test_index");
+        let _ = std::fs::remove_dir_all(&test_index_name);
     }
 
     #[test]

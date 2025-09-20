@@ -38,24 +38,29 @@ impl Database {
 
 // Test database using SQLite in-memory
 #[cfg(any(test, debug_assertions))]
+#[allow(dead_code)]
 static TEST_DB_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[cfg(any(test, debug_assertions))]
+#[allow(dead_code)]
 pub struct TestDatabase {
     pool: Pool<Sqlite>,
 }
 
 #[cfg(any(test, debug_assertions))]
 impl TestDatabase {
+    #[allow(dead_code)]
     pub async fn new() -> Result<Self> {
         let pool = create_test_database().await?;
         Ok(Self { pool })
     }
 
+    #[allow(dead_code)]
     pub fn pool(&self) -> &Pool<Sqlite> {
         &self.pool
     }
 
+    #[allow(dead_code)]
     pub async fn health_check(&self) -> Result<()> {
         sqlx::query("SELECT 1").execute(&self.pool).await?;
         Ok(())
@@ -63,6 +68,7 @@ impl TestDatabase {
 }
 
 #[cfg(any(test, debug_assertions))]
+#[allow(dead_code)]
 pub async fn create_test_database() -> Result<Pool<Sqlite>> {
     let counter = TEST_DB_COUNTER.fetch_add(1, Ordering::SeqCst);
     let db_name = format!("file:test_db_{}?mode=memory&cache=shared", counter);
@@ -79,6 +85,7 @@ pub async fn create_test_database() -> Result<Pool<Sqlite>> {
 }
 
 #[cfg(any(test, debug_assertions))]
+#[allow(dead_code)]
 async fn setup_test_schema(pool: &Pool<Sqlite>) -> Result<()> {
     sqlx::query(
         r#"

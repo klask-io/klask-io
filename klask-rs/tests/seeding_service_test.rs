@@ -3,7 +3,6 @@ use klask_rs::services::seeding::{SeedingService, SeedingStats};
 use sqlx::{PgPool, Row};
 use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex as AsyncMutex;
-use uuid::Uuid;
 
 // Global mutex to ensure tests don't interfere with each other
 static TEST_MUTEX: LazyLock<Arc<AsyncMutex<()>>> = LazyLock::new(|| Arc::new(AsyncMutex::new(())));

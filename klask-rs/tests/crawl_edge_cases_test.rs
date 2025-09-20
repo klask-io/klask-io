@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod crawl_edge_cases_tests {
-    use klask_rs::services::progress::{CrawlProgressInfo, CrawlStatus, ProgressTracker};
+    use klask_rs::services::progress::{CrawlStatus, ProgressTracker};
     use rand::Rng;
     use std::sync::Arc;
     use std::time::Duration;

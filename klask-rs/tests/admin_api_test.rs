@@ -1,10 +1,6 @@
 #[cfg(test)]
 mod admin_api_tests {
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-        Router,
-    };
+
     use axum_test::TestServer;
     use klask_rs::{
         api::admin::{
@@ -13,8 +9,7 @@ mod admin_api_tests {
         },
         auth::extractors::AppState,
     };
-    use serde_json::{json, Value};
-    use uuid::Uuid;
+    use serde_json::Value;
 
     // Mock app state for testing
     async fn create_test_app_state() -> AppState {
@@ -243,7 +238,6 @@ mod admin_api_tests {
 
     #[tokio::test]
     async fn test_admin_dashboard_data_structure() {
-        use chrono::Utc;
         use klask_rs::repositories::user_repository::UserStats;
 
         let dashboard_data = AdminDashboardData {

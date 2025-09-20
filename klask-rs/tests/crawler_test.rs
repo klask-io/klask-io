@@ -13,7 +13,6 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 use tempfile::TempDir;
 use tokio::sync::Mutex as AsyncMutex;
-use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 // Global mutex to ensure tests don't interfere with each other

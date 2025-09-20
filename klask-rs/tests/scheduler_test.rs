@@ -1,15 +1,9 @@
 #[cfg(test)]
 mod scheduler_tests {
-    use chrono::{DateTime, Datelike, Timelike, Utc};
-    use klask_rs::{
-        models::repository::{Repository, RepositoryType},
-        repositories::repository_repository::RepositoryRepository,
-        services::{crawler::CrawlerService, scheduler::SchedulerService},
-    };
-    use sqlx::{PgPool, Row};
-    use std::sync::Arc;
-    use tempfile::TempDir;
-    use tokio_test;
+    use chrono::{DateTime, Timelike, Utc};
+    use klask_rs::models::repository::RepositoryType;
+    use sqlx::Row;
+
     use uuid::Uuid;
 
     // Mock structs for testing

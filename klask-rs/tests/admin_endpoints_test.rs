@@ -1,8 +1,5 @@
 use anyhow::Result;
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-};
+use axum::http::StatusCode;
 use axum_test::TestServer;
 use klask_rs::{
     api::admin::{AdminDashboardData, SystemStats},
@@ -13,14 +10,13 @@ use klask_rs::{
     services::seeding::SeedingStats,
     services::{
         crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker,
-        search::SearchService, seeding::SeedingService,
+        search::SearchService,
     },
 };
 use serde_json::Value;
 use sqlx::PgPool;
 use std::{collections::HashMap, sync::Arc, time::Instant};
 use tokio::sync::RwLock;
-use tokio::test;
 use uuid::Uuid;
 
 // Test utilities

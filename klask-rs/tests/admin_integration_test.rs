@@ -1,8 +1,5 @@
 use anyhow::Result;
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-};
+use axum::http::StatusCode;
 use axum_test::TestServer;
 use klask_rs::{
     auth::{claims::TokenClaims, extractors::AppState, jwt::JwtService},
@@ -11,14 +8,12 @@ use klask_rs::{
     models::{User, UserRole},
     services::{
         crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker,
-        search::SearchService, seeding::SeedingService,
+        search::SearchService,
     },
 };
 use serde_json::Value;
-use sqlx::PgPool;
 use std::{collections::HashMap, sync::Arc, time::Instant};
-use tokio::sync::{Mutex, RwLock};
-use tokio::test;
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use sqlx::sqlite::SqlitePool;

@@ -8,16 +8,19 @@ use sqlx::{Pool, Row, Sqlite};
 use uuid::Uuid;
 
 #[cfg(any(test, debug_assertions))]
+#[allow(dead_code)]
 pub struct TestUserRepository {
     pool: Pool<Sqlite>,
 }
 
 #[cfg(any(test, debug_assertions))]
 impl TestUserRepository {
+    #[allow(dead_code)]
     pub fn new(pool: Pool<Sqlite>) -> Self {
         Self { pool }
     }
 
+    #[allow(dead_code)]
     pub async fn create_user(&self, user: &User) -> Result<()> {
         sqlx::query(
             r#"
@@ -39,6 +42,7 @@ impl TestUserRepository {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get_user(&self, id: Uuid) -> Result<Option<User>> {
         let row = sqlx::query(
             "SELECT id, username, email, password_hash, role, active, created_at, updated_at FROM users WHERE id = ?1"
@@ -67,6 +71,7 @@ impl TestUserRepository {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn get_user_stats(&self) -> Result<crate::repositories::user_repository::UserStats> {
         let total_users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
             .fetch_one(&self.pool)

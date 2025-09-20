@@ -1,8 +1,5 @@
 use anyhow::Result;
-use axum::{
-    body::Body,
-    http::{Method, Request, StatusCode},
-};
+use axum::http::StatusCode;
 use axum_test::TestServer;
 use klask_rs::{
     api,
@@ -15,8 +12,6 @@ use klask_rs::{
         SearchService,
     },
 };
-use serde_json::{json, Value};
-use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::LazyLock;

@@ -472,6 +472,8 @@ impl SearchService {
 
         Ok((highlighted_html, line_number))
     }
+
+    #[allow(dead_code)]
     pub async fn delete_file(&self, file_id: Uuid) -> Result<()> {
         let writer = self.writer.write().await;
         let term = tantivy::Term::from_field_text(self.fields.file_id, &file_id.to_string());
@@ -793,6 +795,7 @@ impl SearchService {
 
     /// Legacy method for backward compatibility with tests - maps to index_file
     #[allow(dead_code)]
+    #[allow(clippy::too_many_arguments)]
     pub fn add_document(
         &self,
         file_id: &str,

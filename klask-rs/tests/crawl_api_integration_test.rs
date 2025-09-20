@@ -1,15 +1,10 @@
 #[cfg(test)]
 mod crawl_api_integration_tests {
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-        response::Response,
-        Router,
-    };
+    use axum::http::StatusCode;
     use klask_rs::services::progress::{CrawlStatus, ProgressTracker};
-    use serde_json::json;
+
     use std::sync::Arc;
-    use tower::ServiceExt;
+
     use uuid::Uuid;
 
     // Mock app state for testing
@@ -498,7 +493,7 @@ mod crawl_api_integration_tests {
 // Integration tests with mock HTTP server
 #[cfg(test)]
 mod http_integration_tests {
-    use super::*;
+
     use axum::http::StatusCode;
     use klask_rs::services::progress::ProgressTracker;
     use serde_json::json;

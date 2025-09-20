@@ -15,7 +15,6 @@ use std::sync::Arc;
 use std::time::Instant;
 use tempfile::TempDir;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 // Create test app state with all required services
 async fn create_test_app_state() -> AppState {
