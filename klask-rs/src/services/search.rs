@@ -13,6 +13,17 @@ use uuid::Uuid;
 
 use tracing::{debug, warn};
 
+#[derive(Debug, Clone)]
+pub struct FileData<'a> {
+    pub file_id: Uuid,
+    pub file_name: &'a str,
+    pub file_path: &'a str,
+    pub content: &'a str,
+    pub project: &'a str,
+    pub version: &'a str,
+    pub extension: &'a str,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub file_id: Uuid,
@@ -143,26 +154,18 @@ impl SearchService {
         }
     }
 
-    pub async fn index_file(
-        &self,
-        file_id: Uuid,
-        file_name: &str,
-        file_path: &str,
-        content: &str,
-        project: &str,
-        version: &str,
-        extension: &str,
-    ) -> Result<()> {
+    #[allow(dead_code)]
+    pub async fn index_file(&self, file_data: FileData<'_>) -> Result<()> {
         let writer = self.writer.write().await;
 
         let doc = doc!(
-            self.fields.file_id => file_id.to_string(),
-            self.fields.file_name => file_name,
-            self.fields.file_path => file_path,
-            self.fields.content => content,
-            self.fields.project => project,
-            self.fields.version => version,
-            self.fields.extension => extension,
+            self.fields.file_id => file_data.file_id.to_string(),
+            self.fields.file_name => file_data.file_name,
+            self.fields.file_path => file_data.file_path,
+            self.fields.content => file_data.content,
+            self.fields.project => file_data.project,
+            self.fields.version => file_data.version,
+            self.fields.extension => file_data.extension,
         );
 
         writer.add_document(doc)?;
@@ -170,35 +173,26 @@ impl SearchService {
     }
 
     /// Upsert a file - delete existing and add new version if it exists, otherwise just add
-    pub async fn upsert_file(
-        &self,
-        file_id: Uuid,
-        file_name: &str,
-        file_path: &str,
-        content: &str,
-        project: &str,
-        version: &str,
-        extension: &str,
-    ) -> Result<()> {
+    pub async fn upsert_file(&self, file_data: FileData<'_>) -> Result<()> {
         let writer = self.writer.write().await;
 
         // Delete ALL existing documents with the same file_id to ensure no duplicates
-        let file_id_str = file_id.to_string();
+        let file_id_str = file_data.file_id.to_string();
         let term = tantivy::Term::from_field_text(self.fields.file_id, &file_id_str);
 
         // Use a query to delete all matching documents
         let query = TermQuery::new(term.clone(), tantivy::schema::IndexRecordOption::Basic);
-        writer.delete_query(Box::new(query));
+        let _ = writer.delete_query(Box::new(query));
 
         // Add the new document
         let doc = doc!(
             self.fields.file_id => file_id_str,
-            self.fields.file_name => file_name,
-            self.fields.file_path => file_path,
-            self.fields.content => content,
-            self.fields.project => project,
-            self.fields.version => version,
-            self.fields.extension => extension,
+            self.fields.file_name => file_data.file_name,
+            self.fields.file_path => file_data.file_path,
+            self.fields.content => file_data.content,
+            self.fields.project => file_data.project,
+            self.fields.version => file_data.version,
+            self.fields.extension => file_data.extension,
         );
 
         writer.add_document(doc)?;
@@ -206,6 +200,7 @@ impl SearchService {
     }
 
     /// Check if a document exists by file_id (lightweight check)
+    #[allow(dead_code)]
     pub async fn document_exists(&self, file_id: Uuid) -> Result<bool> {
         // Use the existing get_file_by_id method but only check if result is Some
         let result = self.get_file_by_id(file_id).await?;
@@ -233,7 +228,7 @@ impl SearchService {
         let count_before = searcher.search(&query, &Count)? as u64;
 
         // Delete all matching documents
-        writer.delete_query(Box::new(query));
+        let _ = writer.delete_query(Box::new(query));
         writer.commit()?;
 
         // Reload reader to see changes
@@ -438,30 +433,6 @@ impl SearchService {
         })
     }
 
-    fn generate_snippet(&self, query: &str, doc: &tantivy::TantivyDocument) -> Result<String> {
-        // Simple snippet generation - in production, use Tantivy's snippet generator
-        if let Some(content) = doc.get_first(self.fields.content).and_then(|v| v.as_str()) {
-            // Find the first occurrence of any query term
-            let query_terms: Vec<&str> = query.split_whitespace().collect();
-
-            for term in query_terms {
-                if let Some(pos) = content.to_lowercase().find(&term.to_lowercase()) {
-                    let start = pos.saturating_sub(100);
-                    let end = (pos + term.len() + 100).min(content.len());
-                    return Ok(content[start..end].to_string());
-                }
-            }
-
-            // Fallback: return first 200 characters
-            if content.len() > 200 {
-                Ok(format!("{}...", &content[..200]))
-            } else {
-                Ok(content.to_string())
-            }
-        } else {
-            Ok("No content available".to_string())
-        }
-    }
 
     fn create_snippet_generator(
         &self,
@@ -488,11 +459,7 @@ impl SearchService {
             if let Some(content) = doc.get_first(self.fields.content).and_then(|v| v.as_str()) {
                 // Only search for the first term to avoid performance issues
                 if let Some(first_term) = query.split_whitespace().next() {
-                    if let Some(pos) = content.to_lowercase().find(&first_term.to_lowercase()) {
-                        Some(content[..pos].chars().filter(|&c| c == '\n').count() as u32 + 1)
-                    } else {
-                        None
-                    }
+                    content.to_lowercase().find(&first_term.to_lowercase()).map(|pos| content[..pos].chars().filter(|&c| c == '\n').count() as u32 + 1)
                 } else {
                     None
                 }
@@ -503,57 +470,6 @@ impl SearchService {
         Ok((highlighted_html, line_number))
     }
 
-    fn generate_snippet_with_line_number(
-        &self,
-        query: &str,
-        doc: &tantivy::TantivyDocument,
-    ) -> Result<(String, Option<u32>)> {
-        // Parse the query to get the actual Tantivy query object
-        let query_parser = QueryParser::for_index(
-            &self.index,
-            vec![
-                self.fields.content,
-                self.fields.file_name,
-                self.fields.file_path,
-            ],
-        );
-
-        let parsed_query = query_parser
-            .parse_query(query)
-            .map_err(|e| anyhow!("Failed to parse query for snippet: {}", e))?;
-
-        // Create snippet generator with 150 character fragment size
-        let mut snippet_generator =
-            SnippetGenerator::create(&self.reader.searcher(), &*parsed_query, self.fields.content)?;
-        snippet_generator.set_max_num_chars(200);
-
-        // Generate the snippet with HTML highlighting
-        let snippet = snippet_generator.snippet_from_doc(doc);
-        let highlighted_html = snippet.to_html();
-
-        // Extract line number if we have content
-        let line_number = if let Some(content) =
-            doc.get_first(self.fields.content).and_then(|v| v.as_str())
-        {
-            // Find the first highlighted term position to calculate line number
-            let query_terms: Vec<&str> = query.split_whitespace().collect();
-            let mut first_match_line = None;
-
-            for term in query_terms {
-                if let Some(pos) = content.to_lowercase().find(&term.to_lowercase()) {
-                    let line_num = content[..pos].chars().filter(|&c| c == '\n').count() as u32 + 1;
-                    if first_match_line.is_none() || line_num < first_match_line.unwrap() {
-                        first_match_line = Some(line_num);
-                    }
-                }
-            }
-            first_match_line
-        } else {
-            None
-        };
-
-        Ok((highlighted_html, line_number))
-    }
 
     pub async fn delete_file(&self, file_id: Uuid) -> Result<()> {
         let writer = self.writer.write().await;
@@ -562,6 +478,7 @@ impl SearchService {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn clear_index(&self) -> Result<()> {
         let mut writer = self.writer.write().await;
         writer.delete_all_documents()?;
@@ -569,9 +486,10 @@ impl SearchService {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn get_stats(&self) -> Result<SearchStats> {
         let searcher = self.reader.searcher();
-        let num_docs = searcher.num_docs() as u64;
+        let num_docs = searcher.num_docs();
 
         Ok(SearchStats {
             total_documents: num_docs,
@@ -747,7 +665,7 @@ impl SearchService {
         // Reload the reader to see the latest changes
         self.reader.reload()?;
         let searcher = self.reader.searcher();
-        Ok(searcher.num_docs() as u64)
+        Ok(searcher.num_docs())
     }
 
     /// Calculate the total size of a directory recursively in bytes
@@ -872,71 +790,9 @@ impl SearchService {
         })
     }
 
-    async fn collect_facets(&self, query: &str) -> Result<SearchFacets> {
-        let searcher = self.reader.searcher();
-
-        // Build query parser for content search
-        let query_parser = QueryParser::for_index(
-            &self.index,
-            vec![
-                self.fields.content,
-                self.fields.file_name,
-                self.fields.file_path,
-            ],
-        );
-
-        // Parse the query to get matching documents
-        let parsed_query = query_parser
-            .parse_query(query)
-            .map_err(|e| anyhow!("Failed to parse query '{}': {}", query, e))?;
-
-        // Get matching documents (up to 10000 for facet collection)
-        let top_docs = searcher.search(&parsed_query, &TopDocs::with_limit(10000))?;
-
-        let mut projects = HashMap::new();
-        let mut versions = HashMap::new();
-        let mut extensions = HashMap::new();
-
-        // Collect facet values from matching documents
-        for (_score, doc_address) in top_docs {
-            let retrieved_doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
-
-            if let Some(project) = retrieved_doc
-                .get_first(self.fields.project)
-                .and_then(|v| v.as_str())
-            {
-                if !project.is_empty() {
-                    *projects.entry(project.to_string()).or_insert(0) += 1;
-                }
-            }
-
-            if let Some(version) = retrieved_doc
-                .get_first(self.fields.version)
-                .and_then(|v| v.as_str())
-            {
-                if !version.is_empty() {
-                    *versions.entry(version.to_string()).or_insert(0) += 1;
-                }
-            }
-
-            if let Some(extension) = retrieved_doc
-                .get_first(self.fields.extension)
-                .and_then(|v| v.as_str())
-            {
-                if !extension.is_empty() {
-                    *extensions.entry(extension.to_string()).or_insert(0) += 1;
-                }
-            }
-        }
-
-        Ok(SearchFacets {
-            projects: projects.into_iter().map(|(k, v)| (k, v as u64)).collect(),
-            versions: versions.into_iter().map(|(k, v)| (k, v as u64)).collect(),
-            extensions: extensions.into_iter().map(|(k, v)| (k, v as u64)).collect(),
-        })
-    }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 pub struct SearchStats {
     pub total_documents: u64,

@@ -31,6 +31,12 @@ pub struct GitLabGroup {
     pub visibility: String,
 }
 
+impl Default for GitLabService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GitLabService {
     pub fn new() -> Self {
         Self {
@@ -112,6 +118,7 @@ impl GitLabService {
     }
 
     /// Get all projects in a specific group
+    #[allow(dead_code)]
     pub async fn get_group_projects(
         &self,
         gitlab_url: &str,
@@ -169,6 +176,7 @@ impl GitLabService {
     }
 
     /// Get information about a specific project
+    #[allow(dead_code)]
     pub async fn get_project(
         &self,
         gitlab_url: &str,

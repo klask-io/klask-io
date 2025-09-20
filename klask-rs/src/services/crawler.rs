@@ -1,7 +1,7 @@
 use crate::models::{Repository, RepositoryType};
 use crate::services::{
     encryption::EncryptionService, gitlab::GitLabService, progress::ProgressTracker,
-    search::SearchService,
+    search::{SearchService, FileData},
 };
 use anyhow::{anyhow, Result};
 use git2::Repository as GitRepository;
@@ -116,11 +116,6 @@ impl CrawlerService {
         })
     }
 
-    /// Generate a deterministic UUID for a file based on repository, branch, and path
-    fn generate_deterministic_file_id(&self, repository: &Repository, relative_path: &str) -> Uuid {
-        let branch = repository.branch.as_deref().unwrap_or("main");
-        self.generate_deterministic_file_id_with_branch(repository, relative_path, branch)
-    }
 
     /// Generate a deterministic UUID for a file based on repository, specific branch, and path
     fn generate_deterministic_file_id_with_branch(
@@ -420,7 +415,7 @@ impl CrawlerService {
                         .map_err(|e| anyhow!("Failed to find target commit: {}", e))?;
 
                     git_repo
-                        .reset(&commit.as_object(), git2::ResetType::Hard, None)
+                        .reset(commit.as_object(), git2::ResetType::Hard, None)
                         .map_err(|e| anyhow!("Failed to reset to latest commit: {}", e))?;
                 }
 
@@ -492,7 +487,7 @@ impl CrawlerService {
 
             // Set up fetch options to get all branches
             let mut fetch_options = git2::FetchOptions::new();
-            let mut remote_callbacks = git2::RemoteCallbacks::new();
+            let remote_callbacks = git2::RemoteCallbacks::new();
 
             // Add authentication for GitLab if needed
             if clone_url.contains("oauth2:") {
@@ -560,12 +555,10 @@ impl CrawlerService {
                         // List what we got
                         if let Ok(refs) = git_repo.references() {
                             let mut remote_refs = Vec::new();
-                            for reference in refs {
-                                if let Ok(ref_item) = reference {
-                                    if let Some(name) = ref_item.name() {
-                                        if name.starts_with("refs/remotes/origin/") {
-                                            remote_refs.push(name.to_string());
-                                        }
+                            for ref_item in refs.flatten() {
+                                if let Some(name) = ref_item.name() {
+                                    if name.starts_with("refs/remotes/origin/") {
+                                        remote_refs.push(name.to_string());
                                     }
                                 }
                             }
@@ -590,7 +583,7 @@ impl CrawlerService {
                         .map_err(|e| anyhow!("Failed to find branch commit: {}", e))?;
 
                     git_repo
-                        .reset(&commit.as_object(), git2::ResetType::Hard, None)
+                        .reset(commit.as_object(), git2::ResetType::Hard, None)
                         .map_err(|e| anyhow!("Failed to checkout branch: {}", e))?;
                 }
             }
@@ -654,12 +647,10 @@ impl CrawlerService {
             // Get local branches first
             info!("Checking local branches...");
             if let Ok(branch_iter) = git_repo.branches(Some(git2::BranchType::Local)) {
-                for branch_result in branch_iter {
-                    if let Ok((branch, _)) = branch_result {
-                        if let Ok(Some(name)) = branch.name() {
-                            info!("Found local branch: {}", name);
-                            branch_set.insert(name.to_string());
-                        }
+                for (branch, _) in branch_iter.flatten() {
+                    if let Ok(Some(name)) = branch.name() {
+                        info!("Found local branch: {}", name);
+                        branch_set.insert(name.to_string());
                     }
                 }
             }
@@ -667,15 +658,13 @@ impl CrawlerService {
             // ALWAYS get remote branches too (not just when local is empty)
             info!("Checking remote branches...");
             if let Ok(branch_iter) = git_repo.branches(Some(git2::BranchType::Remote)) {
-                for branch_result in branch_iter {
-                    if let Ok((branch, _)) = branch_result {
-                        if let Ok(Some(name)) = branch.name() {
-                            info!("Found remote branch: {}", name);
-                            // Remove "origin/" prefix for remote branches
-                            let clean_name = name.strip_prefix("origin/").unwrap_or(name);
-                            if clean_name != "HEAD" {
-                                branch_set.insert(clean_name.to_string());
-                            }
+                for (branch, _) in branch_iter.flatten() {
+                    if let Ok(Some(name)) = branch.name() {
+                        info!("Found remote branch: {}", name);
+                        // Remove "origin/" prefix for remote branches
+                        let clean_name = name.strip_prefix("origin/").unwrap_or(name);
+                        if clean_name != "HEAD" {
+                            branch_set.insert(clean_name.to_string());
                         }
                     }
                 }
@@ -776,12 +765,10 @@ impl CrawlerService {
             // Get local branches first
             info!("Checking local branches...");
             if let Ok(branch_iter) = git_repo.branches(Some(git2::BranchType::Local)) {
-                for branch_result in branch_iter {
-                    if let Ok((branch, _)) = branch_result {
-                        if let Ok(Some(name)) = branch.name() {
-                            info!("Found local branch: {}", name);
-                            branch_set.insert(name.to_string());
-                        }
+                for (branch, _) in branch_iter.flatten() {
+                    if let Ok(Some(name)) = branch.name() {
+                        info!("Found local branch: {}", name);
+                        branch_set.insert(name.to_string());
                     }
                 }
             }
@@ -789,15 +776,13 @@ impl CrawlerService {
             // ALWAYS get remote branches too (not just when local is empty)
             info!("Checking remote branches...");
             if let Ok(branch_iter) = git_repo.branches(Some(git2::BranchType::Remote)) {
-                for branch_result in branch_iter {
-                    if let Ok((branch, _)) = branch_result {
-                        if let Ok(Some(name)) = branch.name() {
-                            info!("Found remote branch: {}", name);
-                            // Remove "origin/" prefix for remote branches
-                            let clean_name = name.strip_prefix("origin/").unwrap_or(name);
-                            if clean_name != "HEAD" {
-                                branch_set.insert(clean_name.to_string());
-                            }
+                for (branch, _) in branch_iter.flatten() {
+                    if let Ok(Some(name)) = branch.name() {
+                        info!("Found remote branch: {}", name);
+                        // Remove "origin/" prefix for remote branches
+                        let clean_name = name.strip_prefix("origin/").unwrap_or(name);
+                        if clean_name != "HEAD" {
+                            branch_set.insert(clean_name.to_string());
                         }
                     }
                 }
@@ -852,7 +837,6 @@ impl CrawlerService {
                     progress,
                     cancellation_token,
                     parent_repository_id,
-                    _project_start_files,
                 )
                 .await
             {
@@ -885,7 +869,6 @@ impl CrawlerService {
         progress: &mut CrawlProgress,
         cancellation_token: &CancellationToken,
         parent_repository_id: Uuid,
-        _project_start_files: usize,
     ) -> Result<()> {
         // Reuse the existing checkout logic but call with tracking
         let repo_path_owned = repo_path.to_owned();
@@ -976,7 +959,7 @@ impl CrawlerService {
                 );
 
                 // Check if local branch exists
-                if let Ok(_) = git_repo.find_reference(&format!("refs/heads/{}", branch_name_owned))
+                if git_repo.find_reference(&format!("refs/heads/{}", branch_name_owned)).is_ok()
                 {
                     // Local branch exists, check if it's the current HEAD
                     let is_current_branch = if let Ok(head_ref) = git_repo.head() {
@@ -995,7 +978,7 @@ impl CrawlerService {
                             "Resetting current branch '{}' to match remote",
                             branch_name_owned
                         );
-                        git_repo.reset(&commit.as_object(), git2::ResetType::Hard, None)?;
+                        git_repo.reset(commit.as_object(), git2::ResetType::Hard, None)?;
                     } else {
                         // We're not on this branch, safe to force update it
                         info!(
@@ -1031,7 +1014,7 @@ impl CrawlerService {
                     .target()
                     .ok_or_else(|| anyhow!("No target for reference"))?;
                 let commit = git_repo.find_commit(target_commit)?;
-                git_repo.reset(&commit.as_object(), git2::ResetType::Hard, None)?;
+                git_repo.reset(commit.as_object(), git2::ResetType::Hard, None)?;
             } else {
                 info!("Already on branch '{}'", branch_name_owned);
             }
@@ -1188,11 +1171,9 @@ impl CrawlerService {
                         // Log available branches after fetch for debugging
                         if let Ok(branch_iter) = git_repo.branches(Some(git2::BranchType::Remote)) {
                             let mut available_branches = Vec::new();
-                            for branch_result in branch_iter {
-                                if let Ok((branch, _)) = branch_result {
-                                    if let Ok(Some(name)) = branch.name() {
-                                        available_branches.push(name.to_string());
-                                    }
+                            for (branch, _) in branch_iter.flatten() {
+                                if let Ok(Some(name)) = branch.name() {
+                                    available_branches.push(name.to_string());
                                 }
                             }
                             debug!(
@@ -1228,7 +1209,7 @@ impl CrawlerService {
                 );
 
                 // Check if local branch exists
-                if let Ok(_) = git_repo.find_reference(&format!("refs/heads/{}", branch_name_owned))
+                if git_repo.find_reference(&format!("refs/heads/{}", branch_name_owned)).is_ok()
                 {
                     // Local branch exists, check if it's the current HEAD
                     let is_current_branch = if let Ok(head_ref) = git_repo.head() {
@@ -1247,7 +1228,7 @@ impl CrawlerService {
                             "Resetting current branch '{}' to match remote",
                             branch_name_owned
                         );
-                        git_repo.reset(&commit.as_object(), git2::ResetType::Hard, None)?;
+                        git_repo.reset(commit.as_object(), git2::ResetType::Hard, None)?;
                     } else {
                         // We're not on this branch, safe to force update it
                         info!(
@@ -1283,7 +1264,7 @@ impl CrawlerService {
                     .target()
                     .ok_or_else(|| anyhow!("No target for reference"))?;
                 let commit = git_repo.find_commit(target_commit)?;
-                git_repo.reset(&commit.as_object(), git2::ResetType::Hard, None)?;
+                git_repo.reset(commit.as_object(), git2::ResetType::Hard, None)?;
             } else {
                 info!("Already on branch '{}'", branch_name_owned);
             }
@@ -1633,15 +1614,15 @@ impl CrawlerService {
             // Use upsert to handle potential duplicates - this will update existing docs
             match self
                 .search_service
-                .upsert_file(
+                .upsert_file(FileData {
                     file_id,
-                    &file_name,
-                    relative_path,
-                    &content,
-                    &repository.name,
-                    &version,
-                    &extension,
-                )
+                    file_name: &file_name,
+                    file_path: relative_path,
+                    content: &content,
+                    project: &repository.name,
+                    version: &version,
+                    extension: &extension,
+                })
                 .await
             {
                 Ok(_) => {
@@ -1663,6 +1644,7 @@ impl CrawlerService {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn is_supported_file(&self, file_path: &Path) -> bool {
         Self::is_supported_file_static(file_path)
     }
@@ -2084,7 +2066,7 @@ impl CrawlerService {
     /// Collect all supported files in a directory (helper method)
     fn collect_supported_files(&self, repo_path: &Path) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
-        self.collect_files_recursive(repo_path, &mut files)?;
+        Self::collect_files_recursive(repo_path, &mut files)?;
         Ok(files
             .into_iter()
             .filter(|path| Self::is_supported_file_static(path))
@@ -2092,7 +2074,7 @@ impl CrawlerService {
     }
 
     /// Recursively collect files (helper method)
-    fn collect_files_recursive(&self, dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+    fn collect_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -2108,7 +2090,7 @@ impl CrawlerService {
                         continue;
                     }
                 }
-                self.collect_files_recursive(&path, files)?;
+                Self::collect_files_recursive(&path, files)?;
             } else if path.is_file() {
                 files.push(path);
             }
@@ -2459,9 +2441,15 @@ mod tests {
         // First insert
         let content1 = "fn hello() { println!(\"Hello, World!\"); }";
         search_service
-            .upsert_file(
-                file_id, file_name, file_path, content1, project, version, extension,
-            )
+            .upsert_file(FileData {
+                file_id,
+                file_name,
+                file_path,
+                content: content1,
+                project,
+                version,
+                extension,
+            })
             .await
             .unwrap();
 
@@ -2477,9 +2465,15 @@ mod tests {
         // Second insert with same ID but different content (update)
         let content2 = "fn hello() { println!(\"Hello, Rust!\"); }";
         search_service
-            .upsert_file(
-                file_id, file_name, file_path, content2, project, version, extension,
-            )
+            .upsert_file(FileData {
+                file_id,
+                file_name,
+                file_path,
+                content: content2,
+                project,
+                version,
+                extension,
+            })
             .await
             .unwrap();
 

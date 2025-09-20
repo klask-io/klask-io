@@ -69,6 +69,7 @@ impl SchedulerService {
     }
 
     /// Stop the scheduler service
+    #[allow(dead_code)]
     pub async fn stop(&mut self) -> Result<()> {
         info!("Stopping repository scheduler service");
         self.scheduler.shutdown().await?;
@@ -277,6 +278,7 @@ impl SchedulerService {
     }
 
     /// Get next scheduled run time for a repository
+    #[allow(dead_code)]
     pub async fn get_next_run_time(&self, _repository_id: Uuid) -> Option<DateTime<Utc>> {
         // TODO: Implement proper next run time retrieval with tokio_cron_scheduler
         None
@@ -428,12 +430,7 @@ async fn update_next_crawl_time(pool: &PgPool, repository_id: Uuid) -> Result<()
                 None
             }
         }
-    } else if let Some(frequency_hours) = repository.crawl_frequency_hours {
-        // Simple frequency-based scheduling
-        Some(Utc::now() + chrono::Duration::hours(frequency_hours as i64))
-    } else {
-        None
-    };
+    } else { repository.crawl_frequency_hours.map(|frequency_hours| Utc::now() + chrono::Duration::hours(frequency_hours as i64)) };
 
     if let Some(next_time) = next_crawl_at {
         sqlx::query("UPDATE repositories SET next_crawl_at = $1 WHERE id = $2")

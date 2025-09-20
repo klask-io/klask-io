@@ -1,6 +1,6 @@
 use anyhow::Result;
 use klask_rs::models::{Repository, RepositoryType};
-use klask_rs::services::search::SearchService;
+use klask_rs::services::search::{SearchService, FileData};
 use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -104,15 +104,15 @@ async fn main() -> Result<()> {
                     let file_id = Uuid::new_v4();
 
                     if let Err(e) = search_service
-                        .index_file(
+                        .index_file(FileData {
                             file_id,
-                            &file_name,
-                            &relative_path_str,
-                            &content,
-                            &repository.name,
-                            "HEAD",
-                            &extension,
-                        )
+                            file_name: &file_name,
+                            file_path: &relative_path_str,
+                            content: &content,
+                            project: &repository.name,
+                            version: "HEAD",
+                            extension: &extension,
+                        })
                         .await
                     {
                         progress

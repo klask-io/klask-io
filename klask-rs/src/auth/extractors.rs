@@ -20,6 +20,7 @@ pub struct AppState {
     pub progress_tracker: Arc<ProgressTracker>,
     pub scheduler_service: Option<Arc<crate::services::scheduler::SchedulerService>>,
     pub jwt_service: JwtService,
+    #[allow(dead_code)]
     pub config: crate::config::AppConfig,
     pub crawl_tasks: Arc<RwLock<HashMap<Uuid, tokio::task::JoinHandle<()>>>>,
     pub startup_time: Instant,
@@ -28,6 +29,7 @@ pub struct AppState {
 #[derive(Debug, Clone)]
 pub struct AuthenticatedUser {
     pub user: User,
+    #[allow(dead_code)]
     pub claims: TokenClaims,
 }
 
@@ -141,6 +143,7 @@ impl FromRequestParts<AppState> for AdminUser {
 }
 
 // Optional authentication extractor for endpoints that can work with or without auth
+#[allow(dead_code)]
 pub struct OptionalUser(pub Option<AuthenticatedUser>);
 
 #[async_trait]

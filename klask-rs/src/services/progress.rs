@@ -113,6 +113,12 @@ pub struct ProgressTracker {
     progress_map: Arc<RwLock<HashMap<Uuid, CrawlProgressInfo>>>,
 }
 
+impl Default for ProgressTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProgressTracker {
     pub fn new() -> Self {
         Self {
@@ -190,6 +196,7 @@ impl ProgressTracker {
             .collect()
     }
 
+    #[allow(dead_code)]
     pub async fn cleanup_old_progress(&self, hours: i64) {
         let cutoff = Utc::now() - chrono::Duration::hours(hours);
         let mut map = self.progress_map.write().await;
@@ -198,7 +205,7 @@ impl ProgressTracker {
             match progress.status {
                 CrawlStatus::Completed | CrawlStatus::Failed | CrawlStatus::Cancelled => progress
                     .completed_at
-                    .map_or(true, |completed| completed > cutoff),
+                    .is_none_or(|completed| completed > cutoff),
                 _ => true, // Keep all active crawls
             }
         });
@@ -213,6 +220,7 @@ impl ProgressTracker {
     }
 
     // Remove completed crawl from tracking
+    #[allow(dead_code)]
     pub async fn remove_progress(&self, repository_id: Uuid) {
         let mut map = self.progress_map.write().await;
         map.remove(&repository_id);

@@ -57,6 +57,7 @@ impl RepositoryRepository {
         Ok(repositories)
     }
 
+    #[allow(dead_code)]
     pub async fn update_last_crawled(&self, id: Uuid) -> Result<()> {
         sqlx::query(
             "UPDATE repositories SET last_crawled = NOW(), updated_at = NOW() WHERE id = $1",
@@ -109,6 +110,7 @@ impl RepositoryRepository {
         self.get_repository(id).await
     }
 
+    #[allow(dead_code)]
     pub async fn update_schedule(
         &self,
         id: Uuid,
@@ -131,6 +133,7 @@ impl RepositoryRepository {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn find_scheduled_repositories(&self) -> Result<Vec<Repository>> {
         let repositories = sqlx::query_as::<_, Repository>(
             "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes FROM repositories WHERE auto_crawl_enabled = true ORDER BY next_crawl_at ASC"

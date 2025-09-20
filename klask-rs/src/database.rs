@@ -42,14 +42,15 @@ impl Database {
 }
 
 // Repository trait for database operations
+#[allow(dead_code)]
 pub trait Repository {
     type Entity;
     type CreateData;
     type UpdateData;
 
-    async fn create(&self, data: Self::CreateData) -> Result<Self::Entity>;
-    async fn find_by_id(&self, id: uuid::Uuid) -> Result<Option<Self::Entity>>;
-    async fn update(&self, id: uuid::Uuid, data: Self::UpdateData) -> Result<Self::Entity>;
-    async fn delete(&self, id: uuid::Uuid) -> Result<()>;
-    async fn list(&self, limit: Option<u32>, offset: Option<u32>) -> Result<Vec<Self::Entity>>;
+    fn create(&self, data: Self::CreateData) -> impl std::future::Future<Output = Result<Self::Entity>> + Send;
+    fn find_by_id(&self, id: uuid::Uuid) -> impl std::future::Future<Output = Result<Option<Self::Entity>>> + Send;
+    fn update(&self, id: uuid::Uuid, data: Self::UpdateData) -> impl std::future::Future<Output = Result<Self::Entity>> + Send;
+    fn delete(&self, id: uuid::Uuid) -> impl std::future::Future<Output = Result<()>> + Send;
+    fn list(&self, limit: Option<u32>, offset: Option<u32>) -> impl std::future::Future<Output = Result<Vec<Self::Entity>>> + Send;
 }
