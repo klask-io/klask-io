@@ -1,9 +1,9 @@
 use anyhow::Result;
-use klask_rs::database::create_test_database;
-use klask_rs::repositories::test_user_repository::TestUserRepository;
-use klask_rs::models::{User, UserRole};
-use uuid::Uuid;
 use chrono::Utc;
+use klask_rs::database::create_test_database;
+use klask_rs::models::{User, UserRole};
+use klask_rs::repositories::test_user_repository::TestUserRepository;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn test_sqlite_user_repository() -> Result<()> {
@@ -107,7 +107,11 @@ async fn test_sqlite_concurrent_access() -> Result<()> {
                 username: format!("user_{}", i),
                 email: format!("user_{}@example.com", i),
                 password_hash: format!("hash_{}", i),
-                role: if i % 2 == 0 { UserRole::Admin } else { UserRole::User },
+                role: if i % 2 == 0 {
+                    UserRole::Admin
+                } else {
+                    UserRole::User
+                },
                 active: true,
                 created_at: Utc::now(),
                 updated_at: Utc::now(),

@@ -17,13 +17,13 @@ use klask_rs::{
 use serde_json::Value;
 use sqlx::PgPool;
 use std::{collections::HashMap, sync::Arc, time::Instant};
-use tokio::sync::{RwLock, Mutex};
+use tokio::sync::{Mutex, RwLock};
 use tokio::test;
 use uuid::Uuid;
 
 use sqlx::sqlite::SqlitePool;
-use tokio::sync::Mutex as AsyncMutex;
 use std::sync::LazyLock;
+use tokio::sync::Mutex as AsyncMutex;
 
 // Global mutex to ensure tests don't interfere with each other
 static TEST_MUTEX: LazyLock<Arc<AsyncMutex<()>>> = LazyLock::new(|| Arc::new(AsyncMutex::new(())));
@@ -124,7 +124,7 @@ async fn setup_sqlite_schema(pool: &SqlitePool) -> Result<()> {
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
-        "#
+        "#,
     )
     .execute(pool)
     .await?;
@@ -151,7 +151,7 @@ async fn setup_sqlite_schema(pool: &SqlitePool) -> Result<()> {
             crawl_frequency_hours INTEGER,
             max_crawl_duration_minutes INTEGER
         )
-        "#
+        "#,
     )
     .execute(pool)
     .await?;
@@ -209,7 +209,8 @@ async fn test_complete_admin_workflow() -> Result<()> {
     let ctx = setup_integration_test().await?;
 
     // 1. Get initial dashboard data (should be mostly empty)
-    let dashboard_response = ctx.server
+    let dashboard_response = ctx
+        .server
         .get("/admin/dashboard")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -225,7 +226,8 @@ async fn test_complete_admin_workflow() -> Result<()> {
     assert_eq!(initial_dashboard["content"]["total_files"], 0); // Files no longer in DB
 
     // 2. Seed the database
-    let seed_response = ctx.server
+    let seed_response = ctx
+        .server
         .post("/admin/seed")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -237,7 +239,8 @@ async fn test_complete_admin_workflow() -> Result<()> {
     // Files are no longer tracked in database
 
     // 3. Get updated dashboard data
-    let updated_dashboard_response = ctx.server
+    let updated_dashboard_response = ctx
+        .server
         .get("/admin/dashboard")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -252,7 +255,8 @@ async fn test_complete_admin_workflow() -> Result<()> {
     assert_eq!(updated_dashboard["content"]["total_files"], 0); // Files not tracked in database anymore
 
     // 4. Verify system stats
-    let system_response = ctx.server
+    let system_response = ctx
+        .server
         .get("/admin/system")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -264,7 +268,8 @@ async fn test_complete_admin_workflow() -> Result<()> {
     assert!(system_stats["version"].as_str().unwrap().len() > 0);
 
     // 5. Check search stats (index should be empty initially)
-    let search_response = ctx.server
+    let search_response = ctx
+        .server
         .get("/admin/search/stats")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -275,7 +280,8 @@ async fn test_complete_admin_workflow() -> Result<()> {
     assert!(search_stats["index_size_mb"].as_f64().unwrap() >= 0.0);
 
     // 6. Clear seed data
-    let clear_response = ctx.server
+    let clear_response = ctx
+        .server
         .post("/admin/seed/clear")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -287,7 +293,8 @@ async fn test_complete_admin_workflow() -> Result<()> {
     // Files no longer tracked in database
 
     // 7. Verify dashboard is back to initial state (minus admin user)
-    let final_dashboard_response = ctx.server
+    let final_dashboard_response = ctx
+        .server
         .get("/admin/dashboard")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -309,14 +316,16 @@ async fn test_repository_stats_integration() -> Result<()> {
     let ctx = setup_integration_test().await?;
 
     // Seed data first
-    let seed_response = ctx.server
+    let seed_response = ctx
+        .server
         .post("/admin/seed")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
     assert_eq!(seed_response.status_code(), StatusCode::OK);
 
     // Get repository stats
-    let repo_stats_response = ctx.server
+    let repo_stats_response = ctx
+        .server
         .get("/admin/repositories/stats")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -340,14 +349,16 @@ async fn test_content_stats_integration() -> Result<()> {
     let ctx = setup_integration_test().await?;
 
     // Seed data first
-    let seed_response = ctx.server
+    let seed_response = ctx
+        .server
         .post("/admin/seed")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
     assert_eq!(seed_response.status_code(), StatusCode::OK);
 
     // Get content stats
-    let content_stats_response = ctx.server
+    let content_stats_response = ctx
+        .server
         .get("/admin/content/stats")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -376,14 +387,16 @@ async fn test_user_stats_integration() -> Result<()> {
     let ctx = setup_integration_test().await?;
 
     // Seed data first
-    let seed_response = ctx.server
+    let seed_response = ctx
+        .server
         .post("/admin/seed")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
     assert_eq!(seed_response.status_code(), StatusCode::OK);
 
     // Get user stats
-    let user_stats_response = ctx.server
+    let user_stats_response = ctx
+        .server
         .get("/admin/users/stats")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -404,14 +417,16 @@ async fn test_recent_activity_integration() -> Result<()> {
     let ctx = setup_integration_test().await?;
 
     // Seed data first
-    let seed_response = ctx.server
+    let seed_response = ctx
+        .server
         .post("/admin/seed")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
     assert_eq!(seed_response.status_code(), StatusCode::OK);
 
     // Get recent activity
-    let activity_response = ctx.server
+    let activity_response = ctx
+        .server
         .get("/admin/activity/recent")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -446,7 +461,8 @@ async fn test_search_indexing_integration() -> Result<()> {
     let ctx = setup_integration_test().await?;
 
     // Seed data first
-    let seed_response = ctx.server
+    let seed_response = ctx
+        .server
         .post("/admin/seed")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -476,7 +492,8 @@ async fn test_search_indexing_integration() -> Result<()> {
     ctx.app_state.search_service.commit_writer()?;
 
     // Get updated search stats
-    let search_stats_response = ctx.server
+    let search_stats_response = ctx
+        .server
         .get("/admin/search/stats")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -496,7 +513,8 @@ async fn test_error_handling_integration() -> Result<()> {
     let ctx = setup_integration_test().await?;
 
     // Test accessing non-existent endpoint
-    let invalid_response = ctx.server
+    let invalid_response = ctx
+        .server
         .get("/admin/nonexistent")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;
@@ -531,19 +549,23 @@ async fn test_concurrent_admin_operations() -> Result<()> {
     let ctx = setup_integration_test().await?;
 
     // Make multiple concurrent requests
-    let dashboard_future = ctx.server
-        .get("/admin/dashboard")
-        .add_header("Authorization", &format!("Bearer {}", ctx.admin_token.clone()));
+    let dashboard_future = ctx.server.get("/admin/dashboard").add_header(
+        "Authorization",
+        &format!("Bearer {}", ctx.admin_token.clone()),
+    );
 
-    let system_future = ctx.server
-        .get("/admin/system")
-        .add_header("Authorization", &format!("Bearer {}", ctx.admin_token.clone()));
+    let system_future = ctx.server.get("/admin/system").add_header(
+        "Authorization",
+        &format!("Bearer {}", ctx.admin_token.clone()),
+    );
 
-    let stats_future = ctx.server
-        .get("/admin/seed/stats")
-        .add_header("Authorization", &format!("Bearer {}", ctx.admin_token.clone()));
+    let stats_future = ctx.server.get("/admin/seed/stats").add_header(
+        "Authorization",
+        &format!("Bearer {}", ctx.admin_token.clone()),
+    );
 
-    let users_future = ctx.server
+    let users_future = ctx
+        .server
         .get("/admin/users/stats")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token));
 
@@ -565,7 +587,8 @@ async fn test_seed_operations_idempotency() -> Result<()> {
 
     // Seed data multiple times (test idempotency - should succeed each time)
     for i in 0..3 {
-        let seed_response = ctx.server
+        let seed_response = ctx
+            .server
             .post("/admin/seed")
             .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
             .await;
@@ -584,7 +607,8 @@ async fn test_seed_operations_idempotency() -> Result<()> {
     }
 
     // Final stats should still be consistent
-    let final_stats_response = ctx.server
+    let final_stats_response = ctx
+        .server
         .get("/admin/seed/stats")
         .add_header("Authorization", &format!("Bearer {}", ctx.admin_token))
         .await;

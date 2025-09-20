@@ -52,11 +52,11 @@ export const useRepositoryStats = () => {
 };
 
 
-// Get content stats
+// Get content stats (via search stats)
 export const useContentStats = () => {
   return useQuery({
     queryKey: ['admin', 'content', 'stats'],
-    queryFn: () => apiClient.getContentStats(),
+    queryFn: () => apiClient.getAdminSearchStats(),
     staleTime: 60000, // 1 minute
     retry: false, // Admin endpoints should fail fast for immediate feedback
   });

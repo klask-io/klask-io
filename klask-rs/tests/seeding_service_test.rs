@@ -76,8 +76,14 @@ async fn test_seed_all_creates_data() -> Result<()> {
     );
 
     // Verify reasonable counts (allowing for test isolation issues)
-    assert!(stats.users_created >= 4, "Should have at least 4 seed users");
-    assert!(stats.repositories_created >= 5, "Should have at least 5 seed repositories");
+    assert!(
+        stats.users_created >= 4,
+        "Should have at least 4 seed users"
+    );
+    assert!(
+        stats.repositories_created >= 5,
+        "Should have at least 5 seed repositories"
+    );
 
     Ok(())
 }
@@ -97,8 +103,14 @@ async fn test_seed_all_idempotent() -> Result<()> {
     let stats_second = seeding_service.get_stats().await?;
 
     // Seeding should be idempotent (verify service doesn't crash when run twice)
-    assert!(stats_first.users_created > 0, "Should have users after first seeding");
-    assert!(stats_second.users_created > 0, "Should have users after second seeding");
+    assert!(
+        stats_first.users_created > 0,
+        "Should have users after first seeding"
+    );
+    assert!(
+        stats_second.users_created > 0,
+        "Should have users after second seeding"
+    );
     // Don't check exact equality as seed data might be designed differently
 
     Ok(())

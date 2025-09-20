@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum_test::TestServer;
 use klask_rs::{
     api,
-    auth::{extractors::AppState, jwt::JwtService, claims::TokenClaims},
+    auth::{claims::TokenClaims, extractors::AppState, jwt::JwtService},
     config::AppConfig,
     database::Database,
     models::{Repository, RepositoryType, User, UserRole},
@@ -16,13 +16,13 @@ use klask_rs::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::Instant;
 use tempfile::TempDir;
-use tokio::sync::{RwLock, Mutex as AsyncMutex};
+use tokio::sync::{Mutex as AsyncMutex, RwLock};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 use uuid::Uuid;
-use std::sync::LazyLock;
 
 // Global mutex to ensure tests don't interfere with each other
 static TEST_MUTEX: LazyLock<Arc<AsyncMutex<()>>> = LazyLock::new(|| Arc::new(AsyncMutex::new(())));
@@ -215,8 +215,8 @@ async fn test_prevent_concurrent_crawl_same_repository() -> Result<()> {
     let response_text: String = response.text();
     // Either has a descriptive message or is empty (both are acceptable for CONFLICT)
     assert!(
-        response_text.is_empty() ||
-        response_text.to_lowercase().contains("already")
+        response_text.is_empty()
+            || response_text.to_lowercase().contains("already")
             || response_text.to_lowercase().contains("crawling")
             || response_text.to_lowercase().contains("progress")
             || response_text.to_lowercase().contains("conflict")

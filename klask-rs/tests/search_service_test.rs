@@ -1,15 +1,16 @@
 #[cfg(test)]
 mod search_service_tests {
     use klask_rs::services::search::{SearchQuery, SearchResult, SearchService};
-    use tempfile::TempDir;
-    use uuid::Uuid;
     use std::sync::LazyLock;
+    use tempfile::TempDir;
     use tokio::sync::Mutex as AsyncMutex;
+    use uuid::Uuid;
 
     // Global mutex to ensure tests don't interfere with each other
     static TEST_MUTEX: LazyLock<AsyncMutex<()>> = LazyLock::new(|| AsyncMutex::new(()));
 
-    async fn create_test_search_service() -> (SearchService, TempDir, tokio::sync::MutexGuard<'static, ()>) {
+    async fn create_test_search_service(
+    ) -> (SearchService, TempDir, tokio::sync::MutexGuard<'static, ()>) {
         let _guard = TEST_MUTEX.lock().await;
         let temp_dir = TempDir::new().unwrap();
         let test_id = uuid::Uuid::new_v4().to_string()[..8].to_string();
@@ -469,7 +470,10 @@ mod search_service_tests {
 
         // Verify file exists by checking document count
         let doc_count_before = service.get_document_count().unwrap();
-        assert_eq!(doc_count_before, 1, "Should have one document before deletion");
+        assert_eq!(
+            doc_count_before, 1,
+            "Should have one document before deletion"
+        );
 
         // Delete the file
         service.delete_file(file_id).await.unwrap();

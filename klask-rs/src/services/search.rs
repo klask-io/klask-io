@@ -118,7 +118,7 @@ impl SearchService {
         schema_builder.add_text_field("file_name", TEXT | STORED);
         schema_builder.add_text_field("file_path", TEXT | STORED);
 
-        // Content field with custom analyzer for code search
+        // Content field cargo clippy -- -D warningswith custom analyzer for code search
         schema_builder.add_text_field("content", TEXT | STORED);
 
         // Filter fields
@@ -473,13 +473,6 @@ impl SearchService {
         Ok((highlighted_html, line_number))
     }
 
-    pub async fn delete_file(&self, file_id: Uuid) -> Result<()> {
-        let writer = self.writer.write().await;
-        let term = tantivy::Term::from_field_text(self.fields.file_id, &file_id.to_string());
-        writer.delete_term(term);
-        Ok(())
-    }
-
     #[allow(dead_code)]
     pub async fn clear_index(&self) -> Result<()> {
         let mut writer = self.writer.write().await;
@@ -789,62 +782,6 @@ impl SearchService {
             projects,
             versions,
             extensions,
-        })
-    }
-
-    /// Legacy method for backward compatibility with tests - maps to index_file
-    #[allow(dead_code)]
-    pub fn add_document(
-        &self,
-        file_id: &str,
-        content: &str,
-        file_name: &str,
-        extension: &str,
-        _size: i64, // Not used in current implementation
-        project: &str,
-        version: &str,
-    ) -> Result<()> {
-        let uuid = if file_id.len() == 36 && file_id.contains('-') {
-            Uuid::parse_str(file_id)?
-        } else {
-            // Generate a deterministic UUID from the file_id string using a hash
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-
-            let mut hasher = DefaultHasher::new();
-            file_id.hash(&mut hasher);
-            let hash = hasher.finish();
-
-            // Create a UUID from the hash (not cryptographically secure but deterministic for tests)
-            let bytes = hash.to_be_bytes();
-            let mut uuid_bytes = [0u8; 16];
-            uuid_bytes[0..8].copy_from_slice(&bytes);
-            uuid_bytes[8..16].copy_from_slice(&bytes); // Repeat the hash to fill 16 bytes
-
-            Uuid::from_bytes(uuid_bytes)
-        };
-
-        let file_data = FileData {
-            file_id: uuid,
-            file_name,
-            file_path: file_name, // Use file_name as path if not provided separately
-            content,
-            project,
-            version,
-            extension,
-        };
-
-        // This is sync, so we need to use a runtime block
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async { self.index_file(file_data).await })
-        })
-    }
-
-    /// Legacy method for backward compatibility with tests - maps to commit
-    #[allow(dead_code)]
-    pub fn commit_writer(&self) -> Result<()> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async { self.commit().await })
         })
     }
 }

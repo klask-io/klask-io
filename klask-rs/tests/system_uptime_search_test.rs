@@ -9,16 +9,21 @@ use klask_rs::{
     },
 };
 use sqlx::PgPool;
-use std::{collections::HashMap, sync::{Arc, LazyLock}, time::Instant};
+use std::{
+    collections::HashMap,
+    sync::{Arc, LazyLock},
+    time::Instant,
+};
 use tempfile::TempDir;
-use tokio::sync::{RwLock, Mutex as AsyncMutex};
+use tokio::sync::{Mutex as AsyncMutex, RwLock};
 use uuid::Uuid;
 
 // Global mutex to ensure tests don't interfere with each other
 static TEST_MUTEX: LazyLock<Arc<AsyncMutex<()>>> = LazyLock::new(|| Arc::new(AsyncMutex::new(())));
 
 // Helper function to create test app state
-async fn setup_test_app_state() -> Result<(AppState, TempDir, tokio::sync::MutexGuard<'static, ()>)> {
+async fn setup_test_app_state() -> Result<(AppState, TempDir, tokio::sync::MutexGuard<'static, ()>)>
+{
     // Lock to ensure sequential execution
     let guard = TEST_MUTEX.lock().await;
 

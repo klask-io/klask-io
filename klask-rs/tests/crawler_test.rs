@@ -10,11 +10,11 @@ use klask_rs::{
     },
 };
 use std::sync::Arc;
+use std::sync::LazyLock;
 use tempfile::TempDir;
+use tokio::sync::Mutex as AsyncMutex;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-use std::sync::LazyLock;
-use tokio::sync::Mutex as AsyncMutex;
 
 // Global mutex to ensure tests don't interfere with each other
 static TEST_MUTEX: LazyLock<Arc<AsyncMutex<()>>> = LazyLock::new(|| Arc::new(AsyncMutex::new(())));

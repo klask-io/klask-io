@@ -10,11 +10,11 @@ use klask_rs::{
     },
 };
 use std::sync::Arc;
+use std::sync::LazyLock;
 use tempfile::TempDir;
+use tokio::sync::Mutex as AsyncMutex;
 use tokio::time::{sleep, Duration};
 use uuid::Uuid;
-use std::sync::LazyLock;
-use tokio::sync::Mutex as AsyncMutex;
 
 // Global mutex to ensure tests don't interfere with each other
 static TEST_MUTEX: LazyLock<Arc<AsyncMutex<()>>> = LazyLock::new(|| Arc::new(AsyncMutex::new(())));
@@ -277,7 +277,10 @@ async fn test_cancel_crawl_functionality() -> Result<()> {
     let progress = setup.progress_tracker.get_progress(repository.id).await;
     if let Some(progress) = progress {
         eprintln!("Progress status: {:?}", progress.status);
-        assert!(matches!(progress.status, CrawlStatus::Cancelled | CrawlStatus::Failed | CrawlStatus::Completed));
+        assert!(matches!(
+            progress.status,
+            CrawlStatus::Cancelled | CrawlStatus::Failed | CrawlStatus::Completed
+        ));
     } else {
         eprintln!("No progress found - this is also acceptable after cancellation");
     }
@@ -411,7 +414,10 @@ async fn test_cancellation_during_different_phases() -> Result<()> {
     let progress_after = setup.progress_tracker.get_progress(repository.id).await;
     if let Some(progress) = progress_after {
         eprintln!("Progress status after cancellation: {:?}", progress.status);
-        assert!(matches!(progress.status, CrawlStatus::Cancelled | CrawlStatus::Failed | CrawlStatus::Completed));
+        assert!(matches!(
+            progress.status,
+            CrawlStatus::Cancelled | CrawlStatus::Failed | CrawlStatus::Completed
+        ));
     } else {
         eprintln!("No progress found after cancellation - this is also acceptable");
     }

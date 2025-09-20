@@ -493,7 +493,11 @@ async fn delete_repository(
                 Ok(_) => {
                     // Clean up search index for this repository
                     // Since files are only in Tantivy now, we can delete by project name
-                    if let Err(e) = app_state.search_service.delete_project_documents(&repository.name).await {
+                    if let Err(e) = app_state
+                        .search_service
+                        .delete_project_documents(&repository.name)
+                        .await
+                    {
                         tracing::error!(
                             "Failed to delete repository {} files from search index: {}",
                             repository.name,
@@ -503,7 +507,10 @@ async fn delete_repository(
 
                     // Commit the search index changes
                     if let Err(e) = app_state.search_service.commit().await {
-                        tracing::error!("Failed to commit search index changes after repository deletion: {}", e);
+                        tracing::error!(
+                            "Failed to commit search index changes after repository deletion: {}",
+                            e
+                        );
                     }
 
                     tracing::info!(

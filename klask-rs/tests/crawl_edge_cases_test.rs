@@ -145,7 +145,12 @@ mod crawl_edge_cases_tests {
             // verify the system doesn't completely break down under memory pressure
             let active = tracker.get_all_active_progress().await;
             // Just ensure we don't have a runaway situation with too many active items
-            assert!(active.len() < 1000, "Batch {}: too many active items, got {}", batch, active.len());
+            assert!(
+                active.len() < 1000,
+                "Batch {}: too many active items, got {}",
+                batch,
+                active.len()
+            );
         }
     }
 

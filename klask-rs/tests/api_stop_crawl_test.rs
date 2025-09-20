@@ -6,10 +6,10 @@ use axum::{
 use axum_test::TestServer;
 use klask_rs::{
     api,
-    auth::{extractors::AppState, jwt::JwtService, claims::TokenClaims},
+    auth::{claims::TokenClaims, extractors::AppState, jwt::JwtService},
     config::AppConfig,
     database::Database,
-    models::{User, UserRole, RepositoryType},
+    models::{RepositoryType, User, UserRole},
     services::{
         crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker,
         SearchService,
@@ -19,13 +19,13 @@ use serde_json::{json, Value};
 use sqlx::{Pool, Postgres};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::Instant;
 use tempfile::TempDir;
-use tokio::sync::RwLock;
 use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
-use std::sync::LazyLock;
 
 // Global mutex to ensure tests don't interfere with each other
 static TEST_MUTEX: LazyLock<Arc<AsyncMutex<()>>> = LazyLock::new(|| Arc::new(AsyncMutex::new(())));
