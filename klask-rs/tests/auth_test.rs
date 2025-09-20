@@ -1,14 +1,18 @@
 use axum::http::StatusCode;
 use axum_test::TestServer;
-use klask_rs::services::{crawler::CrawlerService, progress::ProgressTracker, SearchService};
+use klask_rs::services::{crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker, SearchService};
 use klask_rs::{
     api,
     auth::{extractors::AppState, jwt::JwtService},
 };
 use klask_rs::{config::AppConfig, Database};
 use serde_json::json;
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tempfile::TempDir;
+use tokio::sync::RwLock;
+use uuid::Uuid;
 
 // Create test app state with all required services
 async fn create_test_app_state() -> AppState {
@@ -51,12 +55,16 @@ async fn create_test_app_state() -> AppState {
     // Create progress tracker
     let progress_tracker = Arc::new(ProgressTracker::new());
 
+    // Create encryption service for tests
+    let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+
     // Create crawler service
     let crawler_service = Arc::new(
         CrawlerService::new(
             database.pool().clone(),
             shared_search_service.clone(),
             progress_tracker.clone(),
+            encryption_service,
         )
         .expect("Failed to create crawler service"),
     );
@@ -64,10 +72,13 @@ async fn create_test_app_state() -> AppState {
     AppState {
         database,
         search_service: shared_search_service,
-        jwt_service,
-        config,
         crawler_service,
         progress_tracker,
+        scheduler_service: None,
+        jwt_service,
+        config,
+        crawl_tasks: Arc::new(RwLock::new(HashMap::new())),
+        startup_time: Instant::now(),
     }
 }
 

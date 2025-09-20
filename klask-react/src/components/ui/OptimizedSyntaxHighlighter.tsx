@@ -7,13 +7,14 @@ const SyntaxHighlighter = lazy(() => import('react-syntax-highlighter').then(mod
 })));
 
 // Lazy load styles
-const loadStyles = async (styleName: string) => {
+const loadStyles = async (styleName: 'oneLight' | 'oneDark' | 'vscDarkPlus') => {
   try {
+    const styles = await import('react-syntax-highlighter/dist/esm/styles/prism');
     if (styleName === 'oneDark') {
-      const styles = await import('react-syntax-highlighter/dist/esm/styles/prism');
       return styles.oneDark;
+    } else if (styleName === 'vscDarkPlus') {
+      return styles.vscDarkPlus;
     } else {
-      const styles = await import('react-syntax-highlighter/dist/esm/styles/prism');
       return styles.oneLight || styles.prism;
     }
   } catch (error) {
@@ -26,12 +27,13 @@ const loadStyles = async (styleName: string) => {
 interface OptimizedSyntaxHighlighterProps {
   children: string;
   language: string;
-  style?: string;
+  style?: 'oneLight' | 'oneDark' | 'vscDarkPlus';
   showLineNumbers?: boolean;
   wrapLines?: boolean;
   wrapLongLines?: boolean;
   customStyle?: React.CSSProperties;
   lineNumberStyle?: React.CSSProperties;
+  className?: string;
 }
 
 const OptimizedSyntaxHighlighter: React.FC<OptimizedSyntaxHighlighterProps> = ({
@@ -42,7 +44,8 @@ const OptimizedSyntaxHighlighter: React.FC<OptimizedSyntaxHighlighterProps> = ({
   wrapLines = false,
   wrapLongLines = false,
   customStyle = {},
-  lineNumberStyle = {}
+  lineNumberStyle = {},
+  className = ''
 }) => {
   const [loadedStyle, setLoadedStyle] = React.useState<any>(null);
 
@@ -84,6 +87,7 @@ const OptimizedSyntaxHighlighter: React.FC<OptimizedSyntaxHighlighterProps> = ({
         wrapLongLines={wrapLongLines}
         customStyle={customStyle}
         lineNumberStyle={lineNumberStyle}
+        className={className}
       >
         {children}
       </SyntaxHighlighter>

@@ -24,17 +24,16 @@ mod search_service_tests {
         let (service, _temp_dir) = create_test_search_service().await;
 
         let file_id = Uuid::new_v4();
-        let result = service
-            .index_file(
-                file_id,
-                "main.rs",
-                "src/main.rs",
-                "fn main() { println!(\"Hello, world!\"); }",
-                "test-project",
-                "1.0.0",
-                "rs",
-            )
-            .await;
+        let file_data = klask_rs::services::search::FileData {
+            file_id,
+            file_name: "main.rs",
+            file_path: "src/main.rs",
+            content: "fn main() { println!(\"Hello, world!\"); }",
+            project: "test-project",
+            version: "1.0.0",
+            extension: "rs",
+        };
+        let result = service.upsert_file(file_data).await;
 
         assert!(result.is_ok());
 
@@ -53,34 +52,30 @@ mod search_service_tests {
         let file_id = Uuid::new_v4();
 
         // Index initial version
-        service
-            .upsert_file(
-                file_id,
-                "main.rs",
-                "src/main.rs",
-                "fn main() { println!(\"Hello, world!\"); }",
-                "test-project",
-                "1.0.0",
-                "rs",
-            )
-            .await
-            .unwrap();
+        let file_data1 = klask_rs::services::search::FileData {
+            file_id,
+            file_name: "main.rs",
+            file_path: "src/main.rs",
+            content: "fn main() { println!(\"Hello, world!\"); }",
+            project: "test-project",
+            version: "1.0.0",
+            extension: "rs",
+        };
+        service.upsert_file(file_data1).await.unwrap();
 
         service.commit().await.unwrap();
 
         // Update with new content
-        service
-            .upsert_file(
-                file_id,
-                "main.rs",
-                "src/main.rs",
-                "fn main() { println!(\"Hello, Rust!\"); }",
-                "test-project",
-                "1.0.1",
-                "rs",
-            )
-            .await
-            .unwrap();
+        let file_data2 = klask_rs::services::search::FileData {
+            file_id,
+            file_name: "main.rs",
+            file_path: "src/main.rs",
+            content: "fn main() { println!(\"Hello, Rust!\"); }",
+            project: "test-project",
+            version: "1.0.1",
+            extension: "rs",
+        };
+        service.upsert_file(file_data2).await.unwrap();
 
         service.commit().await.unwrap();
 
@@ -124,10 +119,16 @@ mod search_service_tests {
         ];
 
         for (id, name, path, content, ext) in files {
-            service
-                .upsert_file(id, name, path, content, "test-project", "1.0.0", ext)
-                .await
-                .unwrap();
+            let file_data = klask_rs::services::search::FileData {
+                file_id: id,
+                file_name: name,
+                file_path: path,
+                content,
+                project: "test-project",
+                version: "1.0.0",
+                extension: ext,
+            };
+            service.upsert_file(file_data).await.unwrap();
         }
 
         service.commit().await.unwrap();
@@ -140,6 +141,7 @@ mod search_service_tests {
             extension_filter: None,
             limit: 10,
             offset: 0,
+            include_facets: false,
         };
 
         let results = service.search(query).await.unwrap();
@@ -199,10 +201,16 @@ mod search_service_tests {
         ];
 
         for (id, name, path, content, project, version, ext) in files {
-            service
-                .upsert_file(id, name, path, content, project, version, ext)
-                .await
-                .unwrap();
+            let file_data = klask_rs::services::search::FileData {
+                file_id: id,
+                file_name: name,
+                file_path: path,
+                content,
+                project,
+                version,
+                extension: ext,
+            };
+            service.upsert_file(file_data).await.unwrap();
         }
 
         service.commit().await.unwrap();
@@ -215,6 +223,7 @@ mod search_service_tests {
             extension_filter: None,
             limit: 10,
             offset: 0,
+            include_facets: false,
         };
 
         let project_results = service.search(project_query).await.unwrap();
@@ -231,6 +240,7 @@ mod search_service_tests {
             extension_filter: Some("rs".to_string()),
             limit: 10,
             offset: 0,
+            include_facets: false,
         };
 
         let ext_results = service.search(ext_query).await.unwrap();
@@ -247,6 +257,7 @@ mod search_service_tests {
             extension_filter: None,
             limit: 10,
             offset: 0,
+            include_facets: false,
         };
 
         let version_results = service.search(version_query).await.unwrap();
@@ -264,18 +275,19 @@ mod search_service_tests {
         let file_count = 25;
         for i in 0..file_count {
             let file_id = Uuid::new_v4();
-            service
-                .upsert_file(
-                    file_id,
-                    &format!("file{}.rs", i),
-                    &format!("src/file{}.rs", i),
-                    &format!("fn function_{}() {{ println!(\"search_term\"); }}", i),
-                    "test-project",
-                    "1.0.0",
-                    "rs",
-                )
-                .await
-                .unwrap();
+            let file_name = format!("file{}.rs", i);
+            let file_path = format!("src/file{}.rs", i);
+            let content = format!("fn function_{}() {{ println!(\"search_term\"); }}", i);
+            let file_data = klask_rs::services::search::FileData {
+                file_id,
+                file_name: &file_name,
+                file_path: &file_path,
+                content: &content,
+                project: "test-project",
+                version: "1.0.0",
+                extension: "rs",
+            };
+            service.upsert_file(file_data).await.unwrap();
         }
 
         service.commit().await.unwrap();
@@ -288,6 +300,7 @@ mod search_service_tests {
             extension_filter: None,
             limit: 10,
             offset: 0,
+            include_facets: false,
         };
 
         let first_results = service.search(first_page).await.unwrap();
@@ -302,6 +315,7 @@ mod search_service_tests {
             extension_filter: None,
             limit: 10,
             offset: 10,
+            include_facets: false,
         };
 
         let second_results = service.search(second_page).await.unwrap();
@@ -316,6 +330,7 @@ mod search_service_tests {
             extension_filter: None,
             limit: 10,
             offset: 20,
+            include_facets: false,
         };
 
         let last_results = service.search(last_page).await.unwrap();
@@ -328,18 +343,16 @@ mod search_service_tests {
         let (service, _temp_dir) = create_test_search_service().await;
 
         let file_id = Uuid::new_v4();
-        service
-            .upsert_file(
-                file_id,
-                "test.rs",
-                "src/test.rs",
-                "fn test() { println!(\"Test function\"); }",
-                "test-project",
-                "1.0.0",
-                "rs",
-            )
-            .await
-            .unwrap();
+        let file_data = klask_rs::services::search::FileData {
+            file_id,
+            file_name: "test.rs",
+            file_path: "src/test.rs",
+            content: "fn test() { println!(\"Test function\"); }",
+            project: "test-project",
+            version: "1.0.0",
+            extension: "rs",
+        };
+        service.upsert_file(file_data).await.unwrap();
 
         service.commit().await.unwrap();
 
@@ -351,6 +364,7 @@ mod search_service_tests {
             extension_filter: None,
             limit: 1,
             offset: 0,
+            include_facets: false,
         };
 
         let search_results = service.search(query).await.unwrap();
@@ -375,18 +389,16 @@ mod search_service_tests {
         let file_id = Uuid::new_v4();
         let content = "fn example() { /* example function */ }";
 
-        service
-            .upsert_file(
-                file_id,
-                "example.rs",
-                "src/example.rs",
-                content,
-                "test-project",
-                "1.0.0",
-                "rs",
-            )
-            .await
-            .unwrap();
+        let file_data = klask_rs::services::search::FileData {
+            file_id,
+            file_name: "example.rs",
+            file_path: "src/example.rs",
+            content,
+            project: "test-project",
+            version: "1.0.0",
+            extension: "rs",
+        };
+        service.upsert_file(file_data).await.unwrap();
 
         service.commit().await.unwrap();
 
@@ -416,18 +428,16 @@ mod search_service_tests {
         let file_id = Uuid::new_v4();
 
         // Index a file
-        service
-            .upsert_file(
-                file_id,
-                "delete_me.rs",
-                "src/delete_me.rs",
-                "fn to_be_deleted() { }",
-                "test-project",
-                "1.0.0",
-                "rs",
-            )
-            .await
-            .unwrap();
+        let file_data = klask_rs::services::search::FileData {
+            file_id,
+            file_name: "delete_me.rs",
+            file_path: "src/delete_me.rs",
+            content: "fn to_be_deleted() { }",
+            project: "test-project",
+            version: "1.0.0",
+            extension: "rs",
+        };
+        service.upsert_file(file_data).await.unwrap();
 
         service.commit().await.unwrap();
 
@@ -451,18 +461,19 @@ mod search_service_tests {
         // Index multiple files
         for i in 0..5 {
             let file_id = Uuid::new_v4();
-            service
-                .upsert_file(
-                    file_id,
-                    &format!("file{}.rs", i),
-                    &format!("src/file{}.rs", i),
-                    &format!("fn function_{}() {{ }}", i),
-                    "test-project",
-                    "1.0.0",
-                    "rs",
-                )
-                .await
-                .unwrap();
+            let file_name = format!("file{}.rs", i);
+            let file_path = format!("src/file{}.rs", i);
+            let content = format!("fn function_{}() {{ }}", i);
+            let file_data = klask_rs::services::search::FileData {
+                file_id,
+                file_name: &file_name,
+                file_path: &file_path,
+                content: &content,
+                project: "test-project",
+                version: "1.0.0",
+                extension: "rs",
+            };
+            service.upsert_file(file_data).await.unwrap();
         }
 
         service.commit().await.unwrap();
@@ -492,18 +503,16 @@ mod search_service_tests {
             }
         "#;
 
-        service
-            .upsert_file(
-                file_id,
-                "special.rs",
-                "src/special.rs",
-                content,
-                "test-project",
-                "1.0.0",
-                "rs",
-            )
-            .await
-            .unwrap();
+        let file_data = klask_rs::services::search::FileData {
+            file_id,
+            file_name: "special.rs",
+            file_path: "src/special.rs",
+            content,
+            project: "test-project",
+            version: "1.0.0",
+            extension: "rs",
+        };
+        service.upsert_file(file_data).await.unwrap();
 
         service.commit().await.unwrap();
 
@@ -526,6 +535,7 @@ mod search_service_tests {
                 extension_filter: None,
                 limit: 10,
                 offset: 0,
+                include_facets: false,
             };
 
             let results = service.search(query).await.unwrap();
@@ -548,18 +558,16 @@ mod search_service_tests {
 
         // Index a test file
         let file_id = Uuid::new_v4();
-        service
-            .upsert_file(
-                file_id,
-                "test.rs",
-                "src/test.rs",
-                "fn test() { }",
-                "test-project",
-                "1.0.0",
-                "rs",
-            )
-            .await
-            .unwrap();
+        let file_data = klask_rs::services::search::FileData {
+            file_id,
+            file_name: "test.rs",
+            file_path: "src/test.rs",
+            content: "fn test() { }",
+            project: "test-project",
+            version: "1.0.0",
+            extension: "rs",
+        };
+        service.upsert_file(file_data).await.unwrap();
         service.commit().await.unwrap();
 
         // Test empty query (should handle gracefully)
@@ -570,6 +578,7 @@ mod search_service_tests {
             extension_filter: None,
             limit: 10,
             offset: 0,
+            include_facets: false,
         };
 
         // Empty query should return no results but not error
@@ -584,6 +593,7 @@ mod search_service_tests {
             extension_filter: None,
             limit: 10,
             offset: 0,
+            include_facets: false,
         };
 
         let long_results = service.search(long_query).await;
@@ -603,18 +613,18 @@ mod search_service_tests {
 
         // Index the same file multiple times with different content
         for i in 0..5 {
-            service
-                .upsert_file(
-                    file_id, // Same file ID
-                    file_name,
-                    file_path,
-                    &format!("fn version_{}() {{ println!(\"Version {}\"); }}", i, i),
-                    "test-project",
-                    &format!("1.0.{}", i),
-                    "rs",
-                )
-                .await
-                .unwrap();
+            let content = format!("fn version_{}() {{ println!(\"Version {}\"); }}", i, i);
+            let version = format!("1.0.{}", i);
+            let file_data = klask_rs::services::search::FileData {
+                file_id,
+                file_name,
+                file_path,
+                content: &content,
+                project: "test-project",
+                version: &version,
+                extension: "rs",
+            };
+            service.upsert_file(file_data).await.unwrap();
         }
 
         service.commit().await.unwrap();
@@ -627,6 +637,7 @@ mod search_service_tests {
             extension_filter: None,
             limit: 10,
             offset: 0,
+            include_facets: false,
         };
 
         let results = service.search(search_query).await.unwrap();

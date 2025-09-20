@@ -83,11 +83,12 @@ vi.mock('../../components/admin/UserForm', () => ({
     return (
       <div data-testid="user-form-modal">
         <h2>{user ? 'Edit User Form' : 'Add User Form'}</h2>
-        <p>User: {user ? user.username : 'New User'}</p>
+        <p data-testid="user-info">User: {user ? user.username : 'New User'}</p>
         <button onClick={onClose}>Close</button>
         <button 
           onClick={() => onSubmit({ username: 'test', email: 'test@example.com', role: 'User' })}
           disabled={isLoading}
+          data-testid="submit-button"
         >
           {isLoading ? 'Loading...' : 'Submit'}
         </button>
@@ -198,13 +199,20 @@ describe('UserManagement Integration', () => {
     it('should display user statistics', () => {
       renderUserManagement();
 
-      expect(screen.getByText('3')).toBeInTheDocument(); // Total users
+      // Use more specific selectors to avoid duplicate element errors
+      const statCards = screen.getAllByText('Total Users')[0].parentElement!;
+      expect(statCards.querySelector('.text-2xl')).toHaveTextContent('3');
       expect(screen.getByText('Total Users')).toBeInTheDocument();
-      expect(screen.getByText('2')).toBeInTheDocument(); // Active users
+      
+      const activeCard = screen.getAllByText('Active Users')[0].parentElement!;
+      expect(activeCard.querySelector('.text-2xl')).toHaveTextContent('2');
       expect(screen.getByText('Active Users')).toBeInTheDocument();
-      expect(screen.getByText('1')).toBeInTheDocument(); // Admins
-      expect(screen.getByText('Administrators')).toBeInTheDocument();
-      expect(screen.getByText('Regular Users')).toBeInTheDocument();
+      
+      const adminCard = screen.getAllByText('Administrators')[0].parentElement!;
+      expect(adminCard.querySelector('.text-2xl')).toHaveTextContent('1');
+      expect(screen.getAllByText('Administrators')[0]).toBeInTheDocument();
+      
+      expect(screen.getAllByText('Regular Users')[0]).toBeInTheDocument();
     });
 
     it('should show loading state when data is loading', () => {
@@ -247,7 +255,7 @@ describe('UserManagement Integration', () => {
       await waitFor(() => {
         expect(screen.getByTestId('user-form-modal')).toBeInTheDocument();
         expect(screen.getByText('Add User Form')).toBeInTheDocument();
-        expect(screen.getByText('New User')).toBeInTheDocument();
+        expect(screen.getByTestId('user-info')).toHaveTextContent('User: New User');
       });
     });
 
@@ -331,7 +339,7 @@ describe('UserManagement Integration', () => {
       await waitFor(() => {
         expect(screen.getByTestId('user-form-modal')).toBeInTheDocument();
         expect(screen.getByText('Edit User Form')).toBeInTheDocument();
-        expect(screen.getByText('john_doe')).toBeInTheDocument(); // Should show user data
+        expect(screen.getByTestId('user-info')).toHaveTextContent('User: john_doe'); // Should show user data
       });
     });
 
@@ -378,8 +386,8 @@ describe('UserManagement Integration', () => {
       await user.click(editButtons[0]);
       
       await waitFor(() => {
-        expect(screen.getByText('Loading...')).toBeInTheDocument();
-        expect(screen.getByText('Submit')).toBeDisabled();
+        expect(screen.getByTestId('submit-button')).toHaveTextContent('Loading...');
+        expect(screen.getByTestId('submit-button')).toBeDisabled();
       });
     });
   });
@@ -506,28 +514,35 @@ describe('UserManagement Integration', () => {
       const user = userEvent.setup();
       renderUserManagement();
 
-      // Select individual users
+      // Select individual users - use more specific selector
       const checkboxes = screen.getAllByRole('checkbox');
-      const userCheckboxes = checkboxes.filter(cb => 
-        cb.getAttribute('type') === 'checkbox' && cb !== screen.getByLabelText(/select all/i)
+      // Get the select all checkbox by its unique selector first
+      const selectAllCheckbox = checkboxes.find(cb => 
+        cb.parentElement?.textContent?.includes('Select all')
       );
+      const userCheckboxes = checkboxes.filter(cb => cb !== selectAllCheckbox);
 
       await user.click(userCheckboxes[0]);
       await user.click(userCheckboxes[1]);
 
       // Should show bulk actions
       expect(screen.getByText('2 selected')).toBeInTheDocument();
-      expect(screen.getByText('Activate')).toBeInTheDocument();
-      expect(screen.getByText('Deactivate')).toBeInTheDocument();
-      expect(screen.getByText('Make Admin')).toBeInTheDocument();
+      expect(screen.getAllByText('Activate')[0]).toBeInTheDocument(); // First is bulk action
+      expect(screen.getAllByText('Deactivate')[0]).toBeInTheDocument(); // First is bulk action
+      expect(screen.getAllByText('Make Admin')[0]).toBeInTheDocument(); // First is bulk action
     });
 
     it('should handle select all functionality', async () => {
       const user = userEvent.setup();
       renderUserManagement();
 
-      const selectAllCheckbox = screen.getByLabelText(/select all/i);
-      await user.click(selectAllCheckbox);
+      // Find the select all checkbox by searching for its associated text
+      const selectAllCheckbox = screen.getAllByRole('checkbox').find(cb => 
+        cb.parentElement?.textContent?.includes('Select all')
+      );
+      if (selectAllCheckbox) {
+        await user.click(selectAllCheckbox);
+      }
 
       expect(screen.getByText('3 selected')).toBeInTheDocument();
     });
@@ -540,11 +555,15 @@ describe('UserManagement Integration', () => {
       renderUserManagement();
 
       // Select users
-      const selectAllCheckbox = screen.getByLabelText(/select all/i);
-      await user.click(selectAllCheckbox);
+      const selectAllCheckbox = screen.getAllByRole('checkbox').find(cb => 
+        cb.parentElement?.textContent?.includes('Select all')
+      );
+      if (selectAllCheckbox) {
+        await user.click(selectAllCheckbox);
+      }
 
-      // Perform bulk activate
-      await user.click(screen.getByText('Activate'));
+      // Perform bulk activate - click the first Activate button (bulk action)
+      await user.click(screen.getAllByText('Activate')[0]);
 
       expect(global.confirm).toHaveBeenCalledWith('Are you sure you want to activate 3 users?');
 
@@ -638,7 +657,7 @@ describe('UserManagement Integration', () => {
       });
 
       // Form should be populated with user data
-      expect(screen.getByText('john_doe')).toBeInTheDocument();
+      expect(screen.getByTestId('user-info')).toHaveTextContent('User: john_doe');
     });
 
     it('should handle concurrent form operations correctly', async () => {
@@ -661,7 +680,7 @@ describe('UserManagement Integration', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Edit User Form')).toBeInTheDocument();
-        expect(screen.getByText('john_doe')).toBeInTheDocument();
+        expect(screen.getByTestId('user-info')).toHaveTextContent('User: john_doe');
       });
     });
   });

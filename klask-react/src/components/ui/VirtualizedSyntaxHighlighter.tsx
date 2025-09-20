@@ -122,25 +122,6 @@ const VirtualizedSyntaxHighlighter: React.FC<VirtualizedSyntaxHighlighterProps> 
             </button>
           </div>
         </div>
-        
-        {viewMode === 'plain' && (
-          <div className="mt-4">
-            <pre 
-              className={`whitespace-pre-wrap font-mono text-sm overflow-auto ${className}`}
-              style={{
-                padding: '24px',
-                background: '#1e1e1e',
-                color: '#d4d4d4',
-                fontSize: '14px',
-                lineHeight: '1.5',
-                maxHeight: `${containerHeight}px`,
-                ...customStyle,
-              }}
-            >
-              {children}
-            </pre>
-          </div>
-        )}
       </div>
     );
   }

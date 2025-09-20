@@ -290,10 +290,16 @@ describe('VirtualizedSyntaxHighlighter', () => {
     // Should show warning initially
     expect(screen.getByText('Show Plain Text')).toBeInTheDocument();
     
-    // Plain text should be visible by default in warning mode - check for a pre element containing some content
-    const preElement = document.querySelector('pre');
-    expect(preElement).toBeInTheDocument();
-    expect(preElement).toHaveTextContent('line');
+    // Click the "Show Plain Text" button
+    const plainTextButton = screen.getByText('Show Plain Text');
+    await user.click(plainTextButton);
+    
+    // Plain text should be visible after clicking - check for a pre element containing some content
+    await waitFor(() => {
+      const preElement = document.querySelector('pre');
+      expect(preElement).toBeInTheDocument();
+      expect(preElement).toHaveTextContent('line');
+    });
   });
 
   it('handles empty content gracefully', () => {

@@ -35,14 +35,6 @@ export const createTestQueryClient = () => {
   client.setQueryDefaults(['users'], { retry: false, retryDelay: 0 });
   client.setQueryDefaults(['users', 'stats'], { retry: false, retryDelay: 0 });
   
-  // Override for wildcard patterns to catch any user-related queries
-  const originalQuery = client.defaultOptions.queries?.retry;
-  client.getQueryDefaults = () => ({
-    ...client.getQueryDefaults(),
-    retry: false,
-    retryDelay: 0,
-  });
-  
   return client;
 };
 

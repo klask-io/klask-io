@@ -129,24 +129,26 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
       });
 
       // Advance time to trigger retry
-      act(() => {
-        vi.advanceTimersByTime(200);
+      await act(async () => {
+        vi.advanceTimersByTime(100); // Reduce from 200 to 100
+        await vi.runAllTimersAsync();
       });
 
       // Second request fails
       await waitFor(() => {
         expect(result.current.error).toBeTruthy();
-      });
+      }, { timeout: 1000 });
 
       // Third request succeeds
-      act(() => {
-        vi.advanceTimersByTime(200);
+      await act(async () => {
+        vi.advanceTimersByTime(100); // Reduce from 200 to 100
+        await vi.runAllTimersAsync();
       });
 
       await waitFor(() => {
         expect(result.current.data).toEqual([]);
         expect(result.current.error).toBeFalsy();
-      });
+      }, { timeout: 1000 });
     });
   });
 
@@ -172,7 +174,10 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
       await act(async () => {
         await result.current.mutateAsync('repo-1');
       });
-      expect(result.current.isSuccess).toBe(true);
+      
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
 
       // Subsequent attempts fail with conflict
       for (let i = 0; i < 3; i++) {
@@ -276,31 +281,34 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
       });
 
       // Trigger refetch
-      act(() => {
-        vi.advanceTimersByTime(200);
+      await act(async () => {
+        vi.advanceTimersByTime(100);
+        await vi.runAllTimersAsync();
       });
 
       await waitFor(() => {
         expect(result.current.data).toEqual(mockProgress1);
-      });
+      }, { timeout: 1000 });
 
       // Progress changes to completed
-      act(() => {
-        vi.advanceTimersByTime(200);
+      await act(async () => {
+        vi.advanceTimersByTime(100);
+        await vi.runAllTimersAsync();
       });
 
       await waitFor(() => {
         expect(result.current.data).toEqual(mockProgress2);
-      });
+      }, { timeout: 1000 });
 
       // Progress removed (completed crawl cleaned up)
-      act(() => {
-        vi.advanceTimersByTime(200);
+      await act(async () => {
+        vi.advanceTimersByTime(100);
+        await vi.runAllTimersAsync();
       });
 
       await waitFor(() => {
         expect(result.current.data).toEqual([]);
-      });
+      }, { timeout: 1000 });
     });
   });
 
@@ -389,16 +397,15 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
       });
 
       // Rapidly advance timers to trigger many updates
-      for (let i = 0; i < 50; i++) {
-        act(() => {
-          vi.advanceTimersByTime(100); // Faster than the 2-second refetch interval
-        });
-      }
+      await act(async () => {
+        vi.advanceTimersByTime(5000); // Advance by 5 seconds total
+        await vi.runAllTimersAsync();
+      });
 
       // Should still be stable
       await waitFor(() => {
         expect(result.current.data).toHaveLength(100);
-      });
+      }, { timeout: 1000 });
     });
   });
 
@@ -646,11 +653,13 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
         try {
           await result.current.mutateAsync('repo-1');
         } catch (error) {
-          expect(error.message).toBe('Synchronous error');
+          expect((error as Error).message).toBe('Synchronous error');
         }
       });
 
-      expect(result.current.isError).toBe(true);
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
     });
 
     it('should recover gracefully from temporary API unavailability', async () => {

@@ -155,15 +155,42 @@ async fn test_search_service_document_operations() -> Result<()> {
     assert_eq!(count, 2);
 
     // Test search functionality
-    let results = search_service.search("println", 10, 0)?;
+    let query = klask_rs::services::search::SearchQuery {
+        query: "println".to_string(),
+        project_filter: None,
+        version_filter: None,
+        extension_filter: None,
+        limit: 10,
+        offset: 0,
+        include_facets: false,
+    };
+    let results = search_service.search(query).await?;
     assert_eq!(results.len(), 1, "Should find 1 document with 'println'");
     assert!(results[0].path.contains("main.rs"));
 
-    let results = search_service.search("hello", 10, 0)?;
+    let query = klask_rs::services::search::SearchQuery {
+        query: "hello".to_string(),
+        project_filter: None,
+        version_filter: None,
+        extension_filter: None,
+        limit: 10,
+        offset: 0,
+        include_facets: false,
+    };
+    let results = search_service.search(query).await?;
     assert_eq!(results.len(), 2, "Should find 2 documents with 'hello'");
 
     // Test search with no results
-    let results = search_service.search("nonexistent", 10, 0)?;
+    let query = klask_rs::services::search::SearchQuery {
+        query: "nonexistent".to_string(),
+        project_filter: None,
+        version_filter: None,
+        extension_filter: None,
+        limit: 10,
+        offset: 0,
+        include_facets: false,
+    };
+    let results = search_service.search(query).await?;
     assert_eq!(results.len(), 0, "Should find 0 documents");
 
     Ok(())
@@ -275,7 +302,16 @@ async fn test_search_index_persistence() -> Result<()> {
         let count = search_service.get_document_count()?;
         assert_eq!(count, 1, "Document should persist across service restarts");
 
-        let results = search_service.search("persist", 10, 0)?;
+        let query = klask_rs::services::search::SearchQuery {
+            query: "persist".to_string(),
+            project_filter: None,
+            version_filter: None,
+            extension_filter: None,
+            limit: 10,
+            offset: 0,
+            include_facets: false,
+        };
+        let results = search_service.search(query).await?;
         assert_eq!(results.len(), 1, "Should find persistent document");
     }
 
@@ -296,7 +332,16 @@ async fn test_search_service_error_handling() -> Result<()> {
     let search_service = SearchService::new(index_path.to_str().unwrap(), &config)?;
 
     // Test search with empty index
-    let results = search_service.search("anything", 10, 0)?;
+    let query = klask_rs::services::search::SearchQuery {
+        query: "anything".to_string(),
+        project_filter: None,
+        version_filter: None,
+        extension_filter: None,
+        limit: 10,
+        offset: 0,
+        include_facets: false,
+    };
+    let results = search_service.search(query).await?;
     assert_eq!(results.len(), 0);
 
     // Test document count with empty index
@@ -343,8 +388,30 @@ async fn test_concurrent_search_operations() -> Result<()> {
     let service3 = search_service.clone();
 
     let (result1, result2, result3) = tokio::join!(
-        async move { service1.search("concurrent", 10, 0) },
-        async move { service2.search("test", 10, 0) },
+        async move {
+            let query = klask_rs::services::search::SearchQuery {
+                query: "concurrent".to_string(),
+                project_filter: None,
+                version_filter: None,
+                extension_filter: None,
+                limit: 10,
+                offset: 0,
+                include_facets: false,
+            };
+            service1.search(query).await
+        },
+        async move {
+            let query = klask_rs::services::search::SearchQuery {
+                query: "test".to_string(),
+                project_filter: None,
+                version_filter: None,
+                extension_filter: None,
+                limit: 10,
+                offset: 0,
+                include_facets: false,
+            };
+            service2.search(query).await
+        },
         async move { service3.get_document_count() }
     );
 
@@ -353,7 +420,7 @@ async fn test_concurrent_search_operations() -> Result<()> {
     assert!(result3.is_ok());
 
     let search_results = result1?;
-    assert_eq!(search_results.len(), 2, "Should find both documents");
+    assert_eq!(search_results.results.len(), 2, "Should find both documents");
 
     let doc_count = result3?;
     assert_eq!(doc_count, 2);

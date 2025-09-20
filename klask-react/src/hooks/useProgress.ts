@@ -30,13 +30,15 @@ export function useProgress({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restartCounter, setRestartCounter] = useState(0);
+  const [isRepositoryLoading, setIsRepositoryLoading] = useState(false);
+  const [isActiveLoading, setIsActiveLoading] = useState(false);
 
   // Fetch progress for a specific repository
   const refreshProgress = useCallback(async () => {
     if (!repositoryId || !enabled) return;
 
     try {
-      setIsLoading(true);
+      setIsRepositoryLoading(true);
       setError(null);
       const progressData = await api.getRepositoryProgress(repositoryId);
       setProgress(progressData);
@@ -45,7 +47,7 @@ export function useProgress({
       setError(errorMessage);
       console.error('Error fetching repository progress:', err);
     } finally {
-      setIsLoading(false);
+      setIsRepositoryLoading(false);
     }
   }, [repositoryId, enabled]);
 
@@ -54,7 +56,7 @@ export function useProgress({
     if (!enabled) return;
 
     try {
-      setIsLoading(true);
+      setIsActiveLoading(true);
       setError(null);
       const activeProgressData = await api.getActiveProgress();
       setActiveProgress(activeProgressData);
@@ -68,7 +70,7 @@ export function useProgress({
       setError(errorMessage);
       console.error('Error fetching active progress:', err);
     } finally {
-      setIsLoading(false);
+      setIsActiveLoading(false);
     }
   }, [enabled]);
 
@@ -77,23 +79,19 @@ export function useProgress({
     if (!repositoryId || !enabled) return;
 
     let intervalId: NodeJS.Timeout;
+    let isMounted = true;
 
     const pollProgress = async () => {
+      if (!isMounted) return;
       await refreshProgress();
     };
 
     const scheduleNextPoll = () => {
-      // Only poll when the repository is actively crawling
-      const isCurrentlyActive = progress && !['completed', 'failed', 'cancelled'].includes(progress.status.toLowerCase());
-      
-      if (!isCurrentlyActive) {
-        return; // Stop polling completely when not active
-      }
+      if (!isMounted || pollingInterval <= 0) return;
       
       intervalId = setTimeout(async () => {
-        if (!document.hidden) {
-          await pollProgress();
-        }
+        if (!isMounted || document.hidden) return;
+        await pollProgress();
         scheduleNextPoll();
       }, pollingInterval);
     };
@@ -101,21 +99,22 @@ export function useProgress({
     // Initial fetch
     pollProgress();
 
-    // Start intelligent polling
+    // Start polling only when pollingInterval > 0
     if (pollingInterval > 0) {
       scheduleNextPoll();
     }
 
     return () => {
+      isMounted = false;
       if (intervalId) {
         clearTimeout(intervalId);
       }
     };
-  }, [repositoryId, pollingInterval, enabled, refreshProgress, progress?.status]);
+  }, [repositoryId, pollingInterval, enabled, refreshProgress]);
 
-  // Poll active progress with intelligent interval
+  // Poll active progress with intelligent interval (only if no specific repositoryId)
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || repositoryId) return; // Skip if we're tracking a specific repository
 
     let intervalId: NodeJS.Timeout;
     let isMounted = true;
@@ -124,7 +123,7 @@ export function useProgress({
       if (!isMounted) return;
       
       try {
-        setIsLoading(true);
+        setIsActiveLoading(true);
         setError(null);
         const activeProgressData = await api.getActiveProgress();
         
@@ -133,7 +132,9 @@ export function useProgress({
         setActiveProgress(activeProgressData);
         
         // Schedule next poll based on fresh data
-        scheduleNextPoll(activeProgressData.length > 0);
+        if (pollingInterval > 0) {
+          scheduleNextPoll(activeProgressData.length > 0);
+        }
       } catch (err) {
         if (!isMounted) return;
         
@@ -141,10 +142,12 @@ export function useProgress({
         setError(errorMessage);
         console.error('Error fetching active progress:', err);
         // Schedule next poll with idle interval on error
-        scheduleNextPoll(false);
+        if (pollingInterval > 0) {
+          scheduleNextPoll(false);
+        }
       } finally {
         if (isMounted) {
-          setIsLoading(false);
+          setIsActiveLoading(false);
         }
       }
     };
@@ -155,7 +158,7 @@ export function useProgress({
       // Smart polling: fast when active, slow when idle
       // Use shorter intervals in test environment
       const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
-      const idleInterval = isTestEnv ? 500 : 15000; // 500ms in tests, 15s in production when idle
+      const idleInterval = isTestEnv ? 100 : 15000; // 100ms in tests, 15s in production when idle
       const interval = hasActiveCrawls ? pollingInterval : idleInterval;
       
       intervalId = setTimeout(async () => {
@@ -174,12 +177,15 @@ export function useProgress({
         clearTimeout(intervalId);
       }
     };
-  }, [pollingInterval, enabled, restartCounter]);
+  }, [repositoryId, pollingInterval, enabled, restartCounter]);
+
+  // Combine loading states
+  const combinedIsLoading = isRepositoryLoading || isActiveLoading;
 
   return {
     progress,
     activeProgress,
-    isLoading,
+    isLoading: combinedIsLoading,
     error,
     refreshProgress,
     refreshActiveProgress,

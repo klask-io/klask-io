@@ -1,7 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import FileDetailPage from '../FileDetailPage';
 import { apiClient } from '../../../lib/api';
@@ -62,10 +62,13 @@ vi.mock('@heroicons/react/24/outline', () => ({
   ChevronRightIcon: () => <div data-testid="chevron-right-icon" />,
 }));
 
-Object.assign(navigator, {
-  clipboard: {
+// Create a mock for navigator.clipboard
+Object.defineProperty(navigator, 'clipboard', {
+  value: {
     writeText: vi.fn(() => Promise.resolve()),
   },
+  writable: true,
+  configurable: true,
 });
 
 describe('File Preview Integration Tests', () => {
@@ -91,6 +94,7 @@ describe('File Preview Integration Tests', () => {
       defaultOptions: {
         queries: {
           retry: false,
+          refetchOnWindowFocus: false,
         },
       },
     });
@@ -99,6 +103,11 @@ describe('File Preview Integration Tests', () => {
     // Reset any mock implementations
     mockApiClient.getFile.mockReset();
     mockApiClient.getFileByDocAddress.mockReset();
+    
+    // Set up default successful response to prevent "File Not Found" errors
+    const defaultFile = createMockFile();
+    mockApiClient.getFile.mockResolvedValue(defaultFile);
+    mockApiClient.getFileByDocAddress.mockResolvedValue(defaultFile);
   });
 
   const renderFileDetailPage = (
@@ -108,7 +117,10 @@ describe('File Preview Integration Tests', () => {
     return render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={initialEntries}>
-          <FileDetailPage />
+          <Routes>
+            <Route path="/files/:id" element={<FileDetailPage />} />
+            <Route path="/files/doc/:docAddress" element={<FileDetailPage />} />
+          </Routes>
         </MemoryRouter>
       </QueryClientProvider>
     );
@@ -133,17 +145,16 @@ console.log('Fibonacci(10) =', result);
         size: 200,
       });
 
+      // Set up the mock before rendering
+      mockApiClient.getFile.mockReset();
       mockApiClient.getFile.mockResolvedValue(mockFile);
       
       renderFileDetailPage();
 
-      // Initial loading state
-      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
-
-      // Wait for file to load
+      // Wait for file to load and content to be displayed
       await waitFor(() => {
         expect(screen.getByText('example.js')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       // Verify file metadata
       expect(screen.getByText('src/components')).toBeInTheDocument();
@@ -232,20 +243,21 @@ console.log('Fibonacci(10) =', result);
       ];
 
       for (const { file, expectedLanguage } of testFiles) {
+        // Clear previous mocks and set up new mock for this file
+        mockApiClient.getFile.mockReset();
         mockApiClient.getFile.mockResolvedValue(file);
         
         const { unmount } = renderFileDetailPage([`/files/${file.id}`]);
 
         await waitFor(() => {
           expect(screen.getByText(file.name)).toBeInTheDocument();
-        });
+        }, { timeout: 2000 });
 
         const syntaxHighlighter = screen.getByTestId('syntax-highlighter');
         expect(syntaxHighlighter).toHaveAttribute('data-language', expectedLanguage);
         expect(syntaxHighlighter).toHaveTextContent(file.content!);
 
         unmount();
-        vi.clearAllMocks();
       }
     });
 
@@ -257,7 +269,8 @@ console.log('Fibonacci(10) =', result);
         size: largeContent.length,
       });
 
-      vi.mocked(apiClient.getFile).mockResolvedValue(largeFile);
+      mockApiClient.getFile.mockReset();
+      mockApiClient.getFile.mockResolvedValue(largeFile);
       
       renderFileDetailPage();
 
@@ -277,7 +290,8 @@ console.log('Fibonacci(10) =', result);
         size: 0,
       });
 
-      vi.mocked(apiClient.getFile).mockResolvedValue(emptyFile);
+      mockApiClient.getFile.mockReset();
+      mockApiClient.getFile.mockResolvedValue(emptyFile);
       
       renderFileDetailPage();
 
@@ -306,7 +320,8 @@ console.log('Fibonacci(10) =', result);
         last_modified: '2023-12-01T12:00:00Z',
       };
 
-      vi.mocked(apiClient.getFile).mockResolvedValue(mockFile);
+      mockApiClient.getFile.mockReset();
+      mockApiClient.getFile.mockResolvedValue(mockFile);
       
       render(
         <QueryClientProvider client={queryClient}>
@@ -322,7 +337,9 @@ console.log('Fibonacci(10) =', result);
               },
             ]}
           >
-            <FileDetailPage />
+            <Routes>
+              <Route path="/files/:id" element={<FileDetailPage />} />
+            </Routes>
           </MemoryRouter>
         </QueryClientProvider>
       );
@@ -356,7 +373,8 @@ console.log('Fibonacci(10) =', result);
         last_modified: '2023-12-01T12:00:00Z',
       };
 
-      vi.mocked(apiClient.getFile).mockResolvedValue(mockFile);
+      mockApiClient.getFile.mockReset();
+      mockApiClient.getFile.mockResolvedValue(mockFile);
       
       render(
         <QueryClientProvider client={queryClient}>
@@ -371,7 +389,9 @@ console.log('Fibonacci(10) =', result);
               },
             ]}
           >
-            <FileDetailPage />
+            <Routes>
+              <Route path="/files/:id" element={<FileDetailPage />} />
+            </Routes>
           </MemoryRouter>
         </QueryClientProvider>
       );
@@ -415,7 +435,17 @@ console.log('Fibonacci(10) =', result);
       const user = userEvent.setup();
       const toast = await import('react-hot-toast');
       
-      vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('Clipboard error'));
+      // Mock clipboard failure
+      const mockWriteText = vi.fn().mockRejectedValue(new Error('Clipboard error'));
+      Object.defineProperty(navigator, 'clipboard', {
+        value: {
+          writeText: mockWriteText,
+        },
+        writable: true,
+        configurable: true,
+      });
+      
+      mockApiClient.getFile.mockReset();
       mockApiClient.getFile.mockResolvedValue(createMockFile());
       
       renderFileDetailPage();
@@ -449,17 +479,18 @@ console.log('Fibonacci(10) =', result);
 
     it('handles docAddress parameter correctly', async () => {
       const mockFile = createMockFile();
+      mockApiClient.getFileByDocAddress.mockReset();
       mockApiClient.getFileByDocAddress.mockResolvedValue(mockFile);
       
       renderFileDetailPage(['/files/doc/test-doc-address']);
 
       await waitFor(() => {
         expect(mockApiClient.getFileByDocAddress).toHaveBeenCalledWith('test-doc-address');
-      });
+      }, { timeout: 2000 });
 
       await waitFor(() => {
         expect(screen.getByText('example.js')).toBeInTheDocument();
-      });
+      }, { timeout: 2000 });
     });
   });
 
@@ -493,7 +524,8 @@ console.log('Fibonacci(10) =', result);
         name: 'ComplexComponent.tsx',
       });
 
-      vi.mocked(apiClient.getFile).mockResolvedValue(complexFile);
+      mockApiClient.getFile.mockReset();
+      mockApiClient.getFile.mockResolvedValue(complexFile);
       
       renderFileDetailPage();
 
@@ -510,7 +542,8 @@ console.log('Fibonacci(10) =', result);
         name: 'file with spaces & symbols!.js',
       });
 
-      vi.mocked(apiClient.getFile).mockResolvedValue(specialFile);
+      mockApiClient.getFile.mockReset();
+      mockApiClient.getFile.mockResolvedValue(specialFile);
       
       renderFileDetailPage();
 

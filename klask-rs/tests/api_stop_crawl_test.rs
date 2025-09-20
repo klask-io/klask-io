@@ -9,7 +9,7 @@ use klask_rs::{
     config::AppConfig,
     database::Database,
     models::{Repository, RepositoryType},
-    services::{crawler::CrawlerService, progress::ProgressTracker, SearchService},
+    services::{crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker, SearchService},
     AppState,
 };
 use serde_json::{json, Value};
@@ -50,11 +50,15 @@ impl TestSetup {
         // Create progress tracker
         let progress_tracker = Arc::new(ProgressTracker::new());
 
+        // Create encryption service for tests
+        let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+
         // Create crawler service
         let crawler_service = Arc::new(CrawlerService::new(
             database.pool().clone(),
             search_service.clone(),
             progress_tracker.clone(),
+            encryption_service,
         )?);
 
         // Create app state

@@ -6,6 +6,7 @@ use klask_rs::{
     models::{Repository, RepositoryType},
     services::{
         crawler::{CrawlProgress, CrawlerService},
+        encryption::EncryptionService,
         progress::ProgressTracker,
         SearchService,
     },
@@ -14,6 +15,7 @@ use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use tempfile::TempDir;
 use tokio_test;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 struct TestSetup {
@@ -44,11 +46,15 @@ impl TestSetup {
         // Create progress tracker
         let progress_tracker = Arc::new(ProgressTracker::new());
 
+        // Create encryption service for tests
+        let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+
         // Create crawler service
         let crawler_service = Arc::new(CrawlerService::new(
             database.pool().clone(),
             search_service.clone(),
             progress_tracker,
+            encryption_service,
         )?);
 
         Ok(TestSetup {
@@ -73,6 +79,11 @@ impl TestSetup {
             last_crawled: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
+            auto_crawl_enabled: false,
+            cron_schedule: None,
+            next_crawl_at: None,
+            crawl_frequency_hours: None,
+            max_crawl_duration_minutes: None,
         };
 
         // Insert repository into database
@@ -180,14 +191,11 @@ async fn test_git_repository_cloning() -> Result<()> {
 
     match result {
         Ok(()) => {
-            // Verify that files were indexed
-            let files =
-                sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM files WHERE project = $1")
-                    .bind(&repository.name)
-                    .fetch_one(setup.database.pool())
-                    .await?;
+            // Verify that files were indexed in Tantivy search service
+            setup.search_service.commit().await?;
+            let doc_count = setup.search_service.get_document_count()?;
 
-            assert!(files > 0, "Should have indexed some files");
+            assert!(doc_count > 0, "Should have indexed some files");
 
             // Verify repository last_crawled was updated
             let updated_repo = sqlx::query_scalar::<_, Option<chrono::DateTime<chrono::Utc>>>(
@@ -274,9 +282,10 @@ async fn test_file_processing_and_indexing() -> Result<()> {
         errors: Vec::new(),
     };
 
+    let cancellation_token = tokio_util::sync::CancellationToken::new();
     setup
         .crawler_service
-        .process_repository_files(&repository, repo_path, &mut progress)
+        .process_repository_files(&repository, repo_path, &mut progress, &cancellation_token)
         .await?;
 
     // Verify files were processed
@@ -294,15 +303,14 @@ async fn test_file_processing_and_indexing() -> Result<()> {
         progress.errors
     );
 
-    // Verify files are in database
-    let db_files = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM files WHERE project = $1")
-        .bind(&repository.name)
-        .fetch_one(setup.database.pool())
-        .await?;
-
+    // Verify search service has been called to index files  
+    // Note: The files are now indexed in Tantivy, not stored in database
+    setup.search_service.commit().await?;
+    let doc_count = setup.search_service.get_document_count()?;
+    
     assert!(
-        db_files >= test_files.len() as i64,
-        "Should have at least {} files in database",
+        doc_count >= test_files.len(),
+        "Should have at least {} documents indexed",
         test_files.len()
     );
 
@@ -353,6 +361,11 @@ async fn test_error_handling() -> Result<()> {
         last_crawled: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+        auto_crawl_enabled: false,
+        cron_schedule: None,
+        next_crawl_at: None,
+        crawl_frequency_hours: None,
+        max_crawl_duration_minutes: None,
     };
 
     let result = setup.crawler_service.crawl_repository(&invalid_repo).await;
@@ -363,48 +376,13 @@ async fn test_error_handling() -> Result<()> {
 }
 
 #[tokio::test]
-async fn test_database_integration() -> Result<()> {
+async fn test_repository_update_integration() -> Result<()> {
     let setup = TestSetup::new().await?;
 
-    // Test database operations
+    // Test database operations that still exist
     let repository = setup.create_test_repository().await?;
 
-    // Test getting existing files (should be empty initially)
-    let existing_files = setup
-        .crawler_service
-        .get_existing_files(repository.id)
-        .await?;
-    assert!(existing_files.is_empty(), "Should have no existing files");
-
-    // Test saving a file to database
-    let test_file = klask_rs::models::File {
-        id: Uuid::new_v4(),
-        name: "test.rs".to_string(),
-        path: "src/test.rs".to_string(),
-        content: Some("fn test() {}".to_string()),
-        project: repository.name.clone(),
-        version: "HEAD".to_string(),
-        extension: "rs".to_string(),
-        size: 12,
-        last_modified: chrono::Utc::now(),
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
-    };
-
-    setup
-        .crawler_service
-        .save_file_to_database(repository.id, &test_file)
-        .await?;
-
-    // Verify file was saved
-    let saved_files = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM files WHERE project = $1")
-        .bind(&repository.name)
-        .fetch_one(setup.database.pool())
-        .await?;
-
-    assert_eq!(saved_files, 1, "Should have saved one file");
-
-    // Test updating repository crawl time
+    // Test updating repository crawl time (this method still exists)
     setup
         .crawler_service
         .update_repository_crawl_time(repository.id)
@@ -421,6 +399,9 @@ async fn test_database_integration() -> Result<()> {
         updated_repo.is_some(),
         "Repository last_crawled should be updated"
     );
+
+    // Test cancellation token management
+    assert!(!setup.crawler_service.is_crawling(repository.id).await);
 
     setup.cleanup().await?;
     Ok(())

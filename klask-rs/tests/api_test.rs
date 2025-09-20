@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use axum_test::TestServer;
 use klask_rs::auth::{extractors::AppState, jwt::JwtService};
 use klask_rs::config::{AppConfig, AuthConfig};
-use klask_rs::services::{crawler::CrawlerService, progress::ProgressTracker, SearchService};
+use klask_rs::services::{crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker, SearchService};
 use klask_rs::{api, Database};
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -42,12 +42,16 @@ async fn create_test_app_state() -> Option<AppState> {
         // Create progress tracker
         let progress_tracker = Arc::new(ProgressTracker::new());
 
+        // Create encryption service for tests
+        let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+
         // Create crawler service
         let crawler_service = Arc::new(
             CrawlerService::new(
                 database.pool().clone(),
                 shared_search_service.clone(),
                 progress_tracker.clone(),
+                encryption_service,
             )
             .unwrap(),
         );

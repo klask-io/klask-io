@@ -2297,6 +2297,7 @@ mod tests {
             extension_filter: None,
             limit: 10,
             offset: 0,
+            include_facets: false,
         };
 
         let search_results = search_service.search(search_query).await.unwrap();
@@ -2321,9 +2322,6 @@ mod tests {
 
     #[test]
     fn test_deterministic_id_generation() {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::Hash;
-        use std::hash::Hasher;
 
         // Create a test repository - FileSystem type
         let filesystem_repo = Repository {

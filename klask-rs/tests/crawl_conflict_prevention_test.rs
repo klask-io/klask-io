@@ -8,6 +8,7 @@ use klask_rs::{
     models::{Repository, RepositoryType},
     services::{
         crawler::CrawlerService,
+        encryption::EncryptionService,
         progress::{CrawlStatus, ProgressTracker},
         SearchService,
     },
@@ -53,11 +54,15 @@ impl TestSetup {
         // Create progress tracker
         let progress_tracker = Arc::new(ProgressTracker::new());
 
+        // Create encryption service for tests
+        let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+
         // Create crawler service
         let crawler_service = Arc::new(CrawlerService::new(
             database.pool().clone(),
             search_service.clone(),
             progress_tracker.clone(),
+            encryption_service,
         )?);
 
         // Create app state
@@ -502,6 +507,11 @@ async fn test_crawler_service_direct_conflict_prevention() -> Result<()> {
         last_crawled: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+        auto_crawl_enabled: false,
+        cron_schedule: None,
+        next_crawl_at: None,
+        crawl_frequency_hours: None,
+        max_crawl_duration_minutes: None,
     };
 
     // Directly test the crawler service's internal state management
@@ -552,6 +562,11 @@ async fn test_cleanup_prevents_false_conflicts() -> Result<()> {
         last_crawled: None,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+        auto_crawl_enabled: false,
+        cron_schedule: None,
+        next_crawl_at: None,
+        crawl_frequency_hours: None,
+        max_crawl_duration_minutes: None,
     };
 
     // Start and immediately cancel a crawl
