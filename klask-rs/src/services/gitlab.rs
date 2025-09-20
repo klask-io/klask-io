@@ -21,16 +21,6 @@ pub struct GitLabProject {
     pub archived: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct GitLabGroup {
-    pub id: i64,
-    pub name: String,
-    pub path: String,
-    pub full_path: String,
-    pub description: Option<String>,
-    pub visibility: String,
-}
-
 impl Default for GitLabService {
     fn default() -> Self {
         Self::new()
