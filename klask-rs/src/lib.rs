@@ -12,3 +12,4 @@ pub mod test_utils;
 
 pub use config::AppConfig;
 pub use database::Database;
+// Test comment for pre-commit hook
