@@ -25,6 +25,7 @@ vi.mock('../../lib/api', () => ({
     getAdminSearchStats: vi.fn(),
     getRecentActivity: vi.fn(),
   },
+  getErrorMessage: vi.fn((error) => error?.message || 'Unknown error'),
 }));
 
 const mockApiClient = apiClient as any;

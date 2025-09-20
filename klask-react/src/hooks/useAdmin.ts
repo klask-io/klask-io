@@ -17,7 +17,7 @@ export const useAdminDashboard = () => {
     staleTime: 30000, // 30 seconds - refresh more frequently
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchInterval: 60000, // Auto-refetch every minute
-    retry: 2,
+    retry: false, // Admin endpoints should fail fast for immediate feedback
   });
 };
 
@@ -27,7 +27,7 @@ export const useSystemStats = () => {
     queryKey: ['admin', 'system', 'stats'],
     queryFn: () => apiClient.getSystemStats(),
     staleTime: 30000, // 30 seconds
-    retry: 2,
+    retry: false, // Admin endpoints should fail fast for immediate feedback
   });
 };
 
@@ -37,7 +37,7 @@ export const useAdminUserStats = () => {
     queryKey: ['admin', 'users', 'stats'],
     queryFn: () => apiClient.getAdminUserStats(),
     staleTime: 60000, // 1 minute
-    retry: 2,
+    retry: false, // Admin endpoints should fail fast for immediate feedback
   });
 };
 
@@ -47,10 +47,20 @@ export const useRepositoryStats = () => {
     queryKey: ['admin', 'repositories', 'stats'],
     queryFn: () => apiClient.getRepositoryStats(),
     staleTime: 60000, // 1 minute
-    retry: 2,
+    retry: false, // Admin endpoints should fail fast for immediate feedback
   });
 };
 
+
+// Get content stats
+export const useContentStats = () => {
+  return useQuery({
+    queryKey: ['admin', 'content', 'stats'],
+    queryFn: () => apiClient.getContentStats(),
+    staleTime: 60000, // 1 minute
+    retry: false, // Admin endpoints should fail fast for immediate feedback
+  });
+};
 
 // Get search stats
 export const useAdminSearchStats = () => {
@@ -58,7 +68,7 @@ export const useAdminSearchStats = () => {
     queryKey: ['admin', 'search', 'stats'],
     queryFn: () => apiClient.getAdminSearchStats(),
     staleTime: 60000, // 1 minute
-    retry: 2,
+    retry: false, // Admin endpoints should fail fast for immediate feedback
   });
 };
 
@@ -68,7 +78,7 @@ export const useRecentActivity = () => {
     queryKey: ['admin', 'activity', 'recent'],
     queryFn: () => apiClient.getRecentActivity(),
     staleTime: 30000, // 30 seconds
-    retry: 2,
+    retry: false, // Admin endpoints should fail fast for immediate feedback
   });
 };
 
@@ -77,25 +87,29 @@ export const useAdminMetrics = () => {
   const systemStats = useSystemStats();
   const userStats = useAdminUserStats();
   const repositoryStats = useRepositoryStats();
+  const contentStats = useContentStats();
   const searchStats = useAdminSearchStats();
   const recentActivity = useRecentActivity();
 
-  const isLoading = systemStats.isLoading || 
-                   userStats.isLoading || 
-                   repositoryStats.isLoading || 
-                   searchStats.isLoading || 
+  const isLoading = systemStats.isLoading ||
+                   userStats.isLoading ||
+                   repositoryStats.isLoading ||
+                   contentStats.isLoading ||
+                   searchStats.isLoading ||
                    recentActivity.isLoading;
 
-  const error = systemStats.error || 
-               userStats.error || 
-               repositoryStats.error || 
-               searchStats.error || 
+  const error = systemStats.error ||
+               userStats.error ||
+               repositoryStats.error ||
+               contentStats.error ||
+               searchStats.error ||
                recentActivity.error;
 
   const data = {
     system: systemStats.data,
     users: userStats.data,
     repositories: repositoryStats.data,
+    content: contentStats.data,
     search: searchStats.data,
     recent_activity: recentActivity.data,
   };
@@ -108,6 +122,7 @@ export const useAdminMetrics = () => {
       systemStats.refetch();
       userStats.refetch();
       repositoryStats.refetch();
+      contentStats.refetch();
       searchStats.refetch();
       recentActivity.refetch();
     }

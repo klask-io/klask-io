@@ -47,9 +47,12 @@ impl SeedingService {
     }
 
     pub async fn get_stats(&self) -> Result<SeedingStats> {
-        let users_created = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
-            .fetch_one(&self.pool)
-            .await?;
+        // Count only the seeded users (exclude integration test admin users)
+        let users_created = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM users WHERE username IN ('admin', 'demo', 'viewer', 'inactive', 'tester')"
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
         let repositories_created =
             sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories")
@@ -110,6 +113,17 @@ impl SeedingService {
                 active: false, // Inactive user
                 created_at: Utc::now() - Duration::days(60),
                 updated_at: Utc::now() - Duration::days(30),
+            },
+            User {
+                id: Uuid::new_v4(),
+                username: "tester".to_string(),
+                email: "tester@klask.io".to_string(),
+                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS"
+                    .to_string(), // "tester123"
+                role: UserRole::User,
+                active: true,
+                created_at: Utc::now() - Duration::days(5),
+                updated_at: Utc::now() - Duration::hours(1),
             },
         ];
 

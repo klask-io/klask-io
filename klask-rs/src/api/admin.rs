@@ -344,71 +344,17 @@ async fn get_search_stats_impl(app_state: &AppState) -> Result<SearchStats> {
     })
 }
 
-async fn get_content_stats_impl(pool: &PgPool) -> Result<ContentStats> {
-    let total_files = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM files")
-        .fetch_one(pool)
-        .await?;
-
-    let total_size_bytes = sqlx::query_scalar::<_, i64>("SELECT COALESCE(SUM(size), 0) FROM files")
-        .fetch_one(pool)
-        .await?;
-
-    // Get files by extension
-    let extension_rows = sqlx::query(
-        "SELECT extension, COUNT(*) as count, COALESCE(SUM(size), 0) as total_size
-         FROM files
-         GROUP BY extension
-         ORDER BY count DESC
-         LIMIT 20",
-    )
-    .fetch_all(pool)
-    .await?;
-
-    let files_by_extension = extension_rows
-        .into_iter()
-        .map(|row| ExtensionStat {
-            extension: row
-                .get::<Option<String>, _>("extension")
-                .unwrap_or_else(|| "unknown".to_string()),
-            count: row.get("count"),
-            total_size: row.get("total_size"),
-        })
-        .collect();
-
-    // Get files by project (repository)
-    let project_rows = sqlx::query(
-        "SELECT r.name as project, COUNT(f.*) as file_count, COALESCE(SUM(f.size), 0) as total_size
-         FROM repositories r
-         LEFT JOIN files f ON r.id = f.repository_id
-         GROUP BY r.id, r.name
-         ORDER BY file_count DESC
-         LIMIT 20",
-    )
-    .fetch_all(pool)
-    .await?;
-
-    let files_by_project = project_rows
-        .into_iter()
-        .map(|row| ProjectStat {
-            project: row.get("project"),
-            file_count: row.get("file_count"),
-            total_size: row.get("total_size"),
-        })
-        .collect();
-
-    // Recent additions (last 30 days)
-    let recent_additions = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM files WHERE created_at >= NOW() - INTERVAL '30 days'",
-    )
-    .fetch_one(pool)
-    .await?;
+async fn get_content_stats_impl(_pool: &PgPool) -> Result<ContentStats> {
+    // Files are now stored only in Tantivy search index, not in database
+    // Return default/placeholder values since this data is not available
+    // TODO: Extract file statistics from Tantivy index if needed
 
     Ok(ContentStats {
-        total_files,
-        total_size_bytes,
-        files_by_extension,
-        files_by_project,
-        recent_additions,
+        total_files: 0,
+        total_size_bytes: 0,
+        files_by_extension: vec![],
+        files_by_project: vec![],
+        recent_additions: 0,
     })
 }
 
@@ -510,7 +456,6 @@ async fn seed_database(
 }
 
 async fn clear_seed_data(
-    _admin_user: AdminUser,
     State(app_state): State<AppState>,
 ) -> Result<Json<SeedingStats>, StatusCode> {
     info!("Admin user requested seed data clearing");

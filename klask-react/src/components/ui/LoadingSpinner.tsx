@@ -19,7 +19,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   };
 
   return (
-    <div className={clsx('flex items-center justify-center', className)}>
+    <div className={clsx('flex items-center justify-center', className)} data-testid="loading-spinner">
       <div className="flex items-center space-x-3">
         <div
           className={clsx(
@@ -41,8 +41,8 @@ interface FullPageSpinnerProps {
   message?: string;
 }
 
-export const FullPageSpinner: React.FC<FullPageSpinnerProps> = ({ 
-  message = 'Loading...' 
+export const FullPageSpinner: React.FC<FullPageSpinnerProps> = ({
+  message = 'Loading...'
 }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

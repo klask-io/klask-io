@@ -1,7 +1,5 @@
 use anyhow::Result;
-use axum_test::TestServer;
 use klask_rs::{
-    config::AppConfig,
     database::Database,
     models::{Repository, RepositoryType},
     services::{
@@ -11,34 +9,43 @@ use klask_rs::{
         SearchService,
     },
 };
-use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use tempfile::TempDir;
-use tokio_test;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+use std::sync::LazyLock;
+use tokio::sync::Mutex as AsyncMutex;
+
+// Global mutex to ensure tests don't interfere with each other
+static TEST_MUTEX: LazyLock<Arc<AsyncMutex<()>>> = LazyLock::new(|| Arc::new(AsyncMutex::new(())));
 
 struct TestSetup {
     _temp_dir: TempDir,
     database: Database,
     search_service: Arc<SearchService>,
     crawler_service: Arc<CrawlerService>,
+    _lock: tokio::sync::MutexGuard<'static, ()>,
 }
 
 impl TestSetup {
     async fn new() -> Result<Self> {
+        // Lock to ensure sequential execution
+        let guard = TEST_MUTEX.lock().await;
+
         let temp_dir = tempfile::tempdir()?;
-        let index_path = temp_dir.path().join("test_index");
+        let test_id = uuid::Uuid::new_v4().to_string()[..8].to_string();
+        let index_path = temp_dir.path().join(format!("test_index_{}", test_id));
 
-        // Create test database connection
-        let database_url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://postgres:password@localhost:5432/klask_test".to_string()
-        });
+        // Force test database URL - ignore .env file
+        let database_url = "postgres://postgres:password@localhost:5432/klask_test".to_string();
 
-        let database = Database::new(&database_url, 5).await?;
+        let database = Database::new(&database_url, 10).await?;
 
-        // Run migrations
-        sqlx::migrate!("./migrations").run(database.pool()).await?;
+        // Clean ALL test data with TRUNCATE for complete cleanup
+        sqlx::query("TRUNCATE TABLE repositories, users RESTART IDENTITY CASCADE")
+            .execute(database.pool())
+            .await
+            .ok();
 
         // Create search service with temp directory
         let search_service = Arc::new(SearchService::new(index_path.to_str().unwrap())?);
@@ -63,6 +70,7 @@ impl TestSetup {
             database,
             search_service,
             crawler_service,
+            _lock: guard,
         })
     }
 
@@ -114,9 +122,7 @@ impl TestSetup {
 
     async fn cleanup(&self) -> Result<()> {
         // Clean up test data
-        sqlx::query("DELETE FROM files")
-            .execute(self.database.pool())
-            .await?;
+        // Files are now only in Tantivy search index, no database table to clean
         sqlx::query("DELETE FROM repositories")
             .execute(self.database.pool())
             .await?;
@@ -228,14 +234,53 @@ async fn test_git_repository_cloning() -> Result<()> {
 #[tokio::test]
 async fn test_file_processing_and_indexing() -> Result<()> {
     let setup = TestSetup::new().await?;
-    let repository = setup.create_test_repository().await?;
 
-    // Create a temporary git repository for testing
+    // Create a temporary filesystem repository for testing
     let temp_repo_dir = tempfile::tempdir()?;
     let repo_path = temp_repo_dir.path();
 
-    // Initialize git repository
-    let git_repo = git2::Repository::init(repo_path)?;
+    // Create filesystem repository instead of git
+    let repository = Repository {
+        id: Uuid::new_v4(),
+        name: "test-repo".to_string(),
+        url: repo_path.to_string_lossy().to_string(),
+        repository_type: RepositoryType::FileSystem,
+        branch: None,
+        enabled: true,
+        access_token: None,
+        gitlab_namespace: None,
+        is_group: false,
+        last_crawled: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+        auto_crawl_enabled: false,
+        cron_schedule: None,
+        next_crawl_at: None,
+        crawl_frequency_hours: None,
+        max_crawl_duration_minutes: None,
+    };
+
+    // Insert repository into database
+    sqlx::query(
+        r#"
+        INSERT INTO repositories (id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        "#
+    )
+    .bind(&repository.id)
+    .bind(&repository.name)
+    .bind(&repository.url)
+    .bind(&repository.repository_type)
+    .bind(&repository.branch)
+    .bind(repository.enabled)
+    .bind(&repository.access_token)
+    .bind(&repository.gitlab_namespace)
+    .bind(repository.is_group)
+    .bind(repository.last_crawled)
+    .bind(repository.created_at)
+    .bind(repository.updated_at)
+    .execute(setup.database.pool())
+    .await?;
 
     // Create test files
     let test_files = vec![
@@ -258,24 +303,6 @@ async fn test_file_processing_and_indexing() -> Result<()> {
         std::fs::write(&full_path, content)?;
     }
 
-    // Create initial commit
-    let signature = git2::Signature::now("Test User", "test@example.com")?;
-    let tree_id = {
-        let mut index = git_repo.index()?;
-        index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
-        index.write()?;
-        index.write_tree()?
-    };
-    let tree = git_repo.find_tree(tree_id)?;
-    git_repo.commit(
-        Some("HEAD"),
-        &signature,
-        &signature,
-        "Initial commit",
-        &tree,
-        &[],
-    )?;
-
     // Test processing files
     let mut progress = CrawlProgress {
         files_processed: 0,
@@ -290,6 +317,21 @@ async fn test_file_processing_and_indexing() -> Result<()> {
         .await?;
 
     // Verify files were processed
+    eprintln!("Files processed: {}", progress.files_processed);
+    eprintln!("Files indexed: {}", progress.files_indexed);
+    eprintln!("Errors: {:?}", progress.errors);
+    eprintln!("Repository path: {}", repo_path.display());
+
+    // List files in the repository path for debugging
+    if let Ok(entries) = std::fs::read_dir(&repo_path) {
+        eprintln!("Files in repository:");
+        for entry in entries {
+            if let Ok(entry) = entry {
+                eprintln!("  - {}", entry.path().display());
+            }
+        }
+    }
+
     assert!(
         progress.files_processed > 0,
         "Should have processed some files"

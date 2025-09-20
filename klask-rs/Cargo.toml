@@ -16,7 +16,7 @@ tower = "0.5"
 tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
 
 # Database and ORM
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "sqlite", "uuid", "chrono", "migrate"] }
 
 # Search engine
 tantivy = "0.24"
@@ -69,6 +69,9 @@ cron = "0.12"
 
 # Cryptographic hashing for deterministic IDs
 sha2 = "0.10"
+
+[features]
+test-utils = []
 
 [dev-dependencies]
 # Testing

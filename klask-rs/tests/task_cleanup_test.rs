@@ -141,9 +141,7 @@ impl TestSetup {
         }
 
         // Clean up database
-        sqlx::query("DELETE FROM files")
-            .execute(self.database.pool())
-            .await?;
+        // Files are now only in Tantivy search index, no database table to clean
         sqlx::query("DELETE FROM repositories")
             .execute(self.database.pool())
             .await?;

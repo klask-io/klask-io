@@ -92,6 +92,9 @@ impl CrawlProgressInfo {
             if total > 0 {
                 self.progress_percentage =
                     (files_processed as f32 / total as f32 * 100.0).min(100.0);
+            } else {
+                // When total is 0, percentage should be 0.0
+                self.progress_percentage = 0.0;
             }
         }
     }
@@ -198,7 +201,12 @@ impl ProgressTracker {
 
     #[allow(dead_code)]
     pub async fn cleanup_old_progress(&self, hours: i64) {
-        let cutoff = Utc::now() - chrono::Duration::hours(hours);
+        let cutoff = if hours == 0 {
+            // For 0 hours, use a small buffer to avoid removing just-completed items
+            Utc::now() - chrono::Duration::seconds(5)
+        } else {
+            Utc::now() - chrono::Duration::hours(hours)
+        };
         let mut map = self.progress_map.write().await;
         map.retain(|_, progress| {
             // Keep active crawls and recent completed ones

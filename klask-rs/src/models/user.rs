@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type};
 use std::fmt;
+use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
@@ -28,6 +29,18 @@ impl fmt::Display for UserRole {
         match self {
             UserRole::Admin => write!(f, "Admin"),
             UserRole::User => write!(f, "User"),
+        }
+    }
+}
+
+impl FromStr for UserRole {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Admin" => Ok(UserRole::Admin),
+            "User" => Ok(UserRole::User),
+            _ => Err(format!("Unknown user role: {}", s)),
         }
     }
 }

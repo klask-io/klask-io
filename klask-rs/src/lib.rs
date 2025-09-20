@@ -6,5 +6,9 @@ pub mod models;
 pub mod repositories;
 pub mod services;
 
+// Always available for integration tests but marked as test-only
+#[cfg(any(test, debug_assertions))]
+pub mod test_utils;
+
 pub use config::AppConfig;
 pub use database::Database;

@@ -9,17 +9,29 @@ use klask_rs::{
     },
 };
 use sqlx::PgPool;
-use std::{collections::HashMap, sync::Arc, time::Instant};
+use std::{collections::HashMap, sync::{Arc, LazyLock}, time::Instant};
 use tempfile::TempDir;
-use tokio::sync::RwLock;
-use tokio::test;
+use tokio::sync::{RwLock, Mutex as AsyncMutex};
+use uuid::Uuid;
+
+// Global mutex to ensure tests don't interfere with each other
+static TEST_MUTEX: LazyLock<Arc<AsyncMutex<()>>> = LazyLock::new(|| Arc::new(AsyncMutex::new(())));
 
 // Helper function to create test app state
-async fn setup_test_app_state() -> Result<(AppState, TempDir)> {
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:password@localhost/klask_test".to_string());
+async fn setup_test_app_state() -> Result<(AppState, TempDir, tokio::sync::MutexGuard<'static, ()>)> {
+    // Lock to ensure sequential execution
+    let guard = TEST_MUTEX.lock().await;
+
+    // Force test database URL - ignore .env file
+    let database_url = "postgres://postgres:password@localhost:5432/klask_test".to_string();
 
     let database = Database::new(&database_url, 5).await?;
+
+    // Clean ALL test data with TRUNCATE for complete cleanup
+    sqlx::query("TRUNCATE TABLE repositories, users RESTART IDENTITY CASCADE")
+        .execute(database.pool())
+        .await
+        .ok();
 
     let temp_dir = TempDir::new()?;
     let index_path = temp_dir.path().join("test_index");
@@ -54,12 +66,12 @@ async fn setup_test_app_state() -> Result<(AppState, TempDir)> {
         startup_time: Instant::now(),
     };
 
-    Ok((app_state, temp_dir))
+    Ok((app_state, temp_dir, guard))
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_system_uptime_tracking() -> Result<()> {
-    let (app_state, _temp_dir) = setup_test_app_state().await?;
+    let (app_state, _temp_dir, _guard) = setup_test_app_state().await?;
 
     // Get initial uptime (should be very small)
     let initial_uptime = app_state.startup_time.elapsed().as_secs();
@@ -78,9 +90,9 @@ async fn test_system_uptime_tracking() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_search_service_initialization() -> Result<()> {
-    let (app_state, _temp_dir) = setup_test_app_state().await?;
+    let (app_state, _temp_dir, _guard) = setup_test_app_state().await?;
 
     // Test that search service is properly initialized
     let document_count = app_state.search_service.get_document_count()?;
@@ -96,7 +108,7 @@ async fn test_search_service_initialization() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_search_index_size_calculation() -> Result<()> {
     let config = AppConfig::default();
     let temp_dir = TempDir::new()?;
@@ -146,7 +158,7 @@ async fn test_search_index_size_calculation() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_search_service_document_operations() -> Result<()> {
     let config = AppConfig::default();
     let temp_dir = TempDir::new()?;
@@ -231,7 +243,7 @@ async fn test_search_service_document_operations() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_search_service_index_size_with_large_content() -> Result<()> {
     let config = AppConfig::default();
     let temp_dir = TempDir::new()?;
@@ -268,9 +280,9 @@ async fn test_search_service_index_size_with_large_content() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_database_health_check() -> Result<()> {
-    let (app_state, _temp_dir) = setup_test_app_state().await?;
+    let (app_state, _temp_dir, _guard) = setup_test_app_state().await?;
 
     // Test database health check
     let health_result = app_state.database.health_check().await;
@@ -279,9 +291,9 @@ async fn test_database_health_check() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_system_stats_integration() -> Result<()> {
-    let (app_state, _temp_dir) = setup_test_app_state().await?;
+    let (app_state, _temp_dir, _guard) = setup_test_app_state().await?;
 
     // Test that we can gather all system statistics
     let database_status = match app_state.database.health_check().await {
@@ -302,7 +314,7 @@ async fn test_system_stats_integration() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_search_index_persistence() -> Result<()> {
     let config = AppConfig::default();
     let temp_dir = TempDir::new()?;
@@ -353,7 +365,7 @@ async fn test_search_index_persistence() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_search_service_error_handling() -> Result<()> {
     let config = AppConfig::default();
 
@@ -386,7 +398,7 @@ async fn test_search_service_error_handling() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_concurrent_search_operations() -> Result<()> {
     let config = AppConfig::default();
     let temp_dir = TempDir::new()?;
@@ -467,9 +479,9 @@ async fn test_concurrent_search_operations() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_uptime_consistency() -> Result<()> {
-    let (app_state, _temp_dir) = setup_test_app_state().await?;
+    let (app_state, _temp_dir, _guard) = setup_test_app_state().await?;
 
     // Take multiple uptime measurements
     let uptime1 = app_state.startup_time.elapsed().as_secs();

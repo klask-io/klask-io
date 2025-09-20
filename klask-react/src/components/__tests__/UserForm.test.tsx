@@ -163,23 +163,29 @@ describe('UserForm', () => {
       const user = userEvent.setup();
       const mockOnSubmit = vi.fn();
       render(<UserForm {...defaultProps} onSubmit={mockOnSubmit} />);
-      
+
       const usernameInput = screen.getByLabelText('Username');
       const emailInput = screen.getByLabelText('Email Address');
       const passwordInput = screen.getByLabelText('Password');
-      
+
       // Fill form with valid data including valid username
       await user.type(usernameInput, 'valid_user-name123');
       await user.type(emailInput, 'test@example.com');
       await user.type(passwordInput, 'Password123');
-      
+
+      // Wait for form validation to complete
+      await waitFor(() => {
+        const submitButton = screen.getByText('Create User');
+        expect(submitButton).not.toBeDisabled();
+      });
+
       // Submit form - should succeed
       const submitButton = screen.getByText('Create User');
       await user.click(submitButton);
-      
+
       // Should not show validation error
       expect(screen.queryByText(/Username can only contain/)).not.toBeInTheDocument();
-      
+
       // Form should submit successfully
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith({
@@ -291,16 +297,22 @@ describe('UserForm', () => {
       const user = userEvent.setup();
       const mockOnSubmit = vi.fn();
       render(<UserForm {...defaultProps} onSubmit={mockOnSubmit} />);
-      
+
       // Fill form
       await user.type(screen.getByLabelText('Username'), 'newuser');
       await user.type(screen.getByLabelText('Email Address'), 'new@example.com');
       await user.type(screen.getByLabelText('Password'), 'Password123');
       await user.click(screen.getByDisplayValue('Admin')); // Select Admin role
-      
+
+      // Wait for form validation to complete
+      await waitFor(() => {
+        const submitButton = screen.getByText('Create User');
+        expect(submitButton).not.toBeDisabled();
+      });
+
       // Submit form
       await user.click(screen.getByText('Create User'));
-      
+
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith({
           username: 'newuser',
@@ -317,17 +329,23 @@ describe('UserForm', () => {
       const mockOnSubmit = vi.fn();
       const existingUser = createMockUser();
       render(<UserForm {...defaultProps} user={existingUser} onSubmit={mockOnSubmit} />);
-      
+
       // Modify fields
       const usernameInput = screen.getByDisplayValue(existingUser.username);
       await user.clear(usernameInput);
       await user.type(usernameInput, 'updateduser');
-      
+
       await user.click(screen.getByDisplayValue('Admin')); // Change role
-      
+
+      // Wait for form validation to complete
+      await waitFor(() => {
+        const submitButton = screen.getByText('Update User');
+        expect(submitButton).not.toBeDisabled();
+      });
+
       // Submit form
       await user.click(screen.getByText('Update User'));
-      
+
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith({
           username: 'updateduser',
@@ -342,15 +360,21 @@ describe('UserForm', () => {
       const user = userEvent.setup();
       const mockOnSubmit = vi.fn();
       render(<UserForm {...defaultProps} onSubmit={mockOnSubmit} />);
-      
+
       // Fill form with spaces
       await user.type(screen.getByLabelText('Username'), '  testuser  ');
       await user.type(screen.getByLabelText('Email Address'), '  test@example.com  ');
       await user.type(screen.getByLabelText('Password'), 'Password123');
-      
+
+      // Wait for form validation to complete
+      await waitFor(() => {
+        const submitButton = screen.getByText('Create User');
+        expect(submitButton).not.toBeDisabled();
+      });
+
       // Submit form
       await user.click(screen.getByText('Create User'));
-      
+
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith({
           username: 'testuser',
@@ -367,11 +391,18 @@ describe('UserForm', () => {
       const mockOnSubmit = vi.fn();
       const existingUser = createMockUser();
       render(<UserForm {...defaultProps} user={existingUser} onSubmit={mockOnSubmit} />);
-      
+
+      // Wait for form validation to complete (form should be valid by default in edit mode)
+      await waitFor(() => {
+        const submitButton = screen.getByText('Update User');
+        expect(submitButton).not.toBeDisabled();
+      });
+
       // Leave password empty and submit
       await user.click(screen.getByText('Update User'));
-      
+
       await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalled();
         const submittedData = mockOnSubmit.mock.calls[0][0];
         expect(submittedData).not.toHaveProperty('password');
       });

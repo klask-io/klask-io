@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { LoadingSpinner } from './LoadingSpinner';
+import VirtualizedSyntaxHighlighter from './VirtualizedSyntaxHighlighter';
 
 // Lazy load react-syntax-highlighter
 const SyntaxHighlighter = lazy(() => import('react-syntax-highlighter').then(module => ({
@@ -34,6 +35,10 @@ interface OptimizedSyntaxHighlighterProps {
   customStyle?: React.CSSProperties;
   lineNumberStyle?: React.CSSProperties;
   className?: string;
+  enableVirtualization?: boolean;
+  maxLines?: number;
+  lineHeight?: number;
+  containerHeight?: number;
 }
 
 const OptimizedSyntaxHighlighter: React.FC<OptimizedSyntaxHighlighterProps> = ({
@@ -45,7 +50,11 @@ const OptimizedSyntaxHighlighter: React.FC<OptimizedSyntaxHighlighterProps> = ({
   wrapLongLines = false,
   customStyle = {},
   lineNumberStyle = {},
-  className = ''
+  className = '',
+  enableVirtualization = true,
+  maxLines = 1000,
+  lineHeight = 22,
+  containerHeight = 600
 }) => {
   const [loadedStyle, setLoadedStyle] = React.useState<any>(null);
 
@@ -54,6 +63,32 @@ const OptimizedSyntaxHighlighter: React.FC<OptimizedSyntaxHighlighterProps> = ({
       setLoadedStyle(styleObj);
     });
   }, [style]);
+
+  // Check if we should use virtualization
+  const lines = React.useMemo(() => children.split('\n'), [children]);
+  const shouldVirtualize = React.useMemo(() => {
+    return enableVirtualization && (lines.length > maxLines || children.length > 100000);
+  }, [enableVirtualization, lines.length, children.length, maxLines]);
+
+  // Use virtualized highlighter for large content
+  if (shouldVirtualize) {
+    return (
+      <VirtualizedSyntaxHighlighter
+        language={language}
+        style={style}
+        showLineNumbers={showLineNumbers}
+        wrapLines={wrapLines}
+        customStyle={customStyle}
+        lineNumberStyle={lineNumberStyle}
+        className={className}
+        maxLines={maxLines}
+        lineHeight={lineHeight}
+        containerHeight={containerHeight}
+      >
+        {children}
+      </VirtualizedSyntaxHighlighter>
+    );
+  }
 
   // If content is too large, show a warning and use plain text
   if (children.length > 50000) {

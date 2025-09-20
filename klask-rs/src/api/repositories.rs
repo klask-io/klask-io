@@ -488,32 +488,22 @@ async fn delete_repository(
     // Check if repository exists
     match repo_repository.get_repository(id).await {
         Ok(Some(repository)) => {
-            // Get all files for this repository from database before deletion
-            let pool = app_state.database.pool().clone();
-            let files_result = sqlx::query!("SELECT id FROM files WHERE repository_id = $1", id)
-                .fetch_all(&pool)
-                .await;
-
-            // Delete the repository from database (this will cascade delete files)
+            // Delete the repository from database
             match repo_repository.delete_repository(id).await {
                 Ok(_) => {
-                    // Clean up search index for all files from this repository
-                    if let Ok(files) = files_result {
-                        for file in files {
-                            // Delete from search index
-                            if let Err(e) = app_state.search_service.delete_file(file.id).await {
-                                tracing::error!(
-                                    "Failed to delete file {} from search index: {}",
-                                    file.id,
-                                    e
-                                );
-                            }
-                        }
+                    // Clean up search index for this repository
+                    // Since files are only in Tantivy now, we can delete by project name
+                    if let Err(e) = app_state.search_service.delete_project_documents(&repository.name).await {
+                        tracing::error!(
+                            "Failed to delete repository {} files from search index: {}",
+                            repository.name,
+                            e
+                        );
+                    }
 
-                        // Commit the search index changes
-                        if let Err(e) = app_state.search_service.commit().await {
-                            tracing::error!("Failed to commit search index changes after repository deletion: {}", e);
-                        }
+                    // Commit the search index changes
+                    if let Err(e) = app_state.search_service.commit().await {
+                        tracing::error!("Failed to commit search index changes after repository deletion: {}", e);
                     }
 
                     tracing::info!(

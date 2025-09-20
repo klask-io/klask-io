@@ -149,7 +149,7 @@ const VirtualizedSyntaxHighlighter: React.FC<VirtualizedSyntaxHighlighterProps> 
   }
 
   return (
-    <div className={`border border-gray-600 rounded ${className}`}>
+    <div className={`border border-gray-600 rounded ${className}`} data-testid="virtualized-highlighter">
       {/* Header with file info */}
       <div className="bg-gray-800 text-gray-300 px-4 py-2 text-sm border-b border-gray-600">
         <span>

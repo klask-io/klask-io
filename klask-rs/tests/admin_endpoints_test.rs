@@ -72,7 +72,7 @@ async fn setup_test_server() -> Result<(TestServer, AppState)> {
 }
 
 async fn cleanup_test_data(pool: &PgPool) -> Result<()> {
-    sqlx::query("DELETE FROM files").execute(pool).await?;
+    // Files are now only in Tantivy search index, no database table to clean
     sqlx::query("DELETE FROM repositories")
         .execute(pool)
         .await?;
