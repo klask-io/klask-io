@@ -171,6 +171,7 @@ async fn create_regular_user_token(app_state: &AppState) -> Result<String> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_admin_dashboard_endpoint_requires_admin() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
 
@@ -198,6 +199,7 @@ async fn test_admin_dashboard_endpoint_requires_admin() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_admin_dashboard_returns_complete_data() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
@@ -232,6 +234,7 @@ async fn test_admin_dashboard_returns_complete_data() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_system_stats_endpoint() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
@@ -257,6 +260,7 @@ async fn test_system_stats_endpoint() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_seed_database_endpoint() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
@@ -292,6 +296,7 @@ async fn test_seed_database_endpoint() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_clear_seed_data_endpoint() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
@@ -329,6 +334,7 @@ async fn test_clear_seed_data_endpoint() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_seed_stats_endpoint() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
@@ -350,6 +356,7 @@ async fn test_seed_stats_endpoint() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_user_stats_endpoint() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
@@ -376,6 +383,7 @@ async fn test_user_stats_endpoint() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_repository_stats_endpoint() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
@@ -398,6 +406,7 @@ async fn test_repository_stats_endpoint() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_content_stats_endpoint() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
@@ -421,6 +430,7 @@ async fn test_content_stats_endpoint() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_search_stats_endpoint() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
@@ -448,6 +458,7 @@ async fn test_search_stats_endpoint() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_recent_activity_endpoint() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
@@ -475,6 +486,7 @@ async fn test_recent_activity_endpoint() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_error_handling_invalid_tokens() -> Result<()> {
     let (server, _app_state) = setup_test_server().await?;
 
@@ -496,6 +508,7 @@ async fn test_error_handling_invalid_tokens() -> Result<()> {
 }
 
 #[tokio::test]
+#[ignore = "Requires PostgreSQL database"]
 async fn test_concurrent_admin_requests() -> Result<()> {
     let (server, app_state) = setup_test_server().await?;
     let admin_token = create_admin_token(&app_state).await?;
