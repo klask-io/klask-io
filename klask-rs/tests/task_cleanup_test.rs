@@ -1,7 +1,8 @@
 use anyhow::Result;
 use axum_test::TestServer;
 use klask_rs::{
-    api::create_app,
+    api,
+    auth::{extractors::AppState, jwt::JwtService},
     config::AppConfig,
     database::Database,
     models::{Repository, RepositoryType},
@@ -11,10 +12,10 @@ use klask_rs::{
         progress::{CrawlStatus, ProgressTracker},
         SearchService,
     },
-    AppState,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use tempfile::TempDir;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -56,6 +57,9 @@ impl TestSetup {
         let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
 
         // Create crawler service
+        // Create config first
+        let config = AppConfig::default();
+
         let crawler_service = Arc::new(CrawlerService::new(
             database.pool().clone(),
             search_service.clone(),
@@ -66,18 +70,24 @@ impl TestSetup {
         // Create crawl tasks map
         let crawl_tasks = Arc::new(RwLock::new(HashMap::<Uuid, JoinHandle<()>>::new()));
 
+        // Create JWT service
+        let jwt_service = JwtService::new(&config.auth).expect("Failed to create JWT service");
+
         // Create app state
         let app_state = AppState {
             database: database.clone(),
             search_service: search_service.clone(),
             crawler_service: crawler_service.clone(),
             progress_tracker: progress_tracker.clone(),
+            scheduler_service: None,
+            jwt_service,
+            config: config.clone(),
             crawl_tasks: crawl_tasks.clone(),
+            startup_time: Instant::now(),
         };
 
         // Create test app
-        let config = AppConfig::from_env().unwrap_or_default();
-        let app = create_app(app_state, &config).await?;
+        let app = api::create_router().await?.with_state(app_state);
         let server = TestServer::new(app)?;
 
         let admin_token = "test-admin-token".to_string();
@@ -441,11 +451,8 @@ async fn test_cleanup_on_server_state() -> Result<()> {
     let setup = TestSetup::new().await?;
     let repository_id = setup.create_test_repository().await?;
 
-    // Access the server's app state directly
-    let app_state = setup.server.state::<AppState>();
-
     // Start tracking
-    app_state
+    setup
         .progress_tracker
         .start_crawl(repository_id, "test-repo".to_string())
         .await;
@@ -456,26 +463,26 @@ async fn test_cleanup_on_server_state() -> Result<()> {
     });
 
     {
-        let mut tasks = app_state.crawl_tasks.write().await;
+        let mut tasks = setup.crawl_tasks.write().await;
         tasks.insert(repository_id, dummy_task);
     }
 
     // Verify task exists in server state
     {
-        let tasks = app_state.crawl_tasks.read().await;
+        let tasks = setup.crawl_tasks.read().await;
         assert!(tasks.contains_key(&repository_id));
     }
 
     // Cancel via service
-    app_state
+    setup
         .crawler_service
         .cancel_crawl(repository_id)
         .await?;
-    app_state.progress_tracker.cancel_crawl(repository_id).await;
+    setup.progress_tracker.cancel_crawl(repository_id).await;
 
     // Clean up task from server state
     {
-        let mut tasks = app_state.crawl_tasks.write().await;
+        let mut tasks = setup.crawl_tasks.write().await;
         if let Some(handle) = tasks.remove(&repository_id) {
             handle.abort();
         }
@@ -483,7 +490,7 @@ async fn test_cleanup_on_server_state() -> Result<()> {
 
     // Verify cleanup
     {
-        let tasks = app_state.crawl_tasks.read().await;
+        let tasks = setup.crawl_tasks.read().await;
         assert!(!tasks.contains_key(&repository_id));
     }
 

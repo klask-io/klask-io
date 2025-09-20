@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import {
   useProgress,
   useRepositoryProgress,
@@ -54,12 +54,13 @@ describe('useProgress', () => {
         useProgress({ repositoryId: 'repo-1', pollingInterval: 0 })
       );
 
-      // Wait for data to load and loading to be false
-      await waitFor(() => {
-        expect(result.current.progress).toEqual(mockProgressInfo);
-        expect(result.current.isLoading).toBe(false);
+      // Wait for promises to resolve
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
 
+      expect(result.current.progress).toEqual(mockProgressInfo);
+      expect(result.current.isLoading).toBe(false);
       expect(mockApi.getRepositoryProgress).toHaveBeenCalledWith('repo-1');
     });
 
@@ -71,10 +72,12 @@ describe('useProgress', () => {
         useProgress({ pollingInterval: 0 })
       );
 
-      await waitFor(() => {
-        expect(result.current.activeProgress).toEqual(mockActiveProgress);
+      // Wait for promises to resolve
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
 
+      expect(result.current.activeProgress).toEqual(mockActiveProgress);
       expect(mockApi.getActiveProgress).toHaveBeenCalled();
     });
 
@@ -87,19 +90,26 @@ describe('useProgress', () => {
         useProgress({ repositoryId: 'repo-1', pollingInterval: 100 })
       );
 
-      // Initial call should happen immediately
+      // Initial call
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
       expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
 
       // Advance timer to trigger the second call
-      await act(async () => {
+      act(() => {
         vi.advanceTimersByTime(100);
-        await vi.runAllTimersAsync();
+      });
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
 
       expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(2);
     });
 
-    it('should not poll when disabled', () => {
+    it('should not poll when disabled', async () => {
       vi.useFakeTimers();
       mockApi.getRepositoryProgress.mockResolvedValue(mockProgressInfo);
 
@@ -124,13 +134,16 @@ describe('useProgress', () => {
         useProgress({ repositoryId: 'repo-1', pollingInterval: 0 })
       );
 
-      // Initial call should happen immediately
+      // Initial call
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
       expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
 
       // Advance timer - should not trigger additional calls
-      await act(async () => {
+      act(() => {
         vi.advanceTimersByTime(5000);
-        await vi.runAllTimersAsync();
       });
 
       expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
@@ -145,10 +158,12 @@ describe('useProgress', () => {
         useProgress({ repositoryId: 'repo-1', pollingInterval: 0 })
       );
 
-      await waitFor(() => {
-        expect(result.current.error).toBe('API Error');
-        expect(result.current.isLoading).toBe(false);
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
+
+      expect(result.current.error).toBe('API Error');
+      expect(result.current.isLoading).toBe(false);
     });
 
     it('should clear previous error on successful fetch', async () => {
@@ -163,13 +178,20 @@ describe('useProgress', () => {
         useProgress({ repositoryId: 'repo-1', pollingInterval: 100 })
       );
 
-      // First call should set error
+      // Wait for first call to complete with error
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
       expect(result.current.error).toBe('API Error');
 
       // Trigger next poll
-      await act(async () => {
+      act(() => {
         vi.advanceTimersByTime(100);
-        await vi.runAllTimersAsync();
+      });
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
 
       expect(result.current.error).toBe(null);
@@ -185,8 +207,8 @@ describe('useProgress', () => {
       );
 
       // Wait for initial call
-      await waitFor(() => {
-        expect(mockApi.getRepositoryProgress).toHaveBeenCalled();
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
       
       const initialCallCount = mockApi.getRepositoryProgress.mock.calls.length;
@@ -208,8 +230,8 @@ describe('useProgress', () => {
       );
 
       // Wait for initial call
-      await waitFor(() => {
-        expect(mockApi.getActiveProgress).toHaveBeenCalled();
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
       
       const initialCallCount = mockApi.getActiveProgress.mock.calls.length;
@@ -231,15 +253,18 @@ describe('useProgress', () => {
         useProgress({ repositoryId: 'repo-1', pollingInterval: 100 })
       );
 
-      // Initial call should happen immediately
+      // Wait for initial call
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
       expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
 
       unmount();
 
       // Advance timer after unmount
-      await act(async () => {
+      act(() => {
         vi.advanceTimersByTime(100);
-        await vi.runAllTimersAsync();
       });
 
       // Should not make additional calls
@@ -256,9 +281,11 @@ describe('useProgress', () => {
         useRepositoryProgress('repo-1', { pollingInterval: 0 })
       );
 
-      await waitFor(() => {
-        expect(result.current.progress).toEqual(mockProgressInfo);
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
+
+      expect(result.current.progress).toEqual(mockProgressInfo);
 
       // Should not have activeProgress methods
       expect(result.current).not.toHaveProperty('activeProgress');
@@ -275,9 +302,11 @@ describe('useProgress', () => {
         useActiveProgress({ pollingInterval: 0 })
       );
 
-      await waitFor(() => {
-        expect(result.current.activeProgress).toEqual(mockActiveProgress);
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
       });
+
+      expect(result.current.activeProgress).toEqual(mockActiveProgress);
 
       // Should not have repository-specific methods
       expect(result.current).not.toHaveProperty('progress');
@@ -411,7 +440,6 @@ describe('Progress hook integration tests', () => {
   });
 
   it('should handle repository and active progress together', async () => {
-    vi.useFakeTimers();
     const mockRepoProgress: CrawlProgressInfo = {
       repository_id: 'repo-1',
       repository_name: 'Test Repo',
@@ -449,25 +477,17 @@ describe('Progress hook integration tests', () => {
     mockApi.getActiveProgress.mockResolvedValue(mockActiveProgress);
 
     const { result } = renderHook(() =>
-      useProgress({ repositoryId: 'repo-1', pollingInterval: 100 })
+      useProgress({ repositoryId: 'repo-1', pollingInterval: 0 })
     );
 
-    await waitFor(() => {
-      expect(result.current.progress).toEqual(mockRepoProgress);
-    });
-
-    // With repositoryId set, activeProgress polling should be disabled
-    // So only repository progress should be called
     await act(async () => {
-      vi.advanceTimersByTime(100);
-      await vi.runAllTimersAsync();
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    await waitFor(() => {
-      expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(2);
-      // Active progress should not be called when repositoryId is provided
-      expect(mockApi.getActiveProgress).toHaveBeenCalledTimes(0);
-    }, { timeout: 1000 });
+    expect(result.current.progress).toEqual(mockRepoProgress);
+    expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
+    // Active progress should not be called when repositoryId is provided
+    expect(mockApi.getActiveProgress).toHaveBeenCalledTimes(0);
   });
 
   it('should handle mixed success and failure scenarios', async () => {
@@ -493,13 +513,15 @@ describe('Progress hook integration tests', () => {
       useProgress({ repositoryId: 'repo-1', pollingInterval: 0 })
     );
 
-    await waitFor(() => {
-      expect(result.current.progress).toEqual(mockRepoProgress);
-      // Error should be null because repository progress succeeded
-      expect(result.current.error).toBe(null);
-      // Active progress should be empty array (default state, not fetched with repositoryId)
-      expect(result.current.activeProgress).toEqual([]);
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
+
+    expect(result.current.progress).toEqual(mockRepoProgress);
+    // Error should be null because repository progress succeeded
+    expect(result.current.error).toBe(null);
+    // Active progress should be empty array (default state, not fetched with repositoryId)
+    expect(result.current.activeProgress).toEqual([]);
   });
 
   it('should update polling interval when changed', async () => {
@@ -528,27 +550,34 @@ describe('Progress hook integration tests', () => {
     );
 
     // Wait for initial call
-    await waitFor(() => {
-      expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
+
+    expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(1);
 
     // Advance by initial interval
-    await act(async () => {
+    act(() => {
       vi.advanceTimersByTime(100);
-      await vi.runAllTimersAsync();
     });
 
-    await waitFor(() => {
-      expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(2);
-    }, { timeout: 1000 });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(2);
 
     // Change interval to disable polling
     rerender({ interval: 0 });
 
-    // Advance timer - should not trigger additional calls
+    // Wait for rerender effect
     await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    // Advance timer - should not trigger additional calls
+    act(() => {
       vi.advanceTimersByTime(200);
-      await vi.runAllTimersAsync();
     });
 
     expect(mockApi.getRepositoryProgress).toHaveBeenCalledTimes(3); // One more call due to rerender

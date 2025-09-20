@@ -404,7 +404,7 @@ mod crawl_api_integration_tests {
             let progress_tracker_clone = Arc::clone(&progress_tracker);
             let handle = tokio::spawn(async move {
                 tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
-                mock_trigger_crawl_endpoint(repo_id, &progress_tracker_clone, true).await
+                let _result = mock_trigger_crawl_endpoint(repo_id, &progress_tracker_clone, true).await;
             });
             handles.push(handle);
         }
@@ -498,6 +498,7 @@ mod crawl_api_integration_tests {
 #[cfg(test)]
 mod http_integration_tests {
     use super::*;
+    use axum::http::StatusCode;
     use klask_rs::services::progress::ProgressTracker;
     use serde_json::json;
     use std::sync::Arc;

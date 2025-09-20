@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
 use tracing::{debug, error, info};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SystemStats {
     pub uptime_seconds: u64,
     pub version: String,
@@ -22,7 +22,7 @@ pub struct SystemStats {
     pub database_status: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RepositoryStats {
     pub total_repositories: i64,
     pub enabled_repositories: i64,
@@ -34,7 +34,7 @@ pub struct RepositoryStats {
     pub never_crawled: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SearchStats {
     pub total_documents: i64,
     pub index_size_mb: f64,
@@ -42,20 +42,43 @@ pub struct SearchStats {
     pub popular_queries: Vec<QueryStat>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct QueryStat {
     pub query: String,
     pub count: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ContentStats {
+    pub total_files: i64,
+    pub total_size_bytes: i64,
+    pub files_by_extension: Vec<ExtensionStat>,
+    pub files_by_project: Vec<ProjectStat>,
+    pub recent_additions: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExtensionStat {
+    pub extension: String,
+    pub count: i64,
+    pub total_size: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectStat {
+    pub project: String,
+    pub file_count: i64,
+    pub total_size: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RecentActivity {
     pub recent_users: Vec<RecentUser>,
     pub recent_repositories: Vec<RecentRepository>,
     pub recent_crawls: Vec<RecentCrawl>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RecentUser {
     pub username: String,
     pub email: String,
@@ -63,7 +86,7 @@ pub struct RecentUser {
     pub role: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RecentRepository {
     pub name: String,
     pub url: String,
@@ -71,18 +94,19 @@ pub struct RecentRepository {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RecentCrawl {
     pub repository_name: String,
     pub last_crawled: Option<DateTime<Utc>>,
     pub status: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AdminDashboardData {
     pub system: SystemStats,
     pub users: UserStats,
     pub repositories: RepositoryStats,
+    pub content: ContentStats,
     pub search: SearchStats,
     pub recent_activity: RecentActivity,
 }
@@ -101,6 +125,7 @@ pub async fn create_router() -> Result<Router<AppState>> {
         .route("/system", get(get_system_stats))
         .route("/users/stats", get(get_user_stats))
         .route("/repositories/stats", get(get_repository_stats))
+        .route("/content/stats", get(get_content_stats))
         .route("/search/stats", get(get_search_stats))
         .route("/activity/recent", get(get_recent_activity))
         .route("/seed", post(seed_database))
@@ -118,10 +143,11 @@ async fn get_dashboard_data(
     let pool = app_state.database.pool().clone();
 
     // Gather all stats in parallel using tokio::join!
-    let (system_result, users_result, repos_result, search_result, activity_result) = tokio::join!(
+    let (system_result, users_result, repos_result, content_result, search_result, activity_result) = tokio::join!(
         get_system_stats_impl(&app_state),
         get_user_stats_impl(&pool),
         get_repository_stats_impl(&pool),
+        get_content_stats_impl(&pool),
         get_search_stats_impl(&app_state),
         get_recent_activity_impl(&pool)
     );
@@ -138,6 +164,10 @@ async fn get_dashboard_data(
         error!("Failed to get repository stats: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
+    let content = content_result.map_err(|e| {
+        error!("Failed to get content stats: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     let search = search_result.map_err(|e| {
         error!("Failed to get search stats: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
@@ -151,6 +181,7 @@ async fn get_dashboard_data(
         system,
         users,
         repositories,
+        content,
         search,
         recent_activity,
     };
@@ -190,6 +221,16 @@ async fn get_search_stats(
     State(app_state): State<AppState>,
 ) -> Result<Json<SearchStats>, StatusCode> {
     match get_search_stats_impl(&app_state).await {
+        Ok(stats) => Ok(Json(stats)),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn get_content_stats(
+    State(app_state): State<AppState>,
+) -> Result<Json<ContentStats>, StatusCode> {
+    let pool = app_state.database.pool().clone();
+    match get_content_stats_impl(&pool).await {
         Ok(stats) => Ok(Json(stats)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -300,6 +341,74 @@ async fn get_search_stats_impl(app_state: &AppState) -> Result<SearchStats> {
         index_size_mb,
         avg_search_time_ms: None, // TODO: Track search performance
         popular_queries: vec![],  // TODO: Track popular queries
+    })
+}
+
+async fn get_content_stats_impl(pool: &PgPool) -> Result<ContentStats> {
+    let total_files = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM files")
+        .fetch_one(pool)
+        .await?;
+
+    let total_size_bytes = sqlx::query_scalar::<_, i64>(
+        "SELECT COALESCE(SUM(size), 0) FROM files"
+    )
+    .fetch_one(pool)
+    .await?;
+
+    // Get files by extension
+    let extension_rows = sqlx::query(
+        "SELECT extension, COUNT(*) as count, COALESCE(SUM(size), 0) as total_size
+         FROM files
+         GROUP BY extension
+         ORDER BY count DESC
+         LIMIT 20"
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let files_by_extension = extension_rows
+        .into_iter()
+        .map(|row| ExtensionStat {
+            extension: row.get::<Option<String>, _>("extension").unwrap_or_else(|| "unknown".to_string()),
+            count: row.get("count"),
+            total_size: row.get("total_size"),
+        })
+        .collect();
+
+    // Get files by project (repository)
+    let project_rows = sqlx::query(
+        "SELECT r.name as project, COUNT(f.*) as file_count, COALESCE(SUM(f.size), 0) as total_size
+         FROM repositories r
+         LEFT JOIN files f ON r.id = f.repository_id
+         GROUP BY r.id, r.name
+         ORDER BY file_count DESC
+         LIMIT 20"
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let files_by_project = project_rows
+        .into_iter()
+        .map(|row| ProjectStat {
+            project: row.get("project"),
+            file_count: row.get("file_count"),
+            total_size: row.get("total_size"),
+        })
+        .collect();
+
+    // Recent additions (last 30 days)
+    let recent_additions = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM files WHERE created_at >= NOW() - INTERVAL '30 days'"
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok(ContentStats {
+        total_files,
+        total_size_bytes,
+        files_by_extension,
+        files_by_project,
+        recent_additions,
     })
 }
 

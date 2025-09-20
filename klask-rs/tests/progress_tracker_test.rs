@@ -1,5 +1,6 @@
 use anyhow::Result;
 use klask_rs::services::progress::{CrawlProgressInfo, CrawlStatus, ProgressTracker};
+use std::sync::Arc;
 use tokio_test;
 use uuid::Uuid;
 
@@ -276,7 +277,7 @@ async fn test_progress_info_update_status_cancelled() -> Result<()> {
 
 #[tokio::test]
 async fn test_concurrent_cancellation() -> Result<()> {
-    let tracker = ProgressTracker::new();
+    let tracker = Arc::new(ProgressTracker::new());
     let repository_id = Uuid::new_v4();
     let repository_name = "test-repo".to_string();
 
@@ -284,8 +285,9 @@ async fn test_concurrent_cancellation() -> Result<()> {
     tracker.start_crawl(repository_id, repository_name).await;
 
     // Simulate concurrent cancellation attempts
-    let tracker_clone1 = tracker;
-    let tracker_clone2 = tracker_clone1;
+    let tracker_clone1 = tracker.clone();
+    let tracker_clone2 = tracker.clone();
+    let tracker_for_assert = tracker.clone();
 
     let task1 = tokio::spawn(async move {
         tracker_clone1.cancel_crawl(repository_id).await;
@@ -300,8 +302,8 @@ async fn test_concurrent_cancellation() -> Result<()> {
     task2.await.unwrap();
 
     // Repository should be cancelled
-    assert!(!tracker.is_crawling(repository_id).await);
-    let progress = tracker.get_progress(repository_id).await.unwrap();
+    assert!(!tracker_for_assert.is_crawling(repository_id).await);
+    let progress = tracker_for_assert.get_progress(repository_id).await.unwrap();
     assert!(matches!(progress.status, CrawlStatus::Cancelled));
 
     Ok(())

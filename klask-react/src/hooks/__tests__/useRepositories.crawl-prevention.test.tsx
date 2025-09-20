@@ -19,8 +19,21 @@ vi.mock('../../lib/api', () => ({
     updateRepository: vi.fn(),
     deleteRepository: vi.fn(),
     getActiveProgress: vi.fn(),
+    getRepositoryProgress: vi.fn(),
   },
   getErrorMessage: vi.fn((error) => error.message || 'Unknown error'),
+}));
+
+// Mock the useProgress hook
+vi.mock('../../hooks/useProgress', () => ({
+  useActiveProgress: vi.fn(() => ({
+    activeProgress: [],
+    isLoading: false,
+    error: null,
+    refreshActiveProgress: vi.fn(),
+  })),
+  isRepositoryCrawling: vi.fn(),
+  getRepositoryProgressFromActive: vi.fn(),
 }));
 
 const mockApiClient = apiClient as any;
@@ -96,12 +109,18 @@ describe('useRepositories - Crawl Prevention', () => {
         wrapper: createWrapper(),
       });
 
+      // Debug: Check what the hook returns
+      expect(result.current).toBeDefined();
+      expect(result.current.mutateAsync).toBeDefined();
+
       await act(async () => {
         await result.current.mutateAsync('repo-1');
       });
 
       expect(mockApiClient.crawlRepository).toHaveBeenCalledWith('repo-1');
-      expect(result.current.isSuccess).toBe(true);
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
       expect(result.current.error).toBeNull();
     });
 
@@ -123,7 +142,9 @@ describe('useRepositories - Crawl Prevention', () => {
       });
 
       expect(mockApiClient.crawlRepository).toHaveBeenCalledWith('repo-1');
-      expect(result.current.isError).toBe(true);
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
       expect(result.current.error).toEqual(conflictError);
     });
 
@@ -144,7 +165,9 @@ describe('useRepositories - Crawl Prevention', () => {
         }
       });
 
-      expect(result.current.isError).toBe(true);
+      await waitFor(() => {
+        expect(result.current.isError).toBe(true);
+      });
       expect(result.current.error).toEqual(serverError);
     });
   });
@@ -579,6 +602,23 @@ describe('Integration - Crawl Prevention Edge Cases', () => {
   });
 
   it('should maintain query invalidation after crawl operations', async () => {
+    const mockRepository: Repository = {
+      id: 'repo-1',
+      name: 'Test Repo',
+      url: 'https://github.com/test/repo',
+      repositoryType: 'Git',
+      branch: 'main',
+      enabled: true,
+      lastCrawled: null,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+      autoCrawlEnabled: false,
+      cronSchedule: null,
+      nextCrawlAt: null,
+      crawlFrequencyHours: null,
+      maxCrawlDurationMinutes: 60,
+    };
+
     mockApiClient.crawlRepository.mockResolvedValue('Success');
     mockApiClient.getRepositories.mockResolvedValue([mockRepository]);
     mockApiClient.getActiveProgress.mockResolvedValue([]);

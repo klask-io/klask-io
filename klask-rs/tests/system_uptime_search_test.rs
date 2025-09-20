@@ -1,9 +1,18 @@
 use anyhow::Result;
 use klask_rs::{
-    auth::extractors::AppState, config::Config, database::Database, services::search::SearchService,
+    auth::{extractors::AppState, jwt::JwtService},
+    config::AppConfig,
+    database::Database,
+    services::{
+        crawler::CrawlerService,
+        encryption::EncryptionService,
+        progress::ProgressTracker,
+        search::SearchService,
+    },
 };
 use sqlx::PgPool;
-use std::{sync::Arc, time::Instant};
+use std::{collections::HashMap, sync::Arc, time::Instant};
+use tokio::sync::RwLock;
 use tempfile::TempDir;
 use tokio::test;
 
@@ -12,18 +21,37 @@ async fn setup_test_app_state() -> Result<(AppState, TempDir)> {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:password@localhost/klask_test".to_string());
 
-    let pool = PgPool::connect(&database_url).await?;
-    let database = Database::new(pool);
+    let database = Database::new(&database_url, 5).await?;
 
     let temp_dir = TempDir::new()?;
     let index_path = temp_dir.path().join("test_index");
 
-    let config = Config::default();
-    let search_service = SearchService::new(index_path.to_str().unwrap(), &config)?;
+    let config = AppConfig::default();
+    let search_service = SearchService::new(index_path.to_str().unwrap())?;
+
+    // Create required services for AppState
+    let progress_tracker = Arc::new(ProgressTracker::new());
+    let jwt_service = JwtService::new(&config.auth).expect("Failed to create JWT service");
+    let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+    let crawler_service = Arc::new(
+        CrawlerService::new(
+            database.pool().clone(),
+            Arc::new(search_service.clone()),
+            progress_tracker.clone(),
+            encryption_service,
+        )
+        .expect("Failed to create crawler service"),
+    );
 
     let app_state = AppState {
-        database: Arc::new(database),
+        database,
         search_service: Arc::new(search_service),
+        crawler_service,
+        progress_tracker,
+        scheduler_service: None,
+        jwt_service,
+        config,
+        crawl_tasks: Arc::new(RwLock::new(HashMap::new())),
         startup_time: Instant::now(),
     };
 
@@ -71,11 +99,11 @@ async fn test_search_service_initialization() -> Result<()> {
 
 #[tokio::test]
 async fn test_search_index_size_calculation() -> Result<()> {
-    let config = Config::default();
+    let config = AppConfig::default();
     let temp_dir = TempDir::new()?;
     let index_path = temp_dir.path().join("test_index");
 
-    let search_service = SearchService::new(index_path.to_str().unwrap(), &config)?;
+    let search_service = SearchService::new(index_path.to_str().unwrap())?;
 
     // Test empty index size
     let empty_size = search_service.get_index_size_mb();
@@ -121,11 +149,11 @@ async fn test_search_index_size_calculation() -> Result<()> {
 
 #[tokio::test]
 async fn test_search_service_document_operations() -> Result<()> {
-    let config = Config::default();
+    let config = AppConfig::default();
     let temp_dir = TempDir::new()?;
     let index_path = temp_dir.path().join("test_index");
 
-    let search_service = SearchService::new(index_path.to_str().unwrap(), &config)?;
+    let search_service = SearchService::new(index_path.to_str().unwrap())?;
 
     // Test adding documents
     search_service.add_document(
@@ -165,8 +193,8 @@ async fn test_search_service_document_operations() -> Result<()> {
         include_facets: false,
     };
     let results = search_service.search(query).await?;
-    assert_eq!(results.len(), 1, "Should find 1 document with 'println'");
-    assert!(results[0].path.contains("main.rs"));
+    assert_eq!(results.results.len(), 1, "Should find 1 document with 'println'");
+    assert!(results.results[0].file_path.contains("main.rs"));
 
     let query = klask_rs::services::search::SearchQuery {
         query: "hello".to_string(),
@@ -178,7 +206,7 @@ async fn test_search_service_document_operations() -> Result<()> {
         include_facets: false,
     };
     let results = search_service.search(query).await?;
-    assert_eq!(results.len(), 2, "Should find 2 documents with 'hello'");
+    assert_eq!(results.results.len(), 2, "Should find 2 documents with 'hello'");
 
     // Test search with no results
     let query = klask_rs::services::search::SearchQuery {
@@ -191,18 +219,18 @@ async fn test_search_service_document_operations() -> Result<()> {
         include_facets: false,
     };
     let results = search_service.search(query).await?;
-    assert_eq!(results.len(), 0, "Should find 0 documents");
+    assert_eq!(results.results.len(), 0, "Should find 0 documents");
 
     Ok(())
 }
 
 #[tokio::test]
 async fn test_search_service_index_size_with_large_content() -> Result<()> {
-    let config = Config::default();
+    let config = AppConfig::default();
     let temp_dir = TempDir::new()?;
     let index_path = temp_dir.path().join("test_index");
 
-    let search_service = SearchService::new(index_path.to_str().unwrap(), &config)?;
+    let search_service = SearchService::new(index_path.to_str().unwrap())?;
 
     let initial_size = search_service.get_index_size_mb();
 
@@ -269,14 +297,14 @@ async fn test_system_stats_integration() -> Result<()> {
 
 #[tokio::test]
 async fn test_search_index_persistence() -> Result<()> {
-    let config = Config::default();
+    let config = AppConfig::default();
     let temp_dir = TempDir::new()?;
     let index_path = temp_dir.path().join("test_index");
     let index_path_str = index_path.to_str().unwrap();
 
     // Create first search service and add documents
     {
-        let search_service = SearchService::new(index_path_str, &config)?;
+        let search_service = SearchService::new(index_path_str)?;
 
         search_service.add_document(
             "persistent_doc",
@@ -296,7 +324,7 @@ async fn test_search_index_persistence() -> Result<()> {
 
     // Create new search service with same index path
     {
-        let search_service = SearchService::new(index_path_str, &config)?;
+        let search_service = SearchService::new(index_path_str)?;
 
         // Document should still exist
         let count = search_service.get_document_count()?;
@@ -312,7 +340,7 @@ async fn test_search_index_persistence() -> Result<()> {
             include_facets: false,
         };
         let results = search_service.search(query).await?;
-        assert_eq!(results.len(), 1, "Should find persistent document");
+        assert_eq!(results.results.len(), 1, "Should find persistent document");
     }
 
     Ok(())
@@ -320,16 +348,16 @@ async fn test_search_index_persistence() -> Result<()> {
 
 #[tokio::test]
 async fn test_search_service_error_handling() -> Result<()> {
-    let config = Config::default();
+    let config = AppConfig::default();
 
     // Test with invalid index path
-    let result = SearchService::new("/invalid/path/that/does/not/exist", &config);
+    let result = SearchService::new("/invalid/path/that/does/not/exist");
     // Note: Tantivy might create directories, so this test depends on filesystem permissions
 
     // Test with valid service
     let temp_dir = TempDir::new()?;
     let index_path = temp_dir.path().join("test_index");
-    let search_service = SearchService::new(index_path.to_str().unwrap(), &config)?;
+    let search_service = SearchService::new(index_path.to_str().unwrap())?;
 
     // Test search with empty index
     let query = klask_rs::services::search::SearchQuery {
@@ -342,7 +370,7 @@ async fn test_search_service_error_handling() -> Result<()> {
         include_facets: false,
     };
     let results = search_service.search(query).await?;
-    assert_eq!(results.len(), 0);
+    assert_eq!(results.results.len(), 0);
 
     // Test document count with empty index
     let count = search_service.get_document_count()?;
@@ -353,11 +381,11 @@ async fn test_search_service_error_handling() -> Result<()> {
 
 #[tokio::test]
 async fn test_concurrent_search_operations() -> Result<()> {
-    let config = Config::default();
+    let config = AppConfig::default();
     let temp_dir = TempDir::new()?;
     let index_path = temp_dir.path().join("test_index");
 
-    let search_service = Arc::new(SearchService::new(index_path.to_str().unwrap(), &config)?);
+    let search_service = Arc::new(SearchService::new(index_path.to_str().unwrap())?);
 
     // Add some initial documents
     search_service.add_document(

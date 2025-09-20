@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::{Duration, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::models::{Repository, RepositoryType, User, UserRole};
 use crate::repositories::{RepositoryRepository, UserRepository};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SeedingStats {
     pub users_created: i64,
     pub repositories_created: i64,

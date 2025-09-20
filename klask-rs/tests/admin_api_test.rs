@@ -257,7 +257,7 @@ mod admin_api_tests {
                 total_users: 100,
                 active_users: 85,
                 admin_users: 5,
-                recent_signups: 10,
+                recent_registrations: 10,
             },
             repositories: RepositoryStats {
                 total_repositories: 50,

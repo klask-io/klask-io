@@ -86,28 +86,21 @@ export function useProgress({
       await refreshProgress();
     };
 
-    const scheduleNextPoll = () => {
-      if (!isMounted || pollingInterval <= 0) return;
-      
-      intervalId = setTimeout(async () => {
-        if (!isMounted || document.hidden) return;
-        await pollProgress();
-        scheduleNextPoll();
-      }, pollingInterval);
-    };
-
     // Initial fetch
     pollProgress();
 
     // Start polling only when pollingInterval > 0
     if (pollingInterval > 0) {
-      scheduleNextPoll();
+      intervalId = setInterval(async () => {
+        if (!isMounted || document.hidden) return;
+        await pollProgress();
+      }, pollingInterval);
     }
 
     return () => {
       isMounted = false;
       if (intervalId) {
-        clearTimeout(intervalId);
+        clearInterval(intervalId);
       }
     };
   }, [repositoryId, pollingInterval, enabled, refreshProgress]);
@@ -131,9 +124,9 @@ export function useProgress({
         
         setActiveProgress(activeProgressData);
         
-        // Schedule next poll based on fresh data
-        if (pollingInterval > 0) {
-          scheduleNextPoll(activeProgressData.length > 0);
+        // Restart polling if there are active crawls
+        if (activeProgressData && activeProgressData.length > 0) {
+          setRestartCounter(prev => prev + 1);
         }
       } catch (err) {
         if (!isMounted) return;
@@ -141,10 +134,6 @@ export function useProgress({
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch active progress';
         setError(errorMessage);
         console.error('Error fetching active progress:', err);
-        // Schedule next poll with idle interval on error
-        if (pollingInterval > 0) {
-          scheduleNextPoll(false);
-        }
       } finally {
         if (isMounted) {
           setIsActiveLoading(false);
@@ -152,29 +141,25 @@ export function useProgress({
       }
     };
 
-    const scheduleNextPoll = (hasActiveCrawls: boolean) => {
-      if (!isMounted) return;
-      
-      // Smart polling: fast when active, slow when idle
+    // Initial fetch
+    pollActiveProgress();
+
+    // Start polling only when pollingInterval > 0
+    if (pollingInterval > 0) {
       // Use shorter intervals in test environment
       const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
       const idleInterval = isTestEnv ? 100 : 15000; // 100ms in tests, 15s in production when idle
-      const interval = hasActiveCrawls ? pollingInterval : idleInterval;
       
-      intervalId = setTimeout(async () => {
-        if (!document.hidden) {
-          await pollActiveProgress();
-        }
-      }, interval);
-    };
-
-    // Initial fetch
-    pollActiveProgress();
+      intervalId = setInterval(async () => {
+        if (!isMounted || document.hidden) return;
+        await pollActiveProgress();
+      }, pollingInterval);
+    }
 
     return () => {
       isMounted = false;
       if (intervalId) {
-        clearTimeout(intervalId);
+        clearInterval(intervalId);
       }
     };
   }, [repositoryId, pollingInterval, enabled, restartCounter]);

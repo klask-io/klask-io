@@ -2,14 +2,17 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AdminDashboard from '../AdminDashboard';
+import { useAdminDashboard } from '../../../hooks/useAdmin';
 
 // Mock the useAdminDashboard hook
-vi.mock('../../hooks/useAdmin', () => ({
+vi.mock('../../../hooks/useAdmin', () => ({
   useAdminDashboard: vi.fn(),
 }));
 
+import { MetricCard } from '../../../components/admin/MetricCard';
+
 // Mock MetricCard component
-vi.mock('../../components/admin/MetricCard', () => ({
+vi.mock('../../../components/admin/MetricCard', () => ({
   MetricCard: vi.fn(({ title, value, description, icon: Icon, color, trend }) => (
     <div data-testid="metric-card" data-title={title} data-color={color}>
       <div data-testid="metric-title">{title}</div>
@@ -35,11 +38,12 @@ vi.mock('@heroicons/react/24/outline', () => ({
   DocumentDuplicateIcon: () => <div data-testid="document-icon" />,
   ClockIcon: () => <div data-testid="clock-icon" />,
   CogIcon: () => <div data-testid="cog-icon" />,
+  ArrowPathIcon: () => <div data-testid="arrow-path-icon" />,
 }));
 
 describe('AdminDashboard', () => {
   let queryClient: QueryClient;
-  const mockUseAdminDashboard = vi.mocked(require('../../hooks/useAdmin').useAdminDashboard);
+  const mockUseAdminDashboard = vi.mocked(useAdminDashboard);
 
   const mockDashboardData = {
     system: {
@@ -441,7 +445,7 @@ describe('AdminDashboard', () => {
   });
 
   it('renders MetricCard components with correct props', () => {
-    const MetricCard = vi.mocked(require('../../components/admin/MetricCard').MetricCard);
+    const MockMetricCard = vi.mocked(MetricCard);
     
     mockUseAdminDashboard.mockReturnValue({
       data: mockDashboardData,

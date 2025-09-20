@@ -22,19 +22,31 @@ vi.mock('react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus', () => ({
   default: { 'pre[class*="language-"]': { background: '#1e1e1e' } },
 }));
 
-// Mock all the language imports
-const mockLanguages = [
-  'javascript', 'typescript', 'jsx', 'tsx', 'python', 'java', 'cpp', 'c',
-  'csharp', 'php', 'ruby', 'go', 'rust', 'kotlin', 'swift', 'dart', 'scala',
-  'bash', 'yaml', 'json', 'markup', 'css', 'scss', 'sass', 'less',
-  'sql', 'markdown', 'docker'
-];
-
-mockLanguages.forEach(lang => {
-  vi.mock(`react-syntax-highlighter/dist/esm/languages/prism/${lang}`, () => ({
-    default: vi.fn(),
-  }));
-});
+// Mock specific language imports that are commonly used
+vi.mock('react-syntax-highlighter/dist/esm/languages/prism/javascript', () => ({
+  default: vi.fn(),
+}));
+vi.mock('react-syntax-highlighter/dist/esm/languages/prism/typescript', () => ({
+  default: vi.fn(),
+}));
+vi.mock('react-syntax-highlighter/dist/esm/languages/prism/jsx', () => ({
+  default: vi.fn(),
+}));
+vi.mock('react-syntax-highlighter/dist/esm/languages/prism/tsx', () => ({
+  default: vi.fn(),
+}));
+vi.mock('react-syntax-highlighter/dist/esm/languages/prism/python', () => ({
+  default: vi.fn(),
+}));
+vi.mock('react-syntax-highlighter/dist/esm/languages/prism/json', () => ({
+  default: vi.fn(),
+}));
+vi.mock('react-syntax-highlighter/dist/esm/languages/prism/bash', () => ({
+  default: vi.fn(),
+}));
+vi.mock('react-syntax-highlighter/dist/esm/languages/prism/markdown', () => ({
+  default: vi.fn(),
+}));
 
 // Mock VirtualizedSyntaxHighlighter
 vi.mock('../VirtualizedSyntaxHighlighter', () => ({

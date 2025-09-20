@@ -5,15 +5,22 @@ use axum::{
 };
 use axum_test::TestServer;
 use klask_rs::{
-    auth::extractors::{AppState, Claims},
-    config::Config,
+    auth::{extractors::AppState, claims::TokenClaims, jwt::JwtService},
+    config::AppConfig,
     database::Database,
     models::{User, UserRole},
-    services::{search::SearchService, seeding::SeedingService},
+    services::{
+        crawler::CrawlerService,
+        encryption::EncryptionService,
+        progress::ProgressTracker,
+        search::SearchService,
+        seeding::SeedingService,
+    },
 };
 use serde_json::Value;
 use sqlx::PgPool;
-use std::{sync::Arc, time::Instant};
+use std::{collections::HashMap, sync::Arc, time::Instant};
+use tokio::sync::RwLock;
 use tokio::test;
 use uuid::Uuid;
 
@@ -22,22 +29,41 @@ async fn setup_integration_test() -> Result<(TestServer, AppState, String)> {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:password@localhost/klask_test".to_string());
 
-    let pool = PgPool::connect(&database_url).await?;
-    let database = Database::new(pool);
+    let database = Database::new(&database_url, 5).await?;
 
     // Clean up any existing test data
-    cleanup_test_data(&database.pool).await?;
+    cleanup_test_data(database.pool()).await?;
 
-    let config = Config::default();
-    let search_service = SearchService::new("./test_index_integration", &config)?;
+    let config = AppConfig::default();
+    let search_service = SearchService::new("./test_index_integration")?;
+
+    // Create required services for AppState
+    let progress_tracker = Arc::new(ProgressTracker::new());
+    let jwt_service = JwtService::new(&config.auth).expect("Failed to create JWT service");
+    let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+    let crawler_service = Arc::new(
+        CrawlerService::new(
+            database.pool().clone(),
+            Arc::new(search_service.clone()),
+            progress_tracker.clone(),
+            encryption_service,
+        )
+        .expect("Failed to create crawler service"),
+    );
 
     let app_state = AppState {
-        database: Arc::new(database),
+        database,
         search_service: Arc::new(search_service),
+        crawler_service,
+        progress_tracker,
+        scheduler_service: None,
+        jwt_service,
+        config,
+        crawl_tasks: Arc::new(RwLock::new(HashMap::new())),
         startup_time: Instant::now(),
     };
 
-    let app = klask_rs::create_app(app_state.clone()).await?;
+    let app = klask_rs::api::create_router().await?.with_state(app_state.clone());
     let server = TestServer::new(app)?;
 
     // Create admin user and token
@@ -83,11 +109,12 @@ async fn create_admin_user_and_token(app_state: &AppState) -> Result<String> {
     .execute(app_state.database.pool())
     .await?;
 
-    let claims = Claims {
+    let claims = TokenClaims {
         sub: admin_user.id,
         username: admin_user.username,
-        role: admin_user.role,
-        exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp() as usize,
+        role: admin_user.role.to_string(),
+        exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
+        iat: chrono::Utc::now().timestamp(),
     };
 
     let token = jsonwebtoken::encode(

@@ -309,7 +309,7 @@ async fn test_file_processing_and_indexing() -> Result<()> {
     let doc_count = setup.search_service.get_document_count()?;
     
     assert!(
-        doc_count >= test_files.len(),
+        doc_count >= test_files.len() as u64,
         "Should have at least {} documents indexed",
         test_files.len()
     );

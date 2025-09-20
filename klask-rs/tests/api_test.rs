@@ -4,7 +4,8 @@ use klask_rs::auth::{extractors::AppState, jwt::JwtService};
 use klask_rs::config::{AppConfig, AuthConfig};
 use klask_rs::services::{crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker, SearchService};
 use klask_rs::{api, Database};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc, time::Instant};
+use tokio::sync::RwLock;
 use tempfile::TempDir;
 
 // Create a mock database for testing (we'll use a dummy implementation)
@@ -59,10 +60,13 @@ async fn create_test_app_state() -> Option<AppState> {
         Some(AppState {
             database,
             search_service: shared_search_service,
-            jwt_service,
-            config,
             crawler_service,
             progress_tracker,
+            scheduler_service: None,
+            jwt_service,
+            config,
+            crawl_tasks: Arc::new(RwLock::new(HashMap::new())),
+            startup_time: Instant::now(),
         })
     } else {
         None

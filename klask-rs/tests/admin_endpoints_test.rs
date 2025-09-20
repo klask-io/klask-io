@@ -5,16 +5,24 @@ use axum::{
 };
 use axum_test::TestServer;
 use klask_rs::{
-    api::admin::{AdminDashboardData, SeedingStats, SystemStats},
-    auth::extractors::{AppState, Claims},
-    config::Config,
+    api::admin::{AdminDashboardData, SystemStats},
+    auth::{extractors::AppState, claims::TokenClaims, jwt::JwtService},
+    config::AppConfig,
+    services::seeding::SeedingStats,
     database::Database,
     models::{User, UserRole},
-    services::{search::SearchService, seeding::SeedingService},
+    services::{
+        crawler::CrawlerService,
+        encryption::EncryptionService,
+        progress::ProgressTracker,
+        search::SearchService,
+        seeding::SeedingService,
+    },
 };
 use serde_json::Value;
 use sqlx::PgPool;
-use std::{sync::Arc, time::Instant};
+use std::{collections::HashMap, sync::Arc, time::Instant};
+use tokio::sync::RwLock;
 use tokio::test;
 use uuid::Uuid;
 
@@ -23,22 +31,41 @@ async fn setup_test_server() -> Result<(TestServer, AppState)> {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:password@localhost/klask_test".to_string());
 
-    let pool = PgPool::connect(&database_url).await?;
-    let database = Database::new(pool);
+    let database = Database::new(&database_url, 5).await?;
 
     // Clean up any existing test data
-    cleanup_test_data(&database.pool).await?;
+    cleanup_test_data(database.pool()).await?;
 
-    let config = Config::default();
-    let search_service = SearchService::new("./test_index", &config)?;
+    let config = AppConfig::default();
+    let search_service = SearchService::new("./test_index")?;
+
+    // Create required services for AppState
+    let progress_tracker = Arc::new(ProgressTracker::new());
+    let jwt_service = JwtService::new(&config.auth).expect("Failed to create JWT service");
+    let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+    let crawler_service = Arc::new(
+        CrawlerService::new(
+            database.pool().clone(),
+            Arc::new(search_service.clone()),
+            progress_tracker.clone(),
+            encryption_service,
+        )
+        .expect("Failed to create crawler service"),
+    );
 
     let app_state = AppState {
-        database: Arc::new(database),
+        database,
         search_service: Arc::new(search_service),
+        crawler_service,
+        progress_tracker,
+        scheduler_service: None,
+        jwt_service,
+        config,
+        crawl_tasks: Arc::new(RwLock::new(HashMap::new())),
         startup_time: Instant::now(),
     };
 
-    let app = klask_rs::create_app(app_state.clone()).await?;
+    let app = klask_rs::api::create_router().await?.with_state(app_state.clone());
     let server = TestServer::new(app)?;
 
     Ok((server, app_state))
@@ -81,11 +108,12 @@ async fn create_admin_token(app_state: &AppState) -> Result<String> {
     .execute(app_state.database.pool())
     .await?;
 
-    let claims = Claims {
+    let claims = TokenClaims {
         sub: admin_user.id,
         username: admin_user.username,
-        role: admin_user.role,
-        exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp() as usize,
+        role: admin_user.role.to_string(),
+        exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
+        iat: chrono::Utc::now().timestamp(),
     };
 
     let token = jsonwebtoken::encode(
@@ -125,11 +153,12 @@ async fn create_regular_user_token(app_state: &AppState) -> Result<String> {
     .execute(app_state.database.pool())
     .await?;
 
-    let claims = Claims {
+    let claims = TokenClaims {
         sub: user.id,
         username: user.username,
-        role: user.role,
-        exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp() as usize,
+        role: user.role.to_string(),
+        exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp(),
+        iat: chrono::Utc::now().timestamp(),
     };
 
     let token = jsonwebtoken::encode(
@@ -252,14 +281,12 @@ async fn test_seed_database_endpoint() -> Result<()> {
     let seed_result: SeedingStats = seed_response.json();
 
     // Verify data was created
-    assert!(seed_result.users > initial_stats.users);
-    assert!(seed_result.repositories > initial_stats.repositories);
-    assert!(seed_result.files > initial_stats.files);
+    assert!(seed_result.users_created > initial_stats.users_created);
+    assert!(seed_result.repositories_created > initial_stats.repositories_created);
 
     // Expected counts based on seeding service
-    assert_eq!(seed_result.users, 5);
-    assert_eq!(seed_result.repositories, 5);
-    assert_eq!(seed_result.files, 50);
+    assert_eq!(seed_result.users_created, 5);
+    assert_eq!(seed_result.repositories_created, 3);
 
     Ok(())
 }
@@ -282,9 +309,8 @@ async fn test_clear_seed_data_endpoint() -> Result<()> {
         .add_header("Authorization", &format!("Bearer {}", admin_token))
         .await;
     let stats: SeedingStats = stats_response.json();
-    assert!(stats.users > 0);
-    assert!(stats.repositories > 0);
-    assert!(stats.files > 0);
+    assert!(stats.users_created > 0);
+    assert!(stats.repositories_created > 0);
 
     // Clear seed data
     let clear_response = server
@@ -296,9 +322,8 @@ async fn test_clear_seed_data_endpoint() -> Result<()> {
     let clear_result: SeedingStats = clear_response.json();
 
     // Verify data was cleared (but admin user should still exist)
-    assert_eq!(clear_result.users, 0);
-    assert_eq!(clear_result.repositories, 0);
-    assert_eq!(clear_result.files, 0);
+    assert_eq!(clear_result.users_created, 0);
+    assert_eq!(clear_result.repositories_created, 0);
 
     Ok(())
 }
@@ -318,9 +343,8 @@ async fn test_seed_stats_endpoint() -> Result<()> {
     let stats: SeedingStats = response.json();
 
     // Should return valid statistics (may be zero if no seed data)
-    assert!(stats.users >= 0);
-    assert!(stats.repositories >= 0);
-    assert!(stats.files >= 0);
+    assert!(stats.users_created >= 0);
+    assert!(stats.repositories_created >= 0);
 
     Ok(())
 }

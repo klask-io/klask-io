@@ -181,7 +181,7 @@ impl UserRepository {
     }
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct UserStats {
     pub total_users: i64,
     pub active_users: i64,
