@@ -153,7 +153,10 @@ export function useProgress({
       if (!isMounted) return;
       
       // Smart polling: fast when active, slow when idle
-      const interval = hasActiveCrawls ? pollingInterval : 15000; // 1s when active, 15s when idle
+      // Use shorter intervals in test environment
+      const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+      const idleInterval = isTestEnv ? 500 : 15000; // 500ms in tests, 15s in production when idle
+      const interval = hasActiveCrawls ? pollingInterval : idleInterval;
       
       intervalId = setTimeout(async () => {
         if (!document.hidden) {

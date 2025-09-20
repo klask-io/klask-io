@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '../../../test/test-utils';
 import React from 'react';
 import { SelectableRepositoryCard } from '../SelectableRepositoryCard';
 import type { Repository } from '../../../types';

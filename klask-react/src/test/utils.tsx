@@ -62,5 +62,5 @@ export const mockApiError = (status = 500, message = 'API Error'): Response =>
     status,
   } as Response);
 
-// Helper to wait for async operations
-export const waitFor = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Helper to wait for async operations (renamed to avoid conflict with @testing-library/react waitFor)
+export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, waitFor } from '@testing-library/react';
+import { renderHookWithQueryClient } from '../../test/react-query-test-utils';
 import React from 'react';
 import { useStopCrawl } from '../useRepositories';
 import { apiClient } from '../../lib/api';
@@ -14,23 +14,7 @@ vi.mock('../../lib/api', () => ({
 
 const mockApiClient = apiClient as any;
 
-// Create a wrapper with QueryClient for testing
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-      mutations: {
-        retry: false,
-      },
-    },
-  });
-
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-};
+// Using renderHookWithQueryClient from test utils which handles QueryClient setup
 
 describe('useStopCrawl', () => {
   beforeEach(() => {
@@ -42,9 +26,7 @@ describe('useStopCrawl', () => {
   });
 
   it('should initialize with correct default state', () => {
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     expect(result.current.isPending).toBe(false);
     expect(result.current.isError).toBe(false);
@@ -60,9 +42,7 @@ describe('useStopCrawl', () => {
     const mockResponse = 'Crawl stopped successfully';
     mockApiClient.stopCrawlRepository.mockResolvedValue(mockResponse);
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     act(() => {
       result.current.mutate(repositoryId);
@@ -90,9 +70,7 @@ describe('useStopCrawl', () => {
     const mockError = new Error('Failed to stop crawl');
     mockApiClient.stopCrawlRepository.mockRejectedValue(mockError);
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     act(() => {
       result.current.mutate(repositoryId);
@@ -118,9 +96,7 @@ describe('useStopCrawl', () => {
     networkError.name = 'NetworkError';
     mockApiClient.stopCrawlRepository.mockRejectedValue(networkError);
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     act(() => {
       result.current.mutate(repositoryId);
@@ -138,9 +114,7 @@ describe('useStopCrawl', () => {
     (notFoundError as any).status = 404;
     mockApiClient.stopCrawlRepository.mockRejectedValue(notFoundError);
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     act(() => {
       result.current.mutate(repositoryId);
@@ -158,9 +132,7 @@ describe('useStopCrawl', () => {
     (unauthorizedError as any).status = 401;
     mockApiClient.stopCrawlRepository.mockRejectedValue(unauthorizedError);
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     act(() => {
       result.current.mutate(repositoryId);
@@ -177,9 +149,7 @@ describe('useStopCrawl', () => {
     const mockResponse = 'Crawl stopped successfully';
     mockApiClient.stopCrawlRepository.mockResolvedValue(mockResponse);
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     let mutateAsyncResult: string | undefined;
     let mutateAsyncError: Error | undefined;
@@ -203,9 +173,7 @@ describe('useStopCrawl', () => {
     const mockError = new Error('API Error');
     mockApiClient.stopCrawlRepository.mockRejectedValue(mockError);
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     let mutateAsyncError: Error | undefined;
 
@@ -232,9 +200,7 @@ describe('useStopCrawl', () => {
       .mockResolvedValueOnce(mockResponse1)
       .mockResolvedValueOnce(mockResponse2);
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     // First call
     act(() => {
@@ -265,9 +231,7 @@ describe('useStopCrawl', () => {
     const repositoryId = 'repo-123';
     mockApiClient.stopCrawlRepository.mockResolvedValue('Success');
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     // First mutation
     act(() => {
@@ -306,9 +270,7 @@ describe('useStopCrawl', () => {
       }
     });
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     // Start both mutations nearly simultaneously
     act(() => {
@@ -331,9 +293,7 @@ describe('useStopCrawl', () => {
     const invalidIds = ['', null, undefined];
     mockApiClient.stopCrawlRepository.mockRejectedValue(new Error('Invalid ID'));
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     for (const invalidId of invalidIds) {
       act(() => {
@@ -356,9 +316,7 @@ describe('useStopCrawl', () => {
     const mockError = new Error('Test error');
     mockApiClient.stopCrawlRepository.mockRejectedValue(mockError);
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     // Trigger error
     act(() => {
@@ -388,9 +346,7 @@ describe('useStopCrawl', () => {
     timeoutError.name = 'TimeoutError';
     mockApiClient.stopCrawlRepository.mockRejectedValue(timeoutError);
 
-    const { result } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHookWithQueryClient(() => useStopCrawl());
 
     act(() => {
       result.current.mutate(repositoryId);
@@ -403,9 +359,7 @@ describe('useStopCrawl', () => {
   });
 
   it('should maintain referential stability of mutate function', () => {
-    const { result, rerender } = renderHook(() => useStopCrawl(), {
-      wrapper: createWrapper(),
-    });
+    const { result, rerender } = renderHookWithQueryClient(() => useStopCrawl());
 
     const initialMutate = result.current.mutate;
     const initialMutateAsync = result.current.mutateAsync;

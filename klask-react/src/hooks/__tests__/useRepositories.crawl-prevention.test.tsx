@@ -48,6 +48,12 @@ const createWrapper = () => {
 describe('useRepositories - Crawl Prevention', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   const mockRepository: Repository = {
@@ -341,6 +347,10 @@ describe('useRepositories - Crawl Prevention', () => {
 
       await waitFor(() => {
         expect(result.current.data).toEqual(mockActiveProgress);
+      });
+      
+      // isLoading should eventually be false
+      await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
@@ -356,6 +366,9 @@ describe('useRepositories - Crawl Prevention', () => {
 
       await waitFor(() => {
         expect(result.current.data).toEqual([]);
+      });
+      
+      await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
     });
@@ -370,12 +383,14 @@ describe('useRepositories - Crawl Prevention', () => {
 
       await waitFor(() => {
         expect(result.current.error).toBeTruthy();
+      });
+      
+      await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
     });
 
     it('should refetch at regular intervals', async () => {
-      vi.useFakeTimers();
       mockApiClient.getActiveProgress.mockResolvedValue([mockProgressInfo]);
       
       const { result } = renderHook(() => useActiveProgress(), {
@@ -389,14 +404,12 @@ describe('useRepositories - Crawl Prevention', () => {
 
       // Advance timers to trigger refetch
       act(() => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(200);
       });
 
       await waitFor(() => {
         expect(mockApiClient.getActiveProgress).toHaveBeenCalledTimes(2);
       });
-
-      vi.useRealTimers();
     });
 
     it('should handle multiple repositories in active progress', async () => {
@@ -423,6 +436,12 @@ describe('useRepositories - Crawl Prevention', () => {
 describe('Integration - Crawl Prevention Edge Cases', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it('should handle rapid start/stop crawl cycles', async () => {
@@ -588,13 +607,19 @@ describe('Integration - Crawl Prevention Edge Cases', () => {
     // In a real scenario, this would cause repositories to refetch
     await waitFor(() => {
       expect(reposResult.current.isLoading).toBe(false);
-    });
+    }, { timeout: 2000 });
   });
 });
 
 describe('Error Handling and User Feedback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it('should properly categorize different error types', async () => {

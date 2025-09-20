@@ -7,6 +7,8 @@ import FileDetailPage from '../FileDetailPage';
 import { apiClient } from '../../../lib/api';
 import type { File, SearchResult } from '../../../types';
 
+const mockApiClient = apiClient as any;
+
 // Mock all external dependencies
 vi.mock('../../../lib/api', () => ({
   apiClient: {
@@ -93,6 +95,10 @@ describe('File Preview Integration Tests', () => {
       },
     });
     vi.clearAllMocks();
+    
+    // Reset any mock implementations
+    mockApiClient.getFile.mockReset();
+    mockApiClient.getFileByDocAddress.mockReset();
   });
 
   const renderFileDetailPage = (
@@ -127,7 +133,7 @@ console.log('Fibonacci(10) =', result);
         size: 200,
       });
 
-      vi.mocked(apiClient.getFile).mockResolvedValue(mockFile);
+      mockApiClient.getFile.mockResolvedValue(mockFile);
       
       renderFileDetailPage();
 
@@ -226,7 +232,7 @@ console.log('Fibonacci(10) =', result);
       ];
 
       for (const { file, expectedLanguage } of testFiles) {
-        vi.mocked(apiClient.getFile).mockResolvedValue(file);
+        mockApiClient.getFile.mockResolvedValue(file);
         
         const { unmount } = renderFileDetailPage([`/files/${file.id}`]);
 
@@ -381,7 +387,7 @@ console.log('Fibonacci(10) =', result);
 
   describe('Error Handling Integration', () => {
     it('handles file not found errors gracefully', async () => {
-      vi.mocked(apiClient.getFile).mockRejectedValue(new Error('File not found'));
+      mockApiClient.getFile.mockRejectedValue(new Error('File not found'));
       
       renderFileDetailPage();
 
@@ -394,7 +400,7 @@ console.log('Fibonacci(10) =', result);
     });
 
     it('handles network errors gracefully', async () => {
-      vi.mocked(apiClient.getFile).mockRejectedValue(new Error('Network error'));
+      mockApiClient.getFile.mockRejectedValue(new Error('Network error'));
       
       renderFileDetailPage();
 
@@ -410,7 +416,7 @@ console.log('Fibonacci(10) =', result);
       const toast = await import('react-hot-toast');
       
       vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('Clipboard error'));
-      vi.mocked(apiClient.getFile).mockResolvedValue(createMockFile());
+      mockApiClient.getFile.mockResolvedValue(createMockFile());
       
       renderFileDetailPage();
 
@@ -429,7 +435,7 @@ console.log('Fibonacci(10) =', result);
 
   describe('Navigation Integration', () => {
     it('provides correct navigation back to search', async () => {
-      vi.mocked(apiClient.getFile).mockResolvedValue(createMockFile());
+      mockApiClient.getFile.mockResolvedValue(createMockFile());
       
       renderFileDetailPage();
 
@@ -443,12 +449,12 @@ console.log('Fibonacci(10) =', result);
 
     it('handles docAddress parameter correctly', async () => {
       const mockFile = createMockFile();
-      vi.mocked(apiClient.getFileByDocAddress).mockResolvedValue(mockFile);
+      mockApiClient.getFileByDocAddress.mockResolvedValue(mockFile);
       
       renderFileDetailPage(['/files/doc/test-doc-address']);
 
       await waitFor(() => {
-        expect(apiClient.getFileByDocAddress).toHaveBeenCalledWith('test-doc-address');
+        expect(mockApiClient.getFileByDocAddress).toHaveBeenCalledWith('test-doc-address');
       });
 
       await waitFor(() => {
@@ -468,7 +474,7 @@ console.log('Fibonacci(10) =', result);
 
       for (const { size, expected } of testCases) {
         const file = createMockFile({ size });
-        vi.mocked(apiClient.getFile).mockResolvedValue(file);
+        mockApiClient.getFile.mockResolvedValue(file);
         
         const { unmount } = renderFileDetailPage();
 
@@ -519,7 +525,7 @@ console.log('Fibonacci(10) =', result);
   describe('UI State Integration', () => {
     it('maintains UI state correctly across interactions', async () => {
       const user = userEvent.setup();
-      vi.mocked(apiClient.getFile).mockResolvedValue(createMockFile());
+      mockApiClient.getFile.mockResolvedValue(createMockFile());
       
       renderFileDetailPage();
 

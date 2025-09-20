@@ -315,8 +315,21 @@ describe('useSearch', () => {
 });
 
 describe('useSearchHistory hook', () => {
+  let localStorageMock: {
+    getItem: ReturnType<typeof vi.fn>,
+    setItem: ReturnType<typeof vi.fn>,
+    removeItem: ReturnType<typeof vi.fn>,
+    clear: ReturnType<typeof vi.fn>
+  };
+
   beforeEach(() => {
-    localStorage.clear();
+    localStorageMock = {
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    };
+    vi.stubGlobal('localStorage', localStorageMock);
     vi.clearAllMocks();
   });
 
@@ -327,14 +340,14 @@ describe('useSearchHistory hook', () => {
 
   it('should load history from localStorage', () => {
     const mockHistory = ['query1', 'query2'];
-    localStorage.getItem = vi.fn().mockReturnValue(JSON.stringify(mockHistory));
+    localStorageMock.getItem.mockReturnValue(JSON.stringify(mockHistory));
 
     const { result } = renderHook(() => useSearchHistory());
     expect(result.current.history).toEqual(mockHistory);
   });
 
   it('should handle localStorage parse errors', () => {
-    localStorage.getItem = vi.fn().mockReturnValue('invalid json');
+    localStorageMock.getItem.mockReturnValue('invalid json');
 
     const { result } = renderHook(() => useSearchHistory());
     expect(result.current.history).toEqual([]);
@@ -348,7 +361,7 @@ describe('useSearchHistory hook', () => {
     });
 
     expect(result.current.history).toEqual(['new query']);
-    expect(localStorage.setItem).toHaveBeenCalledWith(
+    expect(localStorageMock.setItem).toHaveBeenCalledWith(
       'klask-search-history',
       JSON.stringify(['new query'])
     );
@@ -406,11 +419,11 @@ describe('useSearchHistory hook', () => {
     });
 
     expect(result.current.history).toEqual([]);
-    expect(localStorage.removeItem).toHaveBeenCalledWith('klask-search-history');
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith('klask-search-history');
   });
 
   it('should handle localStorage errors gracefully', () => {
-    localStorage.setItem = vi.fn().mockImplementation(() => {
+    localStorageMock.setItem.mockImplementation(() => {
       throw new Error('Storage error');
     });
 
@@ -425,7 +438,7 @@ describe('useSearchHistory hook', () => {
   });
 
   it('should handle localStorage clear errors gracefully', () => {
-    localStorage.removeItem = vi.fn().mockImplementation(() => {
+    localStorageMock.removeItem.mockImplementation(() => {
       throw new Error('Storage error');
     });
 

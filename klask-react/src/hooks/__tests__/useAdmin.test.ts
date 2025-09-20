@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { waitFor } from '@testing-library/react';
+import { renderHookWithQueryClient } from '../../test/react-query-test-utils';
 import React from 'react';
 import {
   useAdminDashboard,
@@ -30,21 +30,9 @@ vi.mock('../../lib/api', () => ({
 const mockApiClient = apiClient as any;
 
 describe('useAdmin hooks', () => {
-  let queryClient: QueryClient;
-
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false, refetchOnWindowFocus: false },
-        mutations: { retry: false },
-      },
-    });
     vi.clearAllMocks();
   });
-
-  const wrapper = ({ children }: { children: React.ReactNode }) => (
-    React.createElement(QueryClientProvider, { client: queryClient }, children)
-  );
 
   describe('useAdminDashboard', () => {
     it('should fetch admin dashboard data', async () => {
@@ -102,7 +90,7 @@ describe('useAdmin hooks', () => {
 
       mockApiClient.getAdminDashboard.mockResolvedValue(mockDashboard);
 
-      const { result } = renderHook(() => useAdminDashboard(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useAdminDashboard());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -116,7 +104,7 @@ describe('useAdmin hooks', () => {
       const mockError = new Error('Dashboard error');
       mockApiClient.getAdminDashboard.mockRejectedValue(mockError);
 
-      const { result } = renderHook(() => useAdminDashboard(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useAdminDashboard());
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -129,7 +117,7 @@ describe('useAdmin hooks', () => {
       const mockData = { system: {}, users: {}, repositories: {} };
       mockApiClient.getAdminDashboard.mockResolvedValue(mockData);
 
-      const { result, rerender } = renderHook(() => useAdminDashboard(), { wrapper });
+      const { result, rerender } = renderHookWithQueryClient(() => useAdminDashboard());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -152,7 +140,7 @@ describe('useAdmin hooks', () => {
 
       mockApiClient.getSystemStats.mockResolvedValue(mockStats);
 
-      const { result } = renderHook(() => useSystemStats(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useSystemStats());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -165,7 +153,7 @@ describe('useAdmin hooks', () => {
     it('should handle system stats errors', async () => {
       mockApiClient.getSystemStats.mockRejectedValue(new Error('System error'));
 
-      const { result } = renderHook(() => useSystemStats(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useSystemStats());
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -184,7 +172,7 @@ describe('useAdmin hooks', () => {
 
       mockApiClient.getAdminUserStats.mockResolvedValue(mockUserStats);
 
-      const { result } = renderHook(() => useAdminUserStats(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useAdminUserStats());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -209,7 +197,7 @@ describe('useAdmin hooks', () => {
 
       mockApiClient.getRepositoryStats.mockResolvedValue(mockRepoStats);
 
-      const { result } = renderHook(() => useRepositoryStats(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useRepositoryStats());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -241,7 +229,7 @@ describe('useAdmin hooks', () => {
 
       mockApiClient.getContentStats.mockResolvedValue(mockContentStats);
 
-      const { result } = renderHook(() => useContentStats(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useContentStats());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -271,7 +259,7 @@ describe('useAdmin hooks', () => {
 
       mockApiClient.getAdminSearchStats.mockResolvedValue(mockSearchStats);
 
-      const { result } = renderHook(() => useAdminSearchStats(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useAdminSearchStats());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -323,7 +311,7 @@ describe('useAdmin hooks', () => {
 
       mockApiClient.getRecentActivity.mockResolvedValue(mockActivity);
 
-      const { result } = renderHook(() => useRecentActivity(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useRecentActivity());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -344,7 +332,7 @@ describe('useAdmin hooks', () => {
 
       mockApiClient.getRecentActivity.mockResolvedValue(emptyActivity);
 
-      const { result } = renderHook(() => useRecentActivity(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useRecentActivity());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -410,7 +398,7 @@ describe('useAdmin hooks', () => {
       mockApiClient.getAdminSearchStats.mockResolvedValue(mockSearchStats);
       mockApiClient.getRecentActivity.mockResolvedValue(mockActivity);
 
-      const { result } = renderHook(() => useAdminMetrics(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useAdminMetrics());
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -469,7 +457,7 @@ describe('useAdmin hooks', () => {
         recent_crawls: [],
       });
 
-      const { result } = renderHook(() => useAdminMetrics(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useAdminMetrics());
 
       await waitFor(() => {
         expect(result.current.error).toBeTruthy();
@@ -523,7 +511,7 @@ describe('useAdmin hooks', () => {
         recent_crawls: [],
       });
 
-      const { result } = renderHook(() => useAdminMetrics(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useAdminMetrics());
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -577,7 +565,7 @@ describe('useAdmin hooks', () => {
         recent_users: [], recent_repositories: [], recent_crawls: [],
       });
 
-      const { result } = renderHook(() => useAdminMetrics(), { wrapper });
+      const { result } = renderHookWithQueryClient(() => useAdminMetrics());
 
       // Initially should be loading
       expect(result.current.isLoading).toBe(true);

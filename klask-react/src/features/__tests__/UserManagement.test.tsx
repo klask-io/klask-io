@@ -82,7 +82,7 @@ vi.mock('../../components/admin/UserForm', () => ({
     if (!isOpen) return null;
     return (
       <div data-testid="user-form-modal">
-        <h2>{user ? 'Edit User' : 'Add User'}</h2>
+        <h2>{user ? 'Edit User Form' : 'Add User Form'}</h2>
         <p>User: {user ? user.username : 'New User'}</p>
         <button onClick={onClose}>Close</button>
         <button 
@@ -246,7 +246,7 @@ describe('UserManagement Integration', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('user-form-modal')).toBeInTheDocument();
-        expect(screen.getByText('Add User')).toBeInTheDocument();
+        expect(screen.getByText('Add User Form')).toBeInTheDocument();
         expect(screen.getByText('New User')).toBeInTheDocument();
       });
     });
@@ -330,7 +330,7 @@ describe('UserManagement Integration', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('user-form-modal')).toBeInTheDocument();
-        expect(screen.getByText('Edit User')).toBeInTheDocument();
+        expect(screen.getByText('Edit User Form')).toBeInTheDocument();
         expect(screen.getByText('john_doe')).toBeInTheDocument(); // Should show user data
       });
     });
@@ -650,7 +650,7 @@ describe('UserManagement Integration', () => {
       
       await waitFor(() => {
         expect(screen.getByTestId('user-form-modal')).toBeInTheDocument();
-        expect(screen.getByText('Add User')).toBeInTheDocument();
+        expect(screen.getByText('Add User Form')).toBeInTheDocument();
       });
 
       // Close and immediately open edit form
@@ -660,7 +660,7 @@ describe('UserManagement Integration', () => {
       await user.click(editButtons[0]);
 
       await waitFor(() => {
-        expect(screen.getByText('Edit User')).toBeInTheDocument();
+        expect(screen.getByText('Edit User Form')).toBeInTheDocument();
         expect(screen.getByText('john_doe')).toBeInTheDocument();
       });
     });

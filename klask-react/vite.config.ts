@@ -46,5 +46,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    // Reduce verbosity
+    reporter: ['basic'],
+    logHeapUsage: false,
+    silent: false,
+    ui: false,
+    // Prevent DOM dumping on test failures
+    outputFile: undefined,
   },
 })

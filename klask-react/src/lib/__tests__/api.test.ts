@@ -3,7 +3,7 @@ import { apiClient, ApiError, api } from '../api';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
+vi.stubGlobal('fetch', mockFetch);
 
 // Mock localStorage
 const localStorageMock = {
@@ -12,12 +12,17 @@ const localStorageMock = {
   removeItem: vi.fn(),
   clear: vi.fn(),
 };
-global.localStorage = localStorageMock as any;
+vi.stubGlobal('localStorage', localStorageMock);
 
 describe('API Client - stopCrawlRepository', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorageMock.getItem.mockReturnValue('mock-token');
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === 'authToken') return 'mock-token';
+      return null;
+    });
+    // Force apiClient to reload token from mocked localStorage
+    (apiClient as any).setToken('mock-token');
   });
 
   afterEach(() => {

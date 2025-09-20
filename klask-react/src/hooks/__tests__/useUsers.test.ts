@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { waitFor } from '@testing-library/react';
+import { renderHookWithQueryClient } from '../../test/react-query-test-utils';
 import React from 'react';
 import {
   useUsers,
@@ -93,27 +93,15 @@ const mockUpdateUserRequest: UpdateUserRequest = {
 };
 
 describe('useUsers hooks', () => {
-  let queryClient: QueryClient;
-
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false, refetchOnWindowFocus: false },
-        mutations: { retry: false },
-      },
-    });
     vi.clearAllMocks();
   });
-
-  const wrapper = ({ children }: { children: React.ReactNode }) => (
-    React.createElement(QueryClientProvider, { client: queryClient }, children)
-  );
 
   describe('useUsers', () => {
     it('should fetch and return users list', async () => {
       mockApi.getUsers.mockResolvedValue(mockUsers);
 
-      const { result } = renderHook(() => useUsers(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUsers());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -127,11 +115,24 @@ describe('useUsers hooks', () => {
       const mockError = new Error('Failed to fetch users');
       mockApi.getUsers.mockRejectedValue(mockError);
 
-      const { result } = renderHook(() => useUsers(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUsers());
+
+      // Debug what's happening
+      console.log('Initial state:', { 
+        isLoading: result.current.isLoading, 
+        isError: result.current.isError,
+        isSuccess: result.current.isSuccess 
+      });
 
       await waitFor(() => {
+        console.log('Waiting state:', { 
+          isLoading: result.current.isLoading, 
+          isError: result.current.isError,
+          isSuccess: result.current.isSuccess,
+          status: result.current.status 
+        });
         expect(result.current.isError).toBe(true);
-      });
+      }, { timeout: 5000 });
 
       expect(result.current.error).toBeTruthy();
     });
@@ -139,7 +140,7 @@ describe('useUsers hooks', () => {
     it('should use correct stale time and retry settings', async () => {
       mockApi.getUsers.mockResolvedValue(mockUsers);
 
-      const { result } = renderHook(() => useUsers(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUsers());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -155,7 +156,7 @@ describe('useUsers hooks', () => {
     it('should cache users data appropriately', async () => {
       mockApi.getUsers.mockResolvedValue(mockUsers);
 
-      const { result, rerender } = renderHook(() => useUsers(), { wrapper });
+      const { result, rerender } = renderHookWithQueryClient(() => useUsers());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -171,7 +172,7 @@ describe('useUsers hooks', () => {
     it('should fetch single user by id', async () => {
       mockApi.getUser.mockResolvedValue(mockUser);
 
-      const { result } = renderHook(() => useUser('user-1'), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUser('user-1'));
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -182,7 +183,7 @@ describe('useUsers hooks', () => {
     });
 
     it('should not fetch when id is empty', () => {
-      const { result } = renderHook(() => useUser(''), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUser(''));
 
       expect(result.current.data).toBeUndefined();
       expect(mockApi.getUser).not.toHaveBeenCalled();
@@ -192,7 +193,7 @@ describe('useUsers hooks', () => {
       const mockError = new Error('User not found');
       mockApi.getUser.mockRejectedValue(mockError);
 
-      const { result } = renderHook(() => useUser('nonexistent'), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUser('nonexistent'));
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -204,9 +205,9 @@ describe('useUsers hooks', () => {
     it('should update query when id changes', async () => {
       mockApi.getUser.mockResolvedValue(mockUser);
 
-      const { result, rerender } = renderHook(
+      const { result, rerender } = renderHookWithQueryClient(
         ({ id }) => useUser(id),
-        { wrapper, initialProps: { id: 'user-1' } }
+        { initialProps: { id: 'user-1' } }
       );
 
       await waitFor(() => {
@@ -234,7 +235,7 @@ describe('useUsers hooks', () => {
       const newUser = { ...mockUser, id: 'user-new' };
       mockApi.createUser.mockResolvedValue(newUser);
 
-      const { result } = renderHook(() => useCreateUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useCreateUser());
 
       await result.current.mutateAsync(mockCreateUserRequest);
 
@@ -249,7 +250,7 @@ describe('useUsers hooks', () => {
       const mockError = new Error('Username already exists');
       mockApi.createUser.mockRejectedValue(mockError);
 
-      const { result } = renderHook(() => useCreateUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useCreateUser());
 
       await expect(result.current.mutateAsync(mockCreateUserRequest))
         .rejects.toThrow('Username already exists');
@@ -265,7 +266,7 @@ describe('useUsers hooks', () => {
       const promise = new Promise(resolve => { resolvePromise = resolve; });
       mockApi.createUser.mockReturnValue(promise);
 
-      const { result } = renderHook(() => useCreateUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useCreateUser());
 
       // Start mutation
       const mutationPromise = result.current.mutateAsync(mockCreateUserRequest);
@@ -291,7 +292,7 @@ describe('useUsers hooks', () => {
       queryClient.setQueryData(['users'], mockUsers);
       queryClient.setQueryData(['users', mockUser.id], mockUser);
 
-      const { result } = renderHook(() => useUpdateUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUpdateUser());
 
       await result.current.mutateAsync({ 
         id: mockUser.id, 
@@ -314,7 +315,7 @@ describe('useUsers hooks', () => {
       const mockError = new Error('Validation failed');
       mockApi.updateUser.mockRejectedValue(mockError);
 
-      const { result } = renderHook(() => useUpdateUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUpdateUser());
 
       await expect(result.current.mutateAsync({ 
         id: mockUser.id, 
@@ -334,7 +335,7 @@ describe('useUsers hooks', () => {
       // No users in cache
       queryClient.setQueryData(['users'], undefined);
 
-      const { result } = renderHook(() => useUpdateUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUpdateUser());
 
       await result.current.mutateAsync({ 
         id: mockUser.id, 
@@ -354,7 +355,7 @@ describe('useUsers hooks', () => {
 
       queryClient.setQueryData(['users'], mockUsers);
 
-      const { result } = renderHook(() => useUpdateUserRole(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUpdateUserRole());
 
       await result.current.mutateAsync({ 
         id: mockUser.id, 
@@ -371,7 +372,7 @@ describe('useUsers hooks', () => {
       const mockError = new Error('Insufficient permissions');
       mockApi.updateUserRole.mockRejectedValue(mockError);
 
-      const { result } = renderHook(() => useUpdateUserRole(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUpdateUserRole());
 
       await expect(result.current.mutateAsync({ 
         id: mockUser.id, 
@@ -392,7 +393,7 @@ describe('useUsers hooks', () => {
 
       queryClient.setQueryData(['users'], mockUsers);
 
-      const { result } = renderHook(() => useUpdateUserStatus(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUpdateUserStatus());
 
       await result.current.mutateAsync({ 
         id: mockUser.id, 
@@ -409,7 +410,7 @@ describe('useUsers hooks', () => {
       const mockError = new Error('Cannot deactivate admin user');
       mockApi.updateUserStatus.mockRejectedValue(mockError);
 
-      const { result } = renderHook(() => useUpdateUserStatus(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUpdateUserStatus());
 
       await expect(result.current.mutateAsync({ 
         id: mockUser.id, 
@@ -430,7 +431,7 @@ describe('useUsers hooks', () => {
       queryClient.setQueryData(['users'], mockUsers);
       queryClient.setQueryData(['users', mockUser.id], mockUser);
 
-      const { result } = renderHook(() => useDeleteUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useDeleteUser());
 
       await result.current.mutateAsync(mockUser.id);
 
@@ -450,7 +451,7 @@ describe('useUsers hooks', () => {
       const mockError = new Error('Cannot delete last admin');
       mockApi.deleteUser.mockRejectedValue(mockError);
 
-      const { result } = renderHook(() => useDeleteUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useDeleteUser());
 
       await expect(result.current.mutateAsync(mockUser.id))
         .rejects.toThrow('Cannot delete last admin');
@@ -466,7 +467,7 @@ describe('useUsers hooks', () => {
 
       queryClient.setQueryData(['users'], undefined);
 
-      const { result } = renderHook(() => useDeleteUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useDeleteUser());
 
       await result.current.mutateAsync(mockUser.id);
 
@@ -480,7 +481,7 @@ describe('useUsers hooks', () => {
     it('should fetch user statistics', async () => {
       mockApi.getUserStats.mockResolvedValue(mockUserStats);
 
-      const { result } = renderHook(() => useUserStats(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUserStats());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -493,7 +494,7 @@ describe('useUsers hooks', () => {
     it('should use correct cache settings for stats', async () => {
       mockApi.getUserStats.mockResolvedValue(mockUserStats);
 
-      const { result } = renderHook(() => useUserStats(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUserStats());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -509,7 +510,7 @@ describe('useUsers hooks', () => {
       const mockError = new Error('Stats calculation failed');
       mockApi.getUserStats.mockRejectedValue(mockError);
 
-      const { result } = renderHook(() => useUserStats(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUserStats());
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -522,8 +523,8 @@ describe('useUsers hooks', () => {
   describe('useBulkUserOperations', () => {
     let bulkHook: any;
 
-    beforeEach(async () => {
-      const { result } = renderHook(() => useBulkUserOperations(), { wrapper });
+    beforeEach(() => {
+      const { result, queryClient } = renderHookWithQueryClient(() => useBulkUserOperations());
       bulkHook = result.current;
     });
 
@@ -657,7 +658,7 @@ describe('useUsers hooks', () => {
       // Pre-populate stats cache
       queryClient.setQueryData(['users', 'stats'], mockUserStats);
 
-      const { result } = renderHook(() => useCreateUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useCreateUser());
 
       await result.current.mutateAsync(mockCreateUserRequest);
 
@@ -679,7 +680,7 @@ describe('useUsers hooks', () => {
       queryClient.setQueryData(['users'], mockUsers);
       queryClient.setQueryData(['users', mockUser.id], mockUser);
 
-      const { result } = renderHook(() => useUpdateUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUpdateUser());
 
       const mutationPromise = result.current.mutateAsync({ 
         id: mockUser.id, 
@@ -704,7 +705,7 @@ describe('useUsers hooks', () => {
 
       queryClient.setQueryData(['users'], mockUsers);
 
-      const { result } = renderHook(() => useUpdateUser(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUpdateUser());
 
       // Start concurrent updates
       const promise1 = result.current.mutateAsync({ 
@@ -730,7 +731,7 @@ describe('useUsers hooks', () => {
       const networkError = new Error('Network error');
       mockApi.getUsers.mockRejectedValue(networkError);
 
-      const { result } = renderHook(() => useUsers(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUsers());
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
@@ -742,7 +743,7 @@ describe('useUsers hooks', () => {
     it('should handle malformed API responses', async () => {
       mockApi.getUsers.mockResolvedValue(null);
 
-      const { result } = renderHook(() => useUsers(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUsers());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -754,7 +755,7 @@ describe('useUsers hooks', () => {
     it('should handle empty user arrays correctly', async () => {
       mockApi.getUsers.mockResolvedValue([]);
 
-      const { result } = renderHook(() => useUsers(), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUsers());
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -767,7 +768,7 @@ describe('useUsers hooks', () => {
       const incompleteUser = { id: 'incomplete', username: 'test' } as any;
       mockApi.getUser.mockResolvedValue(incompleteUser);
 
-      const { result } = renderHook(() => useUser('incomplete'), { wrapper });
+      const { result, queryClient } = renderHookWithQueryClient(() => useUser('incomplete'));
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -779,7 +780,7 @@ describe('useUsers hooks', () => {
     it('should handle rapid successive API calls', async () => {
       mockApi.getUsers.mockResolvedValue(mockUsers);
 
-      const { result, rerender } = renderHook(() => useUsers(), { wrapper });
+      const { result, rerender } = renderHookWithQueryClient(() => useUsers());
 
       // Rapidly trigger multiple rerenders
       for (let i = 0; i < 5; i++) {

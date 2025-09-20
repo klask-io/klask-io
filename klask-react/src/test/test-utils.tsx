@@ -2,6 +2,7 @@ import React from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
+import { vi } from 'vitest';
 
 // Create a custom render function that includes providers
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
@@ -74,6 +75,3 @@ export const createMockFormHandlers = () => ({
 
 // Helper for waiting for async form validation
 export const waitForFormValidation = () => new Promise(resolve => setTimeout(resolve, 0));
-
-// Missing vi import for the test utilities
-import { vi } from 'vitest';

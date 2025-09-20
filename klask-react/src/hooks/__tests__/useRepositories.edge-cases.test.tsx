@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
@@ -21,7 +21,7 @@ vi.mock('../../lib/api', () => ({
     getActiveProgress: vi.fn(),
     getRepositoryProgress: vi.fn(),
   },
-  getErrorMessage: vi.fn((error) => error.message || 'Unknown error'),
+  getErrorMessage: vi.fn((error) => error?.message || 'Unknown error'),
 }));
 
 const mockApiClient = apiClient as any;
@@ -45,6 +45,12 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.clearAllTimers();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   describe('Network Failure Recovery', () => {
@@ -102,8 +108,6 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
     });
 
     it('should handle API timeout during active progress polling', async () => {
-      vi.useFakeTimers();
-      
       let timeoutCount = 0;
       mockApiClient.getActiveProgress.mockImplementation(() => {
         timeoutCount++;
@@ -126,7 +130,7 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
 
       // Advance time to trigger retry
       act(() => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(200);
       });
 
       // Second request fails
@@ -136,15 +140,13 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
 
       // Third request succeeds
       act(() => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(200);
       });
 
       await waitFor(() => {
         expect(result.current.data).toEqual([]);
         expect(result.current.error).toBeFalsy();
       });
-
-      vi.useRealTimers();
     });
   });
 
@@ -233,8 +235,6 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
     });
 
     it('should handle active progress updates during query invalidation', async () => {
-      vi.useFakeTimers();
-
       const mockProgress1 = [{
         repository_id: 'repo-1',
         repository_name: 'Repo 1',
@@ -277,7 +277,7 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
 
       // Trigger refetch
       act(() => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(200);
       });
 
       await waitFor(() => {
@@ -286,7 +286,7 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
 
       // Progress changes to completed
       act(() => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(200);
       });
 
       await waitFor(() => {
@@ -295,14 +295,12 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
 
       // Progress removed (completed crawl cleaned up)
       act(() => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(200);
       });
 
       await waitFor(() => {
         expect(result.current.data).toEqual([]);
       });
-
-      vi.useRealTimers();
     });
   });
 
@@ -365,8 +363,6 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
     });
 
     it('should handle extremely frequent progress updates', async () => {
-      vi.useFakeTimers();
-
       const mockProgress = Array.from({ length: 100 }, (_, i) => ({
         repository_id: `repo-${i}`,
         repository_name: `Repo ${i}`,
@@ -403,8 +399,6 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
       await waitFor(() => {
         expect(result.current.data).toHaveLength(100);
       });
-
-      vi.useRealTimers();
     });
   });
 
@@ -518,6 +512,12 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
         wrapper: createWrapper(),
       });
 
+      // Wait for hook to be ready
+      await waitFor(() => {
+        expect(result.current).toBeTruthy();
+        expect(result.current.bulkCrawl).toBeDefined();
+      });
+
       let bulkResult;
       await act(async () => {
         bulkResult = await result.current.bulkCrawl.mutateAsync(repositoryIds);
@@ -543,6 +543,13 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
       
       const { result: reposResult } = renderHook(() => useRepositories(), {
         wrapper: createWrapper(),
+      });
+
+      // Wait for hooks to be ready
+      await waitFor(() => {
+        expect(crawlResult.current).toBeTruthy();
+        expect(crawlResult.current.mutateAsync).toBeDefined();
+        expect(reposResult.current).toBeTruthy();
       });
 
       // Start multiple crawl operations simultaneously
@@ -600,6 +607,12 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
 
       const { result, unmount } = renderHook(() => useCrawlRepository(), {
         wrapper: createWrapper(),
+      });
+
+      // Wait for hook to be ready
+      await waitFor(() => {
+        expect(result.current).toBeTruthy();
+        expect(result.current.mutateAsync).toBeDefined();
       });
 
       // Start an operation

@@ -74,10 +74,10 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     mockUseActiveProgress.mockReturnValue({ data: [] });
     mockUseStopCrawl.mockReturnValue(mockStopCrawl);
     
-    // Mock the progress utility functions
-    const { isRepositoryCrawling, getRepositoryProgressFromActive } = require('../../../hooks/useProgress');
-    isRepositoryCrawling.mockReturnValue(false);
-    getRepositoryProgressFromActive.mockReturnValue(null);
+    // Mock the progress utility functions  
+    const { isRepositoryCrawling, getRepositoryProgressFromActive } = await import('../../../hooks/useProgress');
+    (isRepositoryCrawling as any).mockReturnValue(false);
+    (getRepositoryProgressFromActive as any).mockReturnValue(null);
   });
 
   it('should not show stop button when repository is not crawling', () => {
@@ -93,7 +93,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
 
   it('should show stop button when repository is crawling', () => {
     // Mock repository as currently crawling
-    const { isRepositoryCrawling } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
@@ -111,7 +111,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     const user = userEvent.setup();
     
     // Mock repository as crawling
-    const { isRepositoryCrawling } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
@@ -136,7 +136,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     const user = userEvent.setup();
     
     // Mock repository as crawling
-    const { isRepositoryCrawling } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
@@ -162,7 +162,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     mockStopCrawl.mutateAsync.mockResolvedValue('Crawl stopped');
     
     // Mock repository as crawling
-    const { isRepositoryCrawling } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
@@ -190,7 +190,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     mockStopCrawl.mutateAsync.mockResolvedValue('Crawl stopped');
     
     // Mock repository as crawling
-    const { isRepositoryCrawling } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
@@ -216,7 +216,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     mockStopCrawl.mutateAsync.mockRejectedValue(mockError);
     
     // Mock repository as crawling
-    const { isRepositoryCrawling } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
@@ -247,7 +247,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     mockUseStopCrawl.mockReturnValue(pendingStopCrawl);
     
     // Mock repository as crawling
-    const { isRepositoryCrawling } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
@@ -271,7 +271,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     mockStopCrawl.mutateAsync.mockResolvedValue('Crawl stopped');
     
     // Mock repository as crawling
-    const { isRepositoryCrawling } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
@@ -292,7 +292,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
 
   it('should show stop button with correct icon', () => {
     // Mock repository as crawling
-    const { isRepositoryCrawling } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
@@ -315,7 +315,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     const user = userEvent.setup();
     
     // Mock repository as crawling
-    const { isRepositoryCrawling } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
@@ -339,7 +339,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
 
   it('should display progress information when crawling', () => {
     // Mock repository as crawling with progress
-    const { isRepositoryCrawling, getRepositoryProgressFromActive } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling, getRepositoryProgressFromActive } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(true);
     getRepositoryProgressFromActive.mockReturnValue(mockActiveProgress[0]);
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
@@ -360,7 +360,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     };
 
     // Mock repository as having cancelled progress
-    const { isRepositoryCrawling, getRepositoryProgressFromActive } = require('../../../hooks/useProgress');
+    const { isRepositoryCrawling, getRepositoryProgressFromActive } = await import('../../../hooks/useProgress');
     isRepositoryCrawling.mockReturnValue(false); // Cancelled is not crawling
     getRepositoryProgressFromActive.mockReturnValue(cancelledProgress);
     mockUseActiveProgress.mockReturnValue({ data: [cancelledProgress] });
