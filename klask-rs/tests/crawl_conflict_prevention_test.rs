@@ -56,7 +56,8 @@ impl TestSetup {
         let progress_tracker = Arc::new(ProgressTracker::new());
 
         // Create encryption service for tests
-        let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+        let encryption_service =
+            Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
 
         // Create config first
         let config = AppConfig::default();
@@ -475,7 +476,8 @@ async fn test_rapid_crawl_attempts() -> Result<()> {
     // Make rapid requests (simplified since TestServer cannot be cloned)
     let mut responses = Vec::new();
     for _ in 0..5 {
-        let response = setup.server
+        let response = setup
+            .server
             .post(&format!("/api/repositories/{}/crawl", setup.repository_id))
             .add_header("Authorization", format!("Bearer {}", setup.admin_token))
             .await;

@@ -6,17 +6,14 @@ use axum::{
 use axum_test::TestServer;
 use klask_rs::{
     api::admin::{AdminDashboardData, SystemStats},
-    auth::{extractors::AppState, claims::TokenClaims, jwt::JwtService},
+    auth::{claims::TokenClaims, extractors::AppState, jwt::JwtService},
     config::AppConfig,
-    services::seeding::SeedingStats,
     database::Database,
     models::{User, UserRole},
+    services::seeding::SeedingStats,
     services::{
-        crawler::CrawlerService,
-        encryption::EncryptionService,
-        progress::ProgressTracker,
-        search::SearchService,
-        seeding::SeedingService,
+        crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker,
+        search::SearchService, seeding::SeedingService,
     },
 };
 use serde_json::Value;
@@ -42,7 +39,8 @@ async fn setup_test_server() -> Result<(TestServer, AppState)> {
     // Create required services for AppState
     let progress_tracker = Arc::new(ProgressTracker::new());
     let jwt_service = JwtService::new(&config.auth).expect("Failed to create JWT service");
-    let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+    let encryption_service =
+        Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
     let crawler_service = Arc::new(
         CrawlerService::new(
             database.pool().clone(),
@@ -65,7 +63,9 @@ async fn setup_test_server() -> Result<(TestServer, AppState)> {
         startup_time: Instant::now(),
     };
 
-    let app = klask_rs::api::create_router().await?.with_state(app_state.clone());
+    let app = klask_rs::api::create_router()
+        .await?
+        .with_state(app_state.clone());
     let server = TestServer::new(app)?;
 
     Ok((server, app_state))

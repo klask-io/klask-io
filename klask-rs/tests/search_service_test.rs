@@ -612,7 +612,7 @@ mod search_service_tests {
         let file_path = "src/crawled_file.rs";
 
         // Simulate multiple upserts during crawling (before final commit)
-        // This is normal behavior during re-crawling where the same file 
+        // This is normal behavior during re-crawling where the same file
         // might be processed multiple times before the crawl session ends
         for i in 0..5 {
             let content = format!("fn version_{}() {{ println!(\"Version {}\"); }}", i, i);
@@ -654,10 +654,14 @@ mod search_service_tests {
 
         // During crawling, multiple versions might be indexed temporarily
         // This is expected behavior and doesn't harm functionality
-        assert!(!matching_results.is_empty(), "Should find at least one result");
-        
+        assert!(
+            !matching_results.is_empty(),
+            "Should find at least one result"
+        );
+
         // Verify we can find content from the indexing process
-        let has_version_content = matching_results.iter()
+        let has_version_content = matching_results
+            .iter()
             .any(|r| r.content_snippet.contains("Version"));
         assert!(has_version_content, "Should contain version content");
 

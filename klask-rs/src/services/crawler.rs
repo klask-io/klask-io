@@ -2322,7 +2322,6 @@ mod tests {
 
     #[test]
     fn test_deterministic_id_generation() {
-
         // Create a test repository - FileSystem type
         let filesystem_repo = Repository {
             id: Uuid::new_v4(),
@@ -2501,14 +2500,22 @@ mod tests {
             offset: 0,
             include_facets: false,
         };
-        
+
         let search_results = search_service.search(search_query).await.unwrap();
-        assert!(!search_results.results.is_empty(), "Should find results when searching for 'Hello'");
-        
+        assert!(
+            !search_results.results.is_empty(),
+            "Should find results when searching for 'Hello'"
+        );
+
         // Verify that search returns meaningful content
-        let found_content = search_results.results.iter()
+        let found_content = search_results
+            .results
+            .iter()
             .any(|r| r.content_snippet.contains("Hello") && r.content_snippet.contains("println!"));
-        assert!(found_content, "Search results should contain recognizable content from the file");
+        assert!(
+            found_content,
+            "Search results should contain recognizable content from the file"
+        );
 
         println!("✅ Search service upsert functionality test passed!");
         println!("   - Search service remains functional after upsert operations");

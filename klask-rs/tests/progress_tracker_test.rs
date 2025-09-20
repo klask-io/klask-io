@@ -303,7 +303,10 @@ async fn test_concurrent_cancellation() -> Result<()> {
 
     // Repository should be cancelled
     assert!(!tracker_for_assert.is_crawling(repository_id).await);
-    let progress = tracker_for_assert.get_progress(repository_id).await.unwrap();
+    let progress = tracker_for_assert
+        .get_progress(repository_id)
+        .await
+        .unwrap();
     assert!(matches!(progress.status, CrawlStatus::Cancelled));
 
     Ok(())

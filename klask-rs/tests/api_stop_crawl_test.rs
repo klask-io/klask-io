@@ -10,7 +10,10 @@ use klask_rs::{
     config::AppConfig,
     database::Database,
     models::{Repository, RepositoryType},
-    services::{crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker, SearchService},
+    services::{
+        crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker,
+        SearchService,
+    },
 };
 use serde_json::{json, Value};
 use sqlx::{Pool, Postgres};
@@ -53,7 +56,8 @@ impl TestSetup {
         let progress_tracker = Arc::new(ProgressTracker::new());
 
         // Create encryption service for tests
-        let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+        let encryption_service =
+            Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
 
         // Create crawler service
         let crawler_service = Arc::new(CrawlerService::new(
@@ -314,17 +318,20 @@ async fn test_stop_crawl_concurrent_requests() -> Result<()> {
         .await;
 
     // Make stop requests (simplified since TestServer cannot be cloned)
-    let response1 = setup.server
+    let response1 = setup
+        .server
         .delete(&format!("/api/repositories/{}/crawl", setup.repository_id))
         .add_header("Authorization", format!("Bearer {}", setup.admin_token))
         .await;
-        
-    let response2 = setup.server
+
+    let response2 = setup
+        .server
         .delete(&format!("/api/repositories/{}/crawl", setup.repository_id))
         .add_header("Authorization", format!("Bearer {}", setup.admin_token))
         .await;
-        
-    let response3 = setup.server
+
+    let response3 = setup
+        .server
         .delete(&format!("/api/repositories/{}/crawl", setup.repository_id))
         .add_header("Authorization", format!("Bearer {}", setup.admin_token))
         .await;

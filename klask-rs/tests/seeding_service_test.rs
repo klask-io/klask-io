@@ -65,7 +65,10 @@ async fn test_seed_all_creates_data() -> Result<()> {
 
     // Verify specific counts based on seed data
     assert_eq!(stats.users_created, 4, "Expected 4 seed users");
-    assert_eq!(stats.repositories_created, 5, "Expected 5 seed repositories");
+    assert_eq!(
+        stats.repositories_created, 5,
+        "Expected 5 seed repositories"
+    );
 
     cleanup_test_data(&pool).await?;
     Ok(())
@@ -87,7 +90,10 @@ async fn test_seed_all_idempotent() -> Result<()> {
     let stats_second = seeding_service.get_stats().await?;
 
     assert_eq!(stats_first.users_created, stats_second.users_created);
-    assert_eq!(stats_first.repositories_created, stats_second.repositories_created);
+    assert_eq!(
+        stats_first.repositories_created,
+        stats_second.repositories_created
+    );
 
     cleanup_test_data(&pool).await?;
     Ok(())
@@ -168,9 +174,10 @@ async fn test_seed_users_creates_expected_users() -> Result<()> {
     assert_eq!(admin_user.get::<bool, _>("active"), true);
 
     // Check that inactive user exists
-    let inactive_user = sqlx::query("SELECT username, active FROM users WHERE username = 'inactive'")
-        .fetch_one(&pool)
-        .await?;
+    let inactive_user =
+        sqlx::query("SELECT username, active FROM users WHERE username = 'inactive'")
+            .fetch_one(&pool)
+            .await?;
 
     assert_eq!(inactive_user.get::<String, _>("username"), "inactive");
     assert_eq!(inactive_user.get::<bool, _>("active"), false);
@@ -216,7 +223,6 @@ async fn test_seed_repositories_creates_expected_repos() -> Result<()> {
     cleanup_test_data(&pool).await?;
     Ok(())
 }
-
 
 #[tokio::test]
 async fn test_seeding_stats_serialization() -> Result<()> {

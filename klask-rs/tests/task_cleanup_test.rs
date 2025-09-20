@@ -54,7 +54,8 @@ impl TestSetup {
         let progress_tracker = Arc::new(ProgressTracker::new());
 
         // Create encryption service for tests
-        let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+        let encryption_service =
+            Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
 
         // Create crawler service
         // Create config first
@@ -474,10 +475,7 @@ async fn test_cleanup_on_server_state() -> Result<()> {
     }
 
     // Cancel via service
-    setup
-        .crawler_service
-        .cancel_crawl(repository_id)
-        .await?;
+    setup.crawler_service.cancel_crawl(repository_id).await?;
     setup.progress_tracker.cancel_crawl(repository_id).await;
 
     // Clean up task from server state

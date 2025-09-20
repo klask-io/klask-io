@@ -800,7 +800,7 @@ impl SearchService {
         content: &str,
         file_name: &str,
         extension: &str,
-        _size: i64,  // Not used in current implementation
+        _size: i64, // Not used in current implementation
         project: &str,
         version: &str,
     ) -> Result<()> {
@@ -810,17 +810,17 @@ impl SearchService {
             // Generate a deterministic UUID from the file_id string using a hash
             use std::collections::hash_map::DefaultHasher;
             use std::hash::{Hash, Hasher};
-            
+
             let mut hasher = DefaultHasher::new();
             file_id.hash(&mut hasher);
             let hash = hasher.finish();
-            
+
             // Create a UUID from the hash (not cryptographically secure but deterministic for tests)
             let bytes = hash.to_be_bytes();
             let mut uuid_bytes = [0u8; 16];
             uuid_bytes[0..8].copy_from_slice(&bytes);
             uuid_bytes[8..16].copy_from_slice(&bytes); // Repeat the hash to fill 16 bytes
-            
+
             Uuid::from_bytes(uuid_bytes)
         };
 
@@ -836,19 +836,15 @@ impl SearchService {
 
         // This is sync, so we need to use a runtime block
         tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                self.index_file(file_data).await
-            })
+            tokio::runtime::Handle::current().block_on(async { self.index_file(file_data).await })
         })
     }
 
     /// Legacy method for backward compatibility with tests - maps to commit
-    #[allow(dead_code)]  
+    #[allow(dead_code)]
     pub fn commit_writer(&self) -> Result<()> {
         tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                self.commit().await
-            })
+            tokio::runtime::Handle::current().block_on(async { self.commit().await })
         })
     }
 }

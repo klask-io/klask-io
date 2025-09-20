@@ -47,7 +47,8 @@ impl TestSetup {
         let progress_tracker = Arc::new(ProgressTracker::new());
 
         // Create encryption service for tests
-        let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+        let encryption_service =
+            Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
 
         // Create crawler service
         let crawler_service = Arc::new(CrawlerService::new(
@@ -303,11 +304,11 @@ async fn test_file_processing_and_indexing() -> Result<()> {
         progress.errors
     );
 
-    // Verify search service has been called to index files  
+    // Verify search service has been called to index files
     // Note: The files are now indexed in Tantivy, not stored in database
     setup.search_service.commit().await?;
     let doc_count = setup.search_service.get_document_count()?;
-    
+
     assert!(
         doc_count >= test_files.len() as u64,
         "Should have at least {} documents indexed",

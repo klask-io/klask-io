@@ -4,16 +4,14 @@ use klask_rs::{
     config::AppConfig,
     database::Database,
     services::{
-        crawler::CrawlerService,
-        encryption::EncryptionService,
-        progress::ProgressTracker,
+        crawler::CrawlerService, encryption::EncryptionService, progress::ProgressTracker,
         search::SearchService,
     },
 };
 use sqlx::PgPool;
 use std::{collections::HashMap, sync::Arc, time::Instant};
-use tokio::sync::RwLock;
 use tempfile::TempDir;
+use tokio::sync::RwLock;
 use tokio::test;
 
 // Helper function to create test app state
@@ -32,7 +30,8 @@ async fn setup_test_app_state() -> Result<(AppState, TempDir)> {
     // Create required services for AppState
     let progress_tracker = Arc::new(ProgressTracker::new());
     let jwt_service = JwtService::new(&config.auth).expect("Failed to create JWT service");
-    let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+    let encryption_service =
+        Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
     let crawler_service = Arc::new(
         CrawlerService::new(
             database.pool().clone(),
@@ -193,7 +192,11 @@ async fn test_search_service_document_operations() -> Result<()> {
         include_facets: false,
     };
     let results = search_service.search(query).await?;
-    assert_eq!(results.results.len(), 1, "Should find 1 document with 'println'");
+    assert_eq!(
+        results.results.len(),
+        1,
+        "Should find 1 document with 'println'"
+    );
     assert!(results.results[0].file_path.contains("main.rs"));
 
     let query = klask_rs::services::search::SearchQuery {
@@ -206,7 +209,11 @@ async fn test_search_service_document_operations() -> Result<()> {
         include_facets: false,
     };
     let results = search_service.search(query).await?;
-    assert_eq!(results.results.len(), 2, "Should find 2 documents with 'hello'");
+    assert_eq!(
+        results.results.len(),
+        2,
+        "Should find 2 documents with 'hello'"
+    );
 
     // Test search with no results
     let query = klask_rs::services::search::SearchQuery {
@@ -448,7 +455,11 @@ async fn test_concurrent_search_operations() -> Result<()> {
     assert!(result3.is_ok());
 
     let search_results = result1?;
-    assert_eq!(search_results.results.len(), 2, "Should find both documents");
+    assert_eq!(
+        search_results.results.len(),
+        2,
+        "Should find both documents"
+    );
 
     let doc_count = result3?;
     assert_eq!(doc_count, 2);

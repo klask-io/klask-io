@@ -349,11 +349,9 @@ async fn get_content_stats_impl(pool: &PgPool) -> Result<ContentStats> {
         .fetch_one(pool)
         .await?;
 
-    let total_size_bytes = sqlx::query_scalar::<_, i64>(
-        "SELECT COALESCE(SUM(size), 0) FROM files"
-    )
-    .fetch_one(pool)
-    .await?;
+    let total_size_bytes = sqlx::query_scalar::<_, i64>("SELECT COALESCE(SUM(size), 0) FROM files")
+        .fetch_one(pool)
+        .await?;
 
     // Get files by extension
     let extension_rows = sqlx::query(
@@ -361,7 +359,7 @@ async fn get_content_stats_impl(pool: &PgPool) -> Result<ContentStats> {
          FROM files
          GROUP BY extension
          ORDER BY count DESC
-         LIMIT 20"
+         LIMIT 20",
     )
     .fetch_all(pool)
     .await?;
@@ -369,7 +367,9 @@ async fn get_content_stats_impl(pool: &PgPool) -> Result<ContentStats> {
     let files_by_extension = extension_rows
         .into_iter()
         .map(|row| ExtensionStat {
-            extension: row.get::<Option<String>, _>("extension").unwrap_or_else(|| "unknown".to_string()),
+            extension: row
+                .get::<Option<String>, _>("extension")
+                .unwrap_or_else(|| "unknown".to_string()),
             count: row.get("count"),
             total_size: row.get("total_size"),
         })
@@ -382,7 +382,7 @@ async fn get_content_stats_impl(pool: &PgPool) -> Result<ContentStats> {
          LEFT JOIN files f ON r.id = f.repository_id
          GROUP BY r.id, r.name
          ORDER BY file_count DESC
-         LIMIT 20"
+         LIMIT 20",
     )
     .fetch_all(pool)
     .await?;
@@ -398,7 +398,7 @@ async fn get_content_stats_impl(pool: &PgPool) -> Result<ContentStats> {
 
     // Recent additions (last 30 days)
     let recent_additions = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM files WHERE created_at >= NOW() - INTERVAL '30 days'"
+        "SELECT COUNT(*) FROM files WHERE created_at >= NOW() - INTERVAL '30 days'",
     )
     .fetch_one(pool)
     .await?;

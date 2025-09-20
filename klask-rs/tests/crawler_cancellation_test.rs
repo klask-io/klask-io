@@ -48,7 +48,8 @@ impl TestSetup {
         let progress_tracker = Arc::new(ProgressTracker::new());
 
         // Create encryption service for tests
-        let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+        let encryption_service =
+            Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
 
         // Create crawler service
         let crawler_service = Arc::new(CrawlerService::new(

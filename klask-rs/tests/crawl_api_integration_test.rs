@@ -404,7 +404,8 @@ mod crawl_api_integration_tests {
             let progress_tracker_clone = Arc::clone(&progress_tracker);
             let handle = tokio::spawn(async move {
                 tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
-                let _result = mock_trigger_crawl_endpoint(repo_id, &progress_tracker_clone, true).await;
+                let _result =
+                    mock_trigger_crawl_endpoint(repo_id, &progress_tracker_clone, true).await;
             });
             handles.push(handle);
         }
