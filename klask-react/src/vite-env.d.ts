@@ -13,6 +13,13 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
+// Add process global for Node.js compatibility
+declare var process: {
+  env: {
+    NODE_ENV?: 'development' | 'production' | 'test'
+  }
+} | undefined
+
 // Declare react-dom/client module
 declare module 'react-dom/client' {
   import { Container } from 'react-dom'
