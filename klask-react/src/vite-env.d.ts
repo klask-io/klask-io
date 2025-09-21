@@ -3,6 +3,9 @@
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string
   readonly VITE_APP_TITLE: string
+  readonly DEV: boolean
+  readonly PROD: boolean
+  readonly MODE: string
   // add more env variables as needed
 }
 
@@ -10,15 +13,12 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
-// Add NodeJS global declarations for compatibility
-declare namespace NodeJS {
-  interface ProcessEnv {
-    readonly NODE_ENV: 'development' | 'production' | 'test'
+// Declare react-dom/client module
+declare module 'react-dom/client' {
+  import { Container } from 'react-dom'
+  export interface Root {
+    render(children: React.ReactNode): void
+    unmount(): void
   }
-  interface Timeout {}
-  interface Timer {}
-}
-
-declare var process: {
-  readonly env: NodeJS.ProcessEnv
+  export function createRoot(container: Container): Root
 }

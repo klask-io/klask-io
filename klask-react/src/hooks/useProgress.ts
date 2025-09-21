@@ -78,7 +78,7 @@ export function useProgress({
   useEffect(() => {
     if (!repositoryId || !enabled) return;
 
-    let intervalId: NodeJS.Timeout;
+    let intervalId: number;
     let isMounted = true;
 
     const pollProgress = async () => {
@@ -94,7 +94,7 @@ export function useProgress({
       intervalId = setInterval(async () => {
         if (!isMounted || document.hidden) return;
         await pollProgress();
-      }, pollingInterval);
+      }, pollingInterval) as unknown as number;
     }
 
     return () => {
@@ -109,7 +109,7 @@ export function useProgress({
   useEffect(() => {
     if (!enabled || repositoryId) return; // Skip if we're tracking a specific repository
 
-    let intervalId: NodeJS.Timeout;
+    let intervalId: number;
     let isMounted = true;
 
     const pollActiveProgress = async () => {
@@ -153,7 +153,7 @@ export function useProgress({
       intervalId = setInterval(async () => {
         if (!isMounted || document.hidden) return;
         await pollActiveProgress();
-      }, pollingInterval);
+      }, pollingInterval) as unknown as number;
     }
 
     return () => {

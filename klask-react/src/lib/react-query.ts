@@ -186,7 +186,7 @@ export const backgroundSync = {
   },
   
   // Stop syncing
-  stopSync: (intervalId: NodeJS.Timeout) => {
+  stopSync: (intervalId: number) => {
     clearInterval(intervalId);
   },
 };
