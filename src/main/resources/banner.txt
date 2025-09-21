@@ -1,7 +1,0 @@
-  ${AnsiColor.CYAN}██   ██  ██        █████   ███████  ██   ██  ${AnsiColor.BRIGHT_BLACK}    ██   ██████
-  ${AnsiColor.CYAN}██  ██   ██       ██   ██  ██       ██  ██   ${AnsiColor.BRIGHT_BLACK}    ██  ██    ██
-  ${AnsiColor.CYAN}█████    ██       ███████  ███████  █████    ${AnsiColor.BRIGHT_BLACK}    ██  ██    ██
-  ${AnsiColor.CYAN}██  ██   ██       ██   ██       ██  ██  ██   ${AnsiColor.BRIGHT_BLACK}    ██  ██    ██
-  ${AnsiColor.CYAN}██   ██  ███████  ██   ██  ███████  ██   ██  ${AnsiColor.BRIGHT_BLACK}██  ██   ██████
-${AnsiColor.BRIGHT_BLUE}:: klask.io ${application.version}  :: Running Spring Boot ${spring-boot.version} ::
-:: http://klask.io ::${AnsiColor.DEFAULT}
