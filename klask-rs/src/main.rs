@@ -112,6 +112,7 @@ async fn main() -> Result<()> {
         search_service_arc.clone(),
         progress_tracker.clone(),
         encryption_service.clone(),
+        config.crawler.temp_dir.clone(),
     ) {
         Ok(service) => {
             info!("Crawler service initialized successfully");

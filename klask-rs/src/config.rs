@@ -6,6 +6,7 @@ pub struct AppConfig {
     pub server: ServerConfig,
     pub database: DatabaseConfig,
     pub search: SearchConfig,
+    pub crawler: CrawlerConfig,
     pub auth: AuthConfig,
 }
 
@@ -25,6 +26,11 @@ pub struct DatabaseConfig {
 pub struct SearchConfig {
     pub index_dir: String,
     pub max_results: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrawlerConfig {
+    pub temp_dir: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +68,14 @@ impl AppConfig {
                     .unwrap_or_else(|_| "10000".to_string())
                     .parse()
                     .unwrap_or(10000),
+            },
+            crawler: CrawlerConfig {
+                temp_dir: std::env::var("CRAWLER_TEMP_DIR").unwrap_or_else(|_| {
+                    std::env::temp_dir()
+                        .join("klask-crawler")
+                        .to_string_lossy()
+                        .to_string()
+                }),
             },
             auth: AuthConfig {
                 jwt_secret: std::env::var("JWT_SECRET")

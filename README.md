@@ -2,7 +2,7 @@
 
 | Branch  | Build  | Coverage  |
 |---|---|---|
-| master  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/master.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/master.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=master) |
+| master  | [![CI/CD Pipeline](https://github.com/klask-io/klask-io/actions/workflows/ci.yml/badge.svg)](https://github.com/klask-io/klask-io/actions/workflows/ci.yml)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/master.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=master) |
 | develop  | [![Build Status](https://img.shields.io/travis/klask-io/klask-io/develop.svg?style=flat-square)](https://travis-ci.org/klask-io/klask-io)  | [![Coverage Status](https://img.shields.io/coveralls/klask-io/klask-io/develop.svg?style=flat-square)](https://coveralls.io/github/klask-io/klask-io?branch=develop) |
 
 #### Docker

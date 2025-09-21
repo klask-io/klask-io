@@ -103,8 +103,9 @@ impl CrawlerService {
         search_service: Arc<SearchService>,
         progress_tracker: Arc<ProgressTracker>,
         encryption_service: Arc<EncryptionService>,
+        temp_dir: String,
     ) -> Result<Self> {
-        let temp_dir = std::env::temp_dir().join("klask-crawler");
+        let temp_dir = std::path::PathBuf::from(temp_dir);
         std::fs::create_dir_all(&temp_dir)
             .map_err(|e| anyhow!("Failed to create temp directory: {}", e))?;
 

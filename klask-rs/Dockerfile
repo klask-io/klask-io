@@ -32,15 +32,16 @@ RUN touch src/main.rs && cargo build --release
 # Runtime stage
 FROM debian:trixie-slim
 
-# Install runtime dependencies
+# Install runtime dependencies including gosu for user switching
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
     libpq5 \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app user
-RUN useradd -r -s /bin/false klask
+# Create app user with specific UID
+RUN useradd -r -s /bin/false -u 1000 klask
 
 # Set working directory
 WORKDIR /app
@@ -51,12 +52,16 @@ COPY --from=builder /app/target/release/klask-rs /app/klask-rs
 # Copy migrations
 COPY --from=builder /app/migrations /app/migrations
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Create directories for data
 RUN mkdir -p /app/data /app/index && \
     chown -R klask:klask /app
 
-# Switch to non-root user
-USER klask
+# Don't switch to non-root user yet - entrypoint will do it
+# USER klask  # Commented out - entrypoint handles user switching
 
 # Expose port
 EXPOSE 3000
@@ -69,6 +74,9 @@ ENV HOST=0.0.0.0
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/api/status || exit 1
+
+# Set entrypoint
+ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Command to run the application
 CMD ["./klask-rs"]

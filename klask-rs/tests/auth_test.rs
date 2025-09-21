@@ -42,6 +42,12 @@ async fn create_test_app_state() -> AppState {
             index_dir: "./test_index".to_string(),
             max_results: 1000,
         },
+        crawler: klask_rs::config::CrawlerConfig {
+            temp_dir: std::env::temp_dir()
+                .join("klask-crawler-test")
+                .to_string_lossy()
+                .to_string(),
+        },
         auth: klask_rs::config::AuthConfig {
             jwt_secret: "test-secret-key-for-jwt-authentication".to_string(),
             jwt_expires_in: "1h".to_string(),
@@ -68,6 +74,10 @@ async fn create_test_app_state() -> AppState {
             shared_search_service.clone(),
             progress_tracker.clone(),
             encryption_service,
+            std::env::temp_dir()
+                .join("klask-crawler-test")
+                .to_string_lossy()
+                .to_string(),
         )
         .expect("Failed to create crawler service"),
     );

@@ -43,6 +43,10 @@ async fn setup_test_server() -> Result<(TestServer, AppState)> {
             Arc::new(search_service.clone()),
             progress_tracker.clone(),
             encryption_service,
+            std::env::temp_dir()
+                .join("klask-crawler-test")
+                .to_string_lossy()
+                .to_string(),
         )
         .expect("Failed to create crawler service"),
     );

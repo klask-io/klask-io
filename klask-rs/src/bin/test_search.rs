@@ -41,6 +41,10 @@ async fn main() -> Result<()> {
         search_service.clone(),
         progress_tracker.clone(),
         encryption_service,
+        std::env::temp_dir()
+            .join("klask-crawler")
+            .to_string_lossy()
+            .to_string(),
     )?;
 
     // Create a test repository entry for /home/jeremie/temp/
