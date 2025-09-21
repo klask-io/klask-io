@@ -116,10 +116,9 @@ jobs:
         tags: |
           type=ref,event=branch
           type=ref,event=pr
-          type=sha,prefix={{branch}}-,enable={{is_default_branch}}
-          type=sha,prefix=pr-{{.Number}}-,enable={{is_pr}}
+          type=sha
           type=raw,value=latest,enable={{is_default_branch}}
-    
+
     - name: Extract metadata (backend)
       id: meta-backend
       uses: docker/metadata-action@v5
@@ -128,8 +127,7 @@ jobs:
         tags: |
           type=ref,event=branch
           type=ref,event=pr
-          type=sha,prefix={{branch}}-,enable={{is_default_branch}}
-          type=sha,prefix=pr-{{.Number}}-,enable={{is_pr}}
+          type=sha
           type=raw,value=latest,enable={{is_default_branch}}
     
     - name: Build and push frontend
