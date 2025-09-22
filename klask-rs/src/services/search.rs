@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use tantivy::collector::{Count, TopDocs};
+use tantivy::directory::MmapDirectory;
 use tantivy::query::{BooleanQuery, QueryParser, TermQuery};
 use tantivy::schema::{Field, Schema, Value, FAST, STORED, TEXT};
 use tantivy::snippet::SnippetGenerator;
@@ -89,12 +90,12 @@ impl SearchService {
         let schema = Self::build_schema();
         let fields = Self::extract_fields(&schema);
 
-        let index = if index_dir.as_ref().exists() {
-            Index::open_in_dir(&index_dir)?
-        } else {
-            std::fs::create_dir_all(&index_dir)?;
-            Index::create_in_dir(&index_dir, schema.clone())?
-        };
+        // Create directory if it doesn't exist
+        std::fs::create_dir_all(&index_dir)?;
+
+        // Use MmapDirectory with open_or_create - the elegant Tantivy way
+        let mmap_directory = MmapDirectory::open(&index_dir)?;
+        let index = Index::open_or_create(mmap_directory, schema.clone())?;
 
         let reader = index.reader()?;
 
