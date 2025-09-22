@@ -8,7 +8,8 @@ const SetupRedirect: React.FC = () => {
   useEffect(() => {
     const checkSetup = async () => {
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+        const { getApiBaseUrl } = await import('../../lib/config');
+        const API_BASE_URL = getApiBaseUrl();
         const response = await fetch(`${API_BASE_URL}/api/auth/setup/check`);
         const data = await response.json();
         

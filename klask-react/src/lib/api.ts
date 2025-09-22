@@ -36,15 +36,15 @@ export class ApiError extends Error {
   }
 }
 
-// API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+// API Configuration with runtime override support
+import { getApiBaseUrl } from './config';
 
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
 
-  constructor(baseURL: string) {
-    this.baseURL = baseURL;
+  constructor(baseURL?: string) {
+    this.baseURL = baseURL || getApiBaseUrl();
     this.token = localStorage.getItem('authToken');
   }
 
@@ -366,7 +366,8 @@ class ApiClient {
 }
 
 // Create and export the API client instance
-export const apiClient = new ApiClient(API_BASE_URL);
+// Lazy instantiation to ensure runtime config is loaded
+export const apiClient = new ApiClient();
 
 // Export the class for testing
 export { ApiClient };

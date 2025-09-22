@@ -29,3 +29,14 @@ declare module 'react-dom/client' {
   }
   export function createRoot(container: Container): Root
 }
+
+// Runtime configuration injected by Docker entrypoint
+declare global {
+  interface Window {
+    RUNTIME_CONFIG?: {
+      VITE_API_BASE_URL?: string;
+    };
+  }
+}
+
+export {};

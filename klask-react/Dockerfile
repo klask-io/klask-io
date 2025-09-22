@@ -28,13 +28,7 @@ RUN npm ci --silent
 # Copy source code
 COPY . .
 
-# Build argument for API URL (can be overridden at build time)
-ARG VITE_API_BASE_URL=""
-
-# Set environment variable for build
-ENV VITE_API_BASE_URL="$VITE_API_BASE_URL"
-
-# Build the application
+# Build the application (API URL will be configured at runtime)
 RUN npm run build
 
 # Production stage with nginx
@@ -42,6 +36,10 @@ FROM nginx:alpine
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -70,5 +68,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Use entrypoint for runtime configuration
+ENTRYPOINT ["/entrypoint.sh"]
