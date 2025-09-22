@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -29,8 +29,21 @@ impl Default for GitLabService {
 
 impl GitLabService {
     pub fn new() -> Self {
+        let accept_invalid_certs = std::env::var("GITLAB_ACCEPT_INVALID_CERTS")
+            .map(|v| v.to_lowercase() == "true")
+            .unwrap_or(false);
+
+        let mut builder = Client::builder()
+            .user_agent("klask-rs/2.0")
+            .timeout(std::time::Duration::from_secs(30));
+
+        if accept_invalid_certs {
+            tracing::warn!("GitLab client configured to accept invalid certificates (GITLAB_ACCEPT_INVALID_CERTS=true)");
+            builder = builder.danger_accept_invalid_certs(true);
+        }
+
         Self {
-            client: Client::new(),
+            client: builder.build().unwrap_or_else(|_| Client::new()),
         }
     }
 
@@ -208,13 +221,26 @@ impl GitLabService {
         let url = format!("{}/api/v4/user", gitlab_url.trim_end_matches('/'));
 
         tracing::debug!("Testing GitLab token with URL: {}", url);
-        let response = self
+        let response = match self
             .client
             .get(&url)
             .header("PRIVATE-TOKEN", access_token)
             .send()
             .await
-            .context("Failed to test GitLab token")?;
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                tracing::error!("GitLab API request failed for URL: {}", url);
+                tracing::error!("Request error: {}", e);
+                if let Some(source) = std::error::Error::source(&e) {
+                    tracing::error!("Error source: {:?}", source);
+                }
+                if let Some(status) = e.status() {
+                    tracing::error!("HTTP status: {}", status);
+                }
+                return Err(anyhow!("Network error: {} (URL: {})", e, url));
+            }
+        };
 
         let status = response.status();
         if status.is_success() {

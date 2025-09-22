@@ -29,7 +29,6 @@ export function useProgress({
   const [activeProgress, setActiveProgress] = useState<CrawlProgressInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [restartCounter, setRestartCounter] = useState(0);
   const [isRepositoryLoading, setIsRepositoryLoading] = useState(false);
   const [isActiveLoading, setIsActiveLoading] = useState(false);
 
@@ -61,10 +60,7 @@ export function useProgress({
       const activeProgressData = await api.getActiveProgress();
       setActiveProgress(activeProgressData);
       
-      // If there are active crawls, restart polling with fast interval
-      if (activeProgressData && activeProgressData.length > 0) {
-        setRestartCounter(prev => prev + 1); // Trigger effect restart
-      }
+      // No restart logic needed - just continue polling
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch active progress';
       setError(errorMessage);
@@ -124,10 +120,7 @@ export function useProgress({
         
         setActiveProgress(activeProgressData);
         
-        // Restart polling if there are active crawls
-        if (activeProgressData && activeProgressData.length > 0) {
-          setRestartCounter(prev => prev + 1);
-        }
+        // Continue polling - no restart needed
       } catch (err) {
         if (!isMounted) return;
         
@@ -162,7 +155,7 @@ export function useProgress({
         clearInterval(intervalId);
       }
     };
-  }, [repositoryId, pollingInterval, enabled, restartCounter]);
+  }, [repositoryId, pollingInterval, enabled]);
 
   // Combine loading states
   const combinedIsLoading = isRepositoryLoading || isActiveLoading;
