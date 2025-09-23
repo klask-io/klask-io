@@ -14,6 +14,7 @@ import { AdminRoute } from './components/common/AdminRoute';
 import { Suspense } from 'react';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 
+const HomePage = React.lazy(() => import('./components/home/HomePage'));
 const SearchPage = React.lazy(() => import('./features/search/SearchPage'));
 const FileDetailPage = React.lazy(() => import('./features/files/FileDetailPage'));
 const RepositoriesPage = React.lazy(() => import('./features/repositories/RepositoriesPage'));
@@ -105,6 +106,16 @@ function App() {
                   <SetupRedirect />
                 </Suspense>
               } />
+              
+              {/* Home route */}
+              <Route 
+                path="home" 
+                element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <HomePage />
+                  </Suspense>
+                } 
+              />
               
               {/* Search routes */}
               <Route 
@@ -234,10 +245,10 @@ function App() {
                     <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
                     <p className="text-gray-600 mb-8">Page not found</p>
                     <a 
-                      href="/search" 
+                      href="/home" 
                       className="btn-primary"
                     >
-                      Go to Search
+                      Go to Home
                     </a>
                   </div>
                 </div>
