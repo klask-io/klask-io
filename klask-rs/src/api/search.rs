@@ -18,9 +18,13 @@ pub struct SearchRequest {
     #[serde(alias = "max_results")]
     pub limit: Option<u32>,
     pub page: Option<u32>,
+    // Support both single values (legacy) and arrays (new multi-select)
     pub project: Option<String>,
+    pub projects: Option<Vec<String>>,
     pub version: Option<String>,
+    pub versions: Option<Vec<String>>,
     pub extension: Option<String>,
+    pub extensions: Option<Vec<String>>,
     pub include_facets: Option<bool>,
 }
 
@@ -80,12 +84,55 @@ async fn search_files(
     // Get search query from either 'q' or 'query' parameter
     let query_string = params.q.or(params.query).ok_or(StatusCode::BAD_REQUEST)?;
 
+    // Handle both single and multi-select filters
+    let project_filters = match (params.project, params.projects) {
+        (Some(single), None) => vec![single],
+        (None, Some(multiple)) => multiple,
+        (Some(single), Some(mut multiple)) => {
+            multiple.push(single);
+            multiple
+        }
+        (None, None) => vec![],
+    };
+
+    let version_filters = match (params.version, params.versions) {
+        (Some(single), None) => vec![single],
+        (None, Some(multiple)) => multiple,
+        (Some(single), Some(mut multiple)) => {
+            multiple.push(single);
+            multiple
+        }
+        (None, None) => vec![],
+    };
+
+    let extension_filters = match (params.extension, params.extensions) {
+        (Some(single), None) => vec![single],
+        (None, Some(multiple)) => multiple,
+        (Some(single), Some(mut multiple)) => {
+            multiple.push(single);
+            multiple
+        }
+        (None, None) => vec![],
+    };
+
     // Build search query
     let search_query = SearchQuery {
         query: query_string,
-        project_filter: params.project,
-        version_filter: params.version,
-        extension_filter: params.extension,
+        project_filter: if project_filters.is_empty() {
+            None
+        } else {
+            Some(project_filters.join(","))
+        },
+        version_filter: if version_filters.is_empty() {
+            None
+        } else {
+            Some(version_filters.join(","))
+        },
+        extension_filter: if extension_filters.is_empty() {
+            None
+        } else {
+            Some(extension_filters.join(","))
+        },
         limit: limit as usize,
         offset: offset as usize,
         include_facets: params.include_facets.unwrap_or(false),
