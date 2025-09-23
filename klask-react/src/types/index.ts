@@ -33,8 +33,24 @@ export interface Repository {
   nextCrawlAt?: string;
   crawlFrequencyHours?: number;
   maxCrawlDurationMinutes?: number;
+  lastCrawlDurationSeconds?: number;
   // GitLab specific fields
+  accessToken?: string;
   gitlabNamespace?: string;
+  gitlabExcludedProjects?: string;
+  gitlabExcludedPatterns?: string;
+  isGroup?: boolean;
+  // Crash resumption fields
+  crawlState?: string;
+  lastProcessedProject?: string;
+  crawlStartedAt?: string;
+}
+
+export interface RepositoryWithStats {
+  repository: Repository;
+  diskSizeMb?: number;
+  fileCount?: number;
+  lastCrawlDurationMinutes?: number;
 }
 
 export const RepositoryType = {
@@ -193,6 +209,8 @@ export interface CreateRepositoryRequest {
   cronSchedule?: string;
   crawlFrequencyHours?: number;
   maxCrawlDurationMinutes?: number;
+  gitlabExcludedProjects?: string;
+  gitlabExcludedPatterns?: string;
 }
 
 export interface CrawlStatus {

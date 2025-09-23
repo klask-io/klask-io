@@ -14,7 +14,7 @@ impl RepositoryRepository {
 
     pub async fn create_repository(&self, repository: &Repository) -> Result<Repository> {
         let result = sqlx::query_as::<_, Repository>(
-            "INSERT INTO repositories (id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes"
+            "INSERT INTO repositories (id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes, gitlab_excluded_projects, gitlab_excluded_patterns, crawl_state, last_processed_project, crawl_started_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes, last_crawl_duration_seconds, gitlab_excluded_projects, gitlab_excluded_patterns, crawl_state, last_processed_project, crawl_started_at"
         )
         .bind(repository.id)
         .bind(&repository.name)
@@ -30,6 +30,11 @@ impl RepositoryRepository {
         .bind(repository.next_crawl_at)
         .bind(repository.crawl_frequency_hours)
         .bind(repository.max_crawl_duration_minutes)
+        .bind(&repository.gitlab_excluded_projects)
+        .bind(&repository.gitlab_excluded_patterns)
+        .bind(&repository.crawl_state)
+        .bind(&repository.last_processed_project)
+        .bind(repository.crawl_started_at)
         .fetch_one(&self.pool)
         .await?;
 
@@ -38,7 +43,7 @@ impl RepositoryRepository {
 
     pub async fn get_repository(&self, id: Uuid) -> Result<Option<Repository>> {
         let repository = sqlx::query_as::<_, Repository>(
-            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes FROM repositories WHERE id = $1"
+            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes, last_crawl_duration_seconds, gitlab_excluded_projects, gitlab_excluded_patterns, crawl_state, last_processed_project, crawl_started_at FROM repositories WHERE id = $1"
         )
         .bind(id)
         .fetch_optional(&self.pool)
@@ -49,7 +54,7 @@ impl RepositoryRepository {
 
     pub async fn list_repositories(&self) -> Result<Vec<Repository>> {
         let repositories = sqlx::query_as::<_, Repository>(
-            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes FROM repositories ORDER BY created_at DESC"
+            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes, last_crawl_duration_seconds, gitlab_excluded_projects, gitlab_excluded_patterns, crawl_state, last_processed_project, crawl_started_at FROM repositories ORDER BY created_at DESC"
         )
         .fetch_all(&self.pool)
         .await?;
@@ -71,7 +76,7 @@ impl RepositoryRepository {
 
     pub async fn update_repository(&self, id: Uuid, repository: &Repository) -> Result<Repository> {
         let result = sqlx::query_as::<_, Repository>(
-            "UPDATE repositories SET name = $2, url = $3, repository_type = $4, branch = $5, enabled = $6, access_token = $7, gitlab_namespace = $8, is_group = $9, auto_crawl_enabled = $10, cron_schedule = $11, next_crawl_at = $12, crawl_frequency_hours = $13, max_crawl_duration_minutes = $14, updated_at = NOW() WHERE id = $1 RETURNING id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes"
+            "UPDATE repositories SET name = $2, url = $3, repository_type = $4, branch = $5, enabled = $6, access_token = $7, gitlab_namespace = $8, is_group = $9, auto_crawl_enabled = $10, cron_schedule = $11, next_crawl_at = $12, crawl_frequency_hours = $13, max_crawl_duration_minutes = $14, gitlab_excluded_projects = $15, gitlab_excluded_patterns = $16, crawl_state = $17, last_processed_project = $18, crawl_started_at = $19, updated_at = NOW() WHERE id = $1 RETURNING id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes, last_crawl_duration_seconds, gitlab_excluded_projects, gitlab_excluded_patterns, crawl_state, last_processed_project, crawl_started_at"
         )
         .bind(id)
         .bind(&repository.name)
@@ -87,6 +92,11 @@ impl RepositoryRepository {
         .bind(repository.next_crawl_at)
         .bind(repository.crawl_frequency_hours)
         .bind(repository.max_crawl_duration_minutes)
+        .bind(&repository.gitlab_excluded_projects)
+        .bind(&repository.gitlab_excluded_patterns)
+        .bind(&repository.crawl_state)
+        .bind(&repository.last_processed_project)
+        .bind(repository.crawl_started_at)
         .fetch_one(&self.pool)
         .await?;
 
@@ -136,8 +146,84 @@ impl RepositoryRepository {
     #[allow(dead_code)]
     pub async fn find_scheduled_repositories(&self) -> Result<Vec<Repository>> {
         let repositories = sqlx::query_as::<_, Repository>(
-            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes FROM repositories WHERE auto_crawl_enabled = true ORDER BY next_crawl_at ASC"
+            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes, last_crawl_duration_seconds, gitlab_excluded_projects, gitlab_excluded_patterns, crawl_state, last_processed_project, crawl_started_at FROM repositories WHERE auto_crawl_enabled = true ORDER BY next_crawl_at ASC"
         )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(repositories)
+    }
+
+    // Crawl resumption methods
+    pub async fn start_crawl(
+        &self,
+        repository_id: Uuid,
+        last_processed_project: Option<String>,
+    ) -> Result<()> {
+        sqlx::query(
+            "UPDATE repositories SET crawl_state = 'in_progress', last_processed_project = $2, crawl_started_at = NOW(), updated_at = NOW() WHERE id = $1"
+        )
+        .bind(repository_id)
+        .bind(last_processed_project)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn complete_crawl(&self, repository_id: Uuid) -> Result<()> {
+        sqlx::query(
+            "UPDATE repositories SET crawl_state = 'idle', last_processed_project = NULL, crawl_started_at = NULL, last_crawled = NOW(), updated_at = NOW() WHERE id = $1"
+        )
+        .bind(repository_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn fail_crawl(&self, repository_id: Uuid) -> Result<()> {
+        sqlx::query(
+            "UPDATE repositories SET crawl_state = 'failed', updated_at = NOW() WHERE id = $1",
+        )
+        .bind(repository_id)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn update_crawl_progress(
+        &self,
+        repository_id: Uuid,
+        last_processed_project: Option<String>,
+    ) -> Result<()> {
+        sqlx::query(
+            "UPDATE repositories SET last_processed_project = $2, updated_at = NOW() WHERE id = $1",
+        )
+        .bind(repository_id)
+        .bind(last_processed_project)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn find_incomplete_crawls(&self) -> Result<Vec<Repository>> {
+        let repositories = sqlx::query_as::<_, Repository>(
+            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes, last_crawl_duration_seconds, gitlab_excluded_projects, gitlab_excluded_patterns, crawl_state, last_processed_project, crawl_started_at FROM repositories WHERE crawl_state = 'in_progress' AND enabled = true ORDER BY crawl_started_at ASC"
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(repositories)
+    }
+
+    pub async fn find_abandoned_crawls(&self, timeout_minutes: i64) -> Result<Vec<Repository>> {
+        let repositories = sqlx::query_as::<_, Repository>(
+            "SELECT id, name, url, repository_type, branch, enabled, access_token, gitlab_namespace, is_group, last_crawled, created_at, updated_at, auto_crawl_enabled, cron_schedule, next_crawl_at, crawl_frequency_hours, max_crawl_duration_minutes, last_crawl_duration_seconds, gitlab_excluded_projects, gitlab_excluded_patterns, crawl_state, last_processed_project, crawl_started_at FROM repositories WHERE crawl_state = 'in_progress' AND crawl_started_at < NOW() - INTERVAL '1 minute' * $1 ORDER BY crawl_started_at ASC"
+        )
+        .bind(timeout_minutes)
         .fetch_all(&self.pool)
         .await?;
 

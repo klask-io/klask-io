@@ -27,6 +27,12 @@ const repositorySchema = z.object({
   gitlabNamespace: z
     .string()
     .optional(),
+  gitlabExcludedProjects: z
+    .string()
+    .optional(),
+  gitlabExcludedPatterns: z
+    .string()
+    .optional(),
   isGroup: z.boolean().default(false),
   enabled: z.boolean().default(true),
 }).refine((data) => {
@@ -214,6 +220,11 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
           repositoryType: repository.repositoryType,
           branch: repository.branch || '',
           enabled: repository.enabled,
+          accessToken: repository.accessToken || '',
+          gitlabNamespace: repository.gitlabNamespace || '',
+          gitlabExcludedProjects: repository.gitlabExcludedProjects || '',
+          gitlabExcludedPatterns: repository.gitlabExcludedPatterns || '',
+          isGroup: repository.isGroup || false,
         };
         reset(formData);
         setSchedulingData({
@@ -230,6 +241,11 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
           repositoryType: 'Git' as RepositoryType,
           branch: '',
           enabled: true,
+          accessToken: '',
+          gitlabNamespace: '',
+          gitlabExcludedProjects: '',
+          gitlabExcludedPatterns: '',
+          isGroup: false,
         };
         reset(formData);
         setSchedulingData({
@@ -459,6 +475,42 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
                   )}
                   <p className="mt-1 text-xs text-gray-500">
                     Filter to only import repositories from a specific namespace
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="gitlabExcludedProjects" className="block text-sm font-medium text-gray-700 mb-1">
+                    Excluded Projects (Optional)
+                  </label>
+                  <input
+                    {...register('gitlabExcludedProjects')}
+                    type="text"
+                    className={`input-field ${errors.gitlabExcludedProjects ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                    placeholder="team/project-archive, old/legacy-system"
+                  />
+                  {errors.gitlabExcludedProjects && (
+                    <p className="mt-1 text-sm text-red-600">{errors.gitlabExcludedProjects.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Comma-separated list of exact project paths to exclude
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="gitlabExcludedPatterns" className="block text-sm font-medium text-gray-700 mb-1">
+                    Excluded Patterns (Optional)
+                  </label>
+                  <input
+                    {...register('gitlabExcludedPatterns')}
+                    type="text"
+                    className={`input-field ${errors.gitlabExcludedPatterns ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                    placeholder="*-archive, test-*, *-temp"
+                  />
+                  {errors.gitlabExcludedPatterns && (
+                    <p className="mt-1 text-sm text-red-600">{errors.gitlabExcludedPatterns.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Comma-separated patterns with wildcards (*) to exclude projects
                   </p>
                 </div>
               </>

@@ -36,6 +36,20 @@ pub struct Repository {
     pub crawl_frequency_hours: Option<i32>,
     #[serde(rename = "maxCrawlDurationMinutes")]
     pub max_crawl_duration_minutes: Option<i32>,
+    #[serde(rename = "lastCrawlDurationSeconds")]
+    pub last_crawl_duration_seconds: Option<i32>,
+    // GitLab exclusion fields
+    #[serde(rename = "gitlabExcludedProjects")]
+    pub gitlab_excluded_projects: Option<String>,
+    #[serde(rename = "gitlabExcludedPatterns")]
+    pub gitlab_excluded_patterns: Option<String>,
+    // Crash resumption fields
+    #[serde(rename = "crawlState")]
+    pub crawl_state: Option<String>, // "idle", "in_progress", "failed"
+    #[serde(rename = "lastProcessedProject")]
+    pub last_processed_project: Option<String>, // For GitLab: project path, For Git: branch, For FileSystem: null
+    #[serde(rename = "crawlStartedAt")]
+    pub crawl_started_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Type)]
