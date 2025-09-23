@@ -69,6 +69,7 @@ pub struct ProjectStat {
     pub project: String,
     pub file_count: i64,
     pub total_size: i64,
+    pub disk_size_mb: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

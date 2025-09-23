@@ -6,5 +6,4 @@ pub mod scheduler;
 pub mod search;
 pub mod seeding;
 
-pub use encryption::*;
 pub use search::*;
