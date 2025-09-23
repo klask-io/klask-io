@@ -85,15 +85,98 @@ export const useSearchFilters = () => {
     queryKey: ['search', 'filters'],
     queryFn: async () => {
       const filters = await apiClient.getSearchFilters();
-      // Transform the response from {value, count} format to string arrays
+      // Transform the response to include both value and count for facets
       return {
-        projects: filters.projects?.map((p: any) => p.value || p) || [],
-        versions: filters.versions?.map((v: any) => v.value || v) || [],
-        extensions: filters.extensions?.map((e: any) => e.value || e) || [],
+        projects: filters.projects?.map((p: any) => ({
+          value: p.value || p,
+          label: p.value || p,
+          count: p.count || 0,
+        })) || [],
+        versions: filters.versions?.map((v: any) => ({
+          value: v.value || v,
+          label: v.value || v,
+          count: v.count || 0,
+        })) || [],
+        extensions: filters.extensions?.map((e: any) => ({
+          value: e.value || e,
+          label: e.value || e,
+          count: e.count || 0,
+        })) || [],
+        languages: [], // TODO: Derive from extensions or add separate field
       };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 3,
+  });
+};
+
+// Multi-select search hook for new filters
+export const useMultiSelectSearch = (
+  query: string,
+  filters: { [key: string]: string[] | undefined },
+  currentPage: number = 1,
+  options: UseSearchOptions = {}
+) => {
+  const {
+    enabled = true,
+    refetchOnWindowFocus = false,
+    staleTime = 30000,
+  } = options;
+
+  const pageSize = 20;
+  const offset = (currentPage - 1) * pageSize;
+
+  return useQuery({
+    queryKey: ['search', 'multiselect', query, filters, currentPage],
+    queryFn: async () => {
+      const searchParams = new URLSearchParams();
+      
+      if (query.trim()) {
+        searchParams.set('q', query.trim());
+      }
+      
+      // Handle multi-select filters
+      if (filters.projects && filters.projects.length > 0) {
+        filters.projects.forEach(project => {
+          searchParams.append('projects', project);
+        });
+      }
+      
+      if (filters.versions && filters.versions.length > 0) {
+        filters.versions.forEach(version => {
+          searchParams.append('versions', version);
+        });
+      }
+      
+      if (filters.extensions && filters.extensions.length > 0) {
+        filters.extensions.forEach(extension => {
+          searchParams.append('extensions', extension);
+        });
+      }
+      
+      searchParams.set('limit', pageSize.toString());
+      searchParams.set('page', currentPage.toString());
+      searchParams.set('include_facets', 'true');
+      
+      const response = await fetch(`/api/search?${searchParams.toString()}`);
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.statusText}`);
+      }
+      
+      return response.json();
+    },
+    enabled: enabled && !!query.trim(),
+    refetchOnWindowFocus,
+    staleTime,
+    retry: (failureCount, error) => {
+      if (error && typeof error === 'object' && 'status' in error) {
+        const status = (error as any).status;
+        if (status >= 400 && status < 500) {
+          return false;
+        }
+      }
+      return failureCount < 3;
+    },
   });
 };
 

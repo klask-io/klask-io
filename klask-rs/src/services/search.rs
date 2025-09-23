@@ -99,7 +99,43 @@ impl SearchService {
 
         let reader = index.reader()?;
 
-        let writer = Arc::new(RwLock::new(index.writer(50_000_000)?)); // 50MB heap
+        // Configure Tantivy IndexWriter with environment variables
+        let memory_mb = std::env::var("KLASK_TANTIVY_MEMORY_MB")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(200); // Default 200MB (4x more than previous 50MB)
+
+        let memory_bytes = memory_mb * 1_000_000;
+
+        let writer = if let Ok(num_threads_str) = std::env::var("KLASK_TANTIVY_NUM_THREADS") {
+            if let Ok(num_threads) = num_threads_str.parse::<usize>() {
+                tracing::info!(
+                    "Creating Tantivy IndexWriter with {} threads and {}MB memory",
+                    num_threads,
+                    memory_mb
+                );
+                Arc::new(RwLock::new(
+                    index.writer_with_num_threads(num_threads, memory_bytes)?,
+                ))
+            } else {
+                tracing::warn!(
+                    "Invalid KLASK_TANTIVY_NUM_THREADS value: {}",
+                    num_threads_str
+                );
+                tracing::info!(
+                    "Creating Tantivy IndexWriter with auto-threads and {}MB memory",
+                    memory_mb
+                );
+                Arc::new(RwLock::new(index.writer(memory_bytes)?))
+            }
+        } else {
+            // Use Tantivy's automatic thread detection (up to 8 threads)
+            tracing::info!(
+                "Creating Tantivy IndexWriter with auto-threads and {}MB memory",
+                memory_mb
+            );
+            Arc::new(RwLock::new(index.writer(memory_bytes)?))
+        };
 
         Ok(Self {
             index,
@@ -239,6 +275,74 @@ impl SearchService {
         Ok(count_before)
     }
 
+    /// Update project name for all documents (used when repository is renamed)
+    pub async fn update_project_name(&self, old_project: &str, new_project: &str) -> Result<u64> {
+        let searcher = self.reader.searcher();
+        let mut writer = self.writer.write().await;
+
+        // Find all documents with the old project name
+        let term = tantivy::Term::from_field_text(self.fields.project, old_project);
+        let query = TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic);
+
+        // Get all matching documents
+        let top_docs = searcher.search(&query, &TopDocs::with_limit(10000))?;
+        let updated_count = top_docs.len() as u64;
+
+        // For each document, create a new version with updated project name
+        for (_score, doc_address) in top_docs {
+            if let Ok(doc) = searcher.doc::<tantivy::TantivyDocument>(doc_address) {
+                // Extract current document fields
+                let file_id = doc
+                    .get_first(self.fields.file_id)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let file_name = doc
+                    .get_first(self.fields.file_name)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let file_path = doc
+                    .get_first(self.fields.file_path)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let content = doc
+                    .get_first(self.fields.content)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let version = doc
+                    .get_first(self.fields.version)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+                let extension = doc
+                    .get_first(self.fields.extension)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default();
+
+                // Create new document with updated project name
+                let new_doc = doc!(
+                    self.fields.file_id => file_id,
+                    self.fields.file_name => file_name,
+                    self.fields.file_path => file_path,
+                    self.fields.content => content,
+                    self.fields.project => new_project,
+                    self.fields.version => version,
+                    self.fields.extension => extension,
+                );
+
+                writer.add_document(new_doc)?;
+            }
+        }
+
+        // Delete all documents with the old project name
+        let delete_term = tantivy::Term::from_field_text(self.fields.project, old_project);
+        let delete_query = TermQuery::new(delete_term, tantivy::schema::IndexRecordOption::Basic);
+        let _ = writer.delete_query(Box::new(delete_query));
+
+        writer.commit()?;
+        self.reader.reload()?;
+
+        Ok(updated_count)
+    }
+
     /// Reset the entire search index (delete all documents)
     pub async fn reset_index(&self) -> Result<()> {
         // Delete the index directory and recreate it
@@ -290,28 +394,85 @@ impl SearchService {
         // Build filter queries if filters are provided
         let mut filter_queries = Vec::new();
 
+        // Handle project filters (supports comma-separated multi-select)
         if let Some(project_filter) = &search_query.project_filter {
-            let term = Term::from_field_text(self.fields.project, project_filter);
-            filter_queries.push(Box::new(TermQuery::new(
-                term,
-                tantivy::schema::IndexRecordOption::Basic,
-            )) as Box<dyn tantivy::query::Query>);
+            let project_values: Vec<&str> = project_filter.split(',').map(|s| s.trim()).collect();
+            if project_values.len() == 1 {
+                // Single filter - use TermQuery
+                let term = Term::from_field_text(self.fields.project, project_values[0]);
+                filter_queries.push(Box::new(TermQuery::new(
+                    term,
+                    tantivy::schema::IndexRecordOption::Basic,
+                )) as Box<dyn tantivy::query::Query>);
+            } else {
+                // Multiple filters - use OR BooleanQuery
+                let mut project_clauses = Vec::new();
+                for project_value in project_values {
+                    let term = Term::from_field_text(self.fields.project, project_value);
+                    let term_query = Box::new(TermQuery::new(
+                        term,
+                        tantivy::schema::IndexRecordOption::Basic,
+                    )) as Box<dyn tantivy::query::Query>;
+                    project_clauses.push((tantivy::query::Occur::Should, term_query));
+                }
+                filter_queries
+                    .push(Box::new(BooleanQuery::new(project_clauses))
+                        as Box<dyn tantivy::query::Query>);
+            }
         }
 
+        // Handle version filters (supports comma-separated multi-select)
         if let Some(version_filter) = &search_query.version_filter {
-            let term = Term::from_field_text(self.fields.version, version_filter);
-            filter_queries.push(Box::new(TermQuery::new(
-                term,
-                tantivy::schema::IndexRecordOption::Basic,
-            )) as Box<dyn tantivy::query::Query>);
+            let version_values: Vec<&str> = version_filter.split(',').map(|s| s.trim()).collect();
+            if version_values.len() == 1 {
+                // Single filter - use TermQuery
+                let term = Term::from_field_text(self.fields.version, version_values[0]);
+                filter_queries.push(Box::new(TermQuery::new(
+                    term,
+                    tantivy::schema::IndexRecordOption::Basic,
+                )) as Box<dyn tantivy::query::Query>);
+            } else {
+                // Multiple filters - use OR BooleanQuery
+                let mut version_clauses = Vec::new();
+                for version_value in version_values {
+                    let term = Term::from_field_text(self.fields.version, version_value);
+                    let term_query = Box::new(TermQuery::new(
+                        term,
+                        tantivy::schema::IndexRecordOption::Basic,
+                    )) as Box<dyn tantivy::query::Query>;
+                    version_clauses.push((tantivy::query::Occur::Should, term_query));
+                }
+                filter_queries
+                    .push(Box::new(BooleanQuery::new(version_clauses))
+                        as Box<dyn tantivy::query::Query>);
+            }
         }
 
+        // Handle extension filters (supports comma-separated multi-select)
         if let Some(extension_filter) = &search_query.extension_filter {
-            let term = Term::from_field_text(self.fields.extension, extension_filter);
-            filter_queries.push(Box::new(TermQuery::new(
-                term,
-                tantivy::schema::IndexRecordOption::Basic,
-            )) as Box<dyn tantivy::query::Query>);
+            let extension_values: Vec<&str> =
+                extension_filter.split(',').map(|s| s.trim()).collect();
+            if extension_values.len() == 1 {
+                // Single filter - use TermQuery
+                let term = Term::from_field_text(self.fields.extension, extension_values[0]);
+                filter_queries.push(Box::new(TermQuery::new(
+                    term,
+                    tantivy::schema::IndexRecordOption::Basic,
+                )) as Box<dyn tantivy::query::Query>);
+            } else {
+                // Multiple filters - use OR BooleanQuery
+                let mut extension_clauses = Vec::new();
+                for extension_value in extension_values {
+                    let term = Term::from_field_text(self.fields.extension, extension_value);
+                    let term_query = Box::new(TermQuery::new(
+                        term,
+                        tantivy::schema::IndexRecordOption::Basic,
+                    )) as Box<dyn tantivy::query::Query>;
+                    extension_clauses.push((tantivy::query::Occur::Should, term_query));
+                }
+                filter_queries.push(Box::new(BooleanQuery::new(extension_clauses))
+                    as Box<dyn tantivy::query::Query>);
+            }
         }
 
         // Combine base query with filters using BooleanQuery if we have filters
@@ -414,16 +575,9 @@ impl SearchService {
             }
         }
 
-        // Collect facets on search results (not entire index) for performance
-        let facets = if search_query.include_facets
-            && search_query.project_filter.is_none()
-            && search_query.version_filter.is_none()
-            && search_query.extension_filter.is_none()
-        {
-            Some(
-                self.collect_facets_from_results(&searcher, &final_query)
-                    .await?,
-            )
+        // Collect facets - always return facets when requested
+        let facets = if search_query.include_facets {
+            Some(self.collect_facets_from_index(&searcher).await?)
         } else {
             None
         };
@@ -731,21 +885,26 @@ impl SearchService {
         }
     }
 
-    /// Collect facets from the search index for filtering
-    async fn collect_facets_from_results(
+    /// Collect facets from the entire search index for filtering
+    async fn collect_facets_from_index(
         &self,
         searcher: &tantivy::Searcher,
-        query: &dyn tantivy::query::Query,
     ) -> Result<SearchFacets> {
-        // Get up to 10k results for facet calculation (much faster than entire index)
-        const FACET_CALCULATION_LIMIT: usize = 10000;
-        let top_docs = searcher.search(query, &TopDocs::with_limit(FACET_CALCULATION_LIMIT))?;
+        // Use a match-all query to get facets from the entire index
+        let match_all_query = tantivy::query::AllQuery;
+
+        // Get all documents for facet calculation (up to a reasonable limit)
+        const FACET_CALCULATION_LIMIT: usize = 50000;
+        let top_docs = searcher.search(
+            &match_all_query,
+            &TopDocs::with_limit(FACET_CALCULATION_LIMIT),
+        )?;
 
         let mut project_counts: HashMap<String, u64> = HashMap::new();
         let mut version_counts: HashMap<String, u64> = HashMap::new();
         let mut extension_counts: HashMap<String, u64> = HashMap::new();
 
-        // Count facets only from the search results
+        // Count facets from all documents in the index
         for (_score, doc_address) in top_docs {
             let doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
 
@@ -756,11 +915,13 @@ impl SearchService {
                 }
             }
 
-            // Count version facets
+            // Count version facets (don't skip empty ones, use "main" as default)
             if let Some(version) = doc.get_first(self.fields.version).and_then(|v| v.as_str()) {
-                if !version.is_empty() {
-                    *version_counts.entry(version.to_string()).or_insert(0) += 1;
-                }
+                let version_str = if version.is_empty() { "main" } else { version };
+                *version_counts.entry(version_str.to_string()).or_insert(0) += 1;
+            } else {
+                // If no version field exists, use "main" as default
+                *version_counts.entry("main".to_string()).or_insert(0) += 1;
             }
 
             // Count extension facets

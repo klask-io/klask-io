@@ -1,44 +1,62 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SearchBar } from '../../components/search/SearchBar';
-import { SearchFiltersComponent, type SearchFilters } from '../../components/search/SearchFilters';
+import { SearchFiltersV2Component, type SearchFiltersV2 } from '../../components/search/SearchFiltersV2';
 import { SearchResults } from '../../components/search/SearchResults';
-import { usePaginatedSearch, useSearchFilters, useSearchHistory } from '../../hooks/useSearch';
+import { useMultiSelectSearch, useSearchFilters, useSearchHistory } from '../../hooks/useSearch';
 import { getErrorMessage } from '../../lib/api';
 import type { SearchResult } from '../../types';
 import { 
   ClockIcon, 
   Cog6ToothIcon,
   ChartBarIcon,
-  DocumentMagnifyingGlassIcon 
+  DocumentMagnifyingGlassIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 
-const SearchPage: React.FC = () => {
+const SearchPageV3: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<SearchFilters>({});
+  const [filters, setFilters] = useState<SearchFiltersV2>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   
   const { history, addToHistory, clearHistory } = useSearchHistory();
   
   // Function to update URL with current search state
-  const updateURL = useCallback((searchQuery: string, searchFilters: SearchFilters, advanced: boolean, page: number = 1) => {
+  const updateURL = useCallback((searchQuery: string, searchFilters: SearchFiltersV2, advanced: boolean, page: number = 1) => {
     const params = new URLSearchParams();
     
     if (searchQuery.trim()) {
       params.set('q', searchQuery.trim());
     }
-    if (searchFilters.project) {
-      params.set('project', searchFilters.project);
+    
+    // Handle multi-select filters
+    if (searchFilters.projects && searchFilters.projects.length > 0) {
+      searchFilters.projects.forEach(project => {
+        params.append('projects', project);
+      });
     }
-    if (searchFilters.version) {
-      params.set('version', searchFilters.version);
+    
+    if (searchFilters.versions && searchFilters.versions.length > 0) {
+      searchFilters.versions.forEach(version => {
+        params.append('versions', version);
+      });
     }
-    if (searchFilters.extension) {
-      params.set('extension', searchFilters.extension);
+    
+    if (searchFilters.extensions && searchFilters.extensions.length > 0) {
+      searchFilters.extensions.forEach(extension => {
+        params.append('extensions', extension);
+      });
     }
+    
+    if (searchFilters.languages && searchFilters.languages.length > 0) {
+      searchFilters.languages.forEach(language => {
+        params.append('languages', language);
+      });
+    }
+    
     if (advanced) {
       params.set('advanced', 'true');
     }
@@ -53,27 +71,29 @@ const SearchPage: React.FC = () => {
   // Track if we're initializing to avoid double URL updates
   const [isInitializing, setIsInitializing] = useState(true);
   
-  // Initialize from URL parameters ONLY - use URL as single source of truth
+  // Initialize from URL parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const urlQuery = urlParams.get('q') || '';
-    const urlProject = urlParams.get('project') || undefined;
-    const urlVersion = urlParams.get('version') || undefined;
-    const urlExtension = urlParams.get('extension') || undefined;
+    const urlProjects = urlParams.getAll('projects');
+    const urlVersions = urlParams.getAll('versions');
+    const urlExtensions = urlParams.getAll('extensions');
+    const urlLanguages = urlParams.getAll('languages');
     const urlAdvanced = urlParams.get('advanced') === 'true';
     const urlPage = parseInt(urlParams.get('page') || '1', 10);
     
     // Set React state from URL
     setQuery(urlQuery);
     setFilters({
-      project: urlProject,
-      version: urlVersion,
-      extension: urlExtension,
+      projects: urlProjects.length > 0 ? urlProjects : undefined,
+      versions: urlVersions.length > 0 ? urlVersions : undefined,
+      extensions: urlExtensions.length > 0 ? urlExtensions : undefined,
+      languages: urlLanguages.length > 0 ? urlLanguages : undefined,
     });
     setShowAdvanced(urlAdvanced);
     setCurrentPage(urlPage);
     setIsInitializing(false);
-  }, [location.search]); // Only depend on URL, not on state
+  }, [location.search]);
   
   // Update URL whenever search state changes (only after initialization)
   useEffect(() => {
@@ -94,29 +114,25 @@ const SearchPage: React.FC = () => {
     isError,
     error,
     refetch,
-  } = usePaginatedSearch(query, filters as Record<string, string | undefined>, currentPage, {
+  } = useMultiSelectSearch(query, filters, currentPage, {
     enabled: !!query.trim(),
   });
   
-
   const results = searchData?.results || [];
   const totalResults = searchData?.total || 0;
+  const facets = searchData?.facets;
   const pageSize = 20;
   const totalPages = Math.ceil(totalResults / pageSize);
 
-
   const handleSearch = useCallback((searchQuery: string) => {
-    // Only reset to page 1 if the query actually changed
     if (searchQuery !== query) {
-      setCurrentPage(1); // Reset to first page on new search
+      setCurrentPage(1);
     }
-    // Query unchanged - keeping current page'
     
     setQuery(searchQuery);
     if (searchQuery.trim()) {
       addToHistory(searchQuery.trim());
     }
-    // URL will be updated by the useEffect automatically
   }, [addToHistory, query]);
 
   const handleFileClick = useCallback((result: SearchResult) => {
@@ -124,7 +140,6 @@ const SearchPage: React.FC = () => {
       state: { 
         searchQuery: query,
         searchResult: result,
-        // Preserve search state for return navigation
         searchState: {
           initialQuery: query,
           filters: filters,
@@ -136,44 +151,49 @@ const SearchPage: React.FC = () => {
   }, [navigate, query, filters, showAdvanced, currentPage]);
 
   const handleHistoryClick = useCallback((historicalQuery: string) => {
-    // Set query immediately and add to history
     setQuery(historicalQuery);
-    setCurrentPage(1); // Reset to first page
+    setCurrentPage(1);
     if (historicalQuery.trim()) {
       addToHistory(historicalQuery.trim());
     }
     
-    // Force a manual refetch of the search query to bypass any debounce issues
     setTimeout(() => {
       if (refetch) {
         refetch();
       }
-    }, 50); // Give time for setQuery to take effect
+    }, 50);
   }, [addToHistory, refetch]);
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
-    // Scroll to top when changing pages
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const handleFiltersChange = useCallback((newFilters: SearchFilters) => {
+  const handleFiltersChange = useCallback((newFilters: SearchFiltersV2) => {
     setFilters(newFilters);
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
   }, []);
 
   const searchError = isError ? getErrorMessage(error) : null;
+
+  // Count active filters
+  const activeFiltersCount = Object.values(filters).reduce((count, filterArray) => 
+    count + (filterArray?.length || 0), 0
+  );
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="md:flex md:items-center md:justify-between">
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
-            Code Search
-          </h1>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+              Code Search
+            </h1>
+            <SparklesIcon className="h-6 w-6 text-blue-500" title="Enhanced with multi-select filters" />
+          </div>
           <p className="mt-1 text-sm text-gray-500">
-            Search through your indexed repositories with powerful filters and real-time results.
+            Search with powerful multi-select filters, faceted results, and real-time suggestions.
           </p>
         </div>
         
@@ -182,12 +202,17 @@ const SearchPage: React.FC = () => {
             onClick={() => setShowAdvanced(!showAdvanced)}
             className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
               showAdvanced
-                ? 'border-primary-300 text-blue-700 bg-blue-50'
+                ? 'border-blue-300 text-blue-700 bg-blue-50'
                 : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
             }`}
           >
             <Cog6ToothIcon className="h-4 w-4 mr-2" />
-            Advanced
+            Advanced Filters
+            {activeFiltersCount > 0 && (
+              <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                {activeFiltersCount}
+              </span>
+            )}
           </button>
           
           {totalResults > 0 && (
@@ -242,16 +267,18 @@ const SearchPage: React.FC = () => {
 
       {/* Advanced Filters */}
       {showAdvanced && (
-        <SearchFiltersComponent
+        <SearchFiltersV2Component
           filters={filters}
           onFiltersChange={handleFiltersChange}
           availableFilters={{
-            projects: availableFilters?.projects?.map(p => p.value || p) || [],
-            versions: availableFilters?.versions?.map(v => v.value || v) || [],
-            extensions: availableFilters?.extensions?.map(e => e.value || e) || [],
-            languages: [], // Will be derived from extensions
+            projects: availableFilters?.projects || [],
+            versions: availableFilters?.versions || [],
+            extensions: availableFilters?.extensions || [],
+            languages: availableFilters?.languages || [],
           }}
           isLoading={filtersLoading}
+          collapsible={false}
+          defaultExpanded={true}
         />
       )}
 
@@ -290,11 +317,12 @@ const SearchPage: React.FC = () => {
         pageSize={pageSize}
       />
 
-      {/* Search Tips - shown when no query */}
+      {/* Tantivy Search Tips */}
       {!query.trim() && !isLoading && (
-        <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-lg p-6 border border-primary-100">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Search Tips
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-100">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+            <SparklesIcon className="h-5 w-5 text-blue-500 mr-2" />
+            Enhanced Search Tips
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
@@ -303,16 +331,16 @@ const SearchPage: React.FC = () => {
                 <li>• Search for function names, class names, variables</li>
                 <li>• Look for specific strings in comments</li>
                 <li>• Find TODO items and FIXME comments</li>
-                <li>• Search across all indexed repositories</li>
+                <li>• Full-text search across all indexed repositories</li>
               </ul>
             </div>
             <div>
               <h4 className="font-medium text-gray-900 mb-2">Advanced Features</h4>
               <ul className="space-y-1 text-gray-600">
-                <li>• Filter by project, version, or file type</li>
-                <li>• Results include syntax highlighting</li>
-                <li>• Click any result to view the full file</li>
-                <li>• Search history is saved locally</li>
+                <li>• Multi-select filters for projects, versions, and extensions</li>
+                <li>• Real-time faceted search results with counts</li>
+                <li>• Powerful Tantivy search engine with relevance scoring</li>
+                <li>• URL-based state management for easy sharing</li>
               </ul>
             </div>
           </div>
@@ -322,4 +350,4 @@ const SearchPage: React.FC = () => {
   );
 };
 
-export default SearchPage;
+export default SearchPageV3;

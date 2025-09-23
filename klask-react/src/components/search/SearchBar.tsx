@@ -8,6 +8,8 @@ interface SearchBarProps {
   onSearch: (query: string) => void;
   placeholder?: string;
   isLoading?: boolean;
+  className?: string;
+  autoFocus?: boolean;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
@@ -16,6 +18,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
   placeholder = "Search in your codebase...",
   isLoading = false,
+  className = "",
+  autoFocus = false,
 }) => {
   const [localValue, setLocalValue] = useState(value);
   const [debouncedValue] = useDebounce(localValue, 300);
@@ -60,7 +64,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   }, [localValue, onSearch]);
 
   return (
-    <form onSubmit={handleSubmit} className="w-full">
+    <form onSubmit={handleSubmit} className={`w-full ${className}`}>
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <MagnifyingGlassIcon 
@@ -76,6 +80,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           placeholder={placeholder}
           autoComplete="off"
           spellCheck={false}
+          autoFocus={autoFocus}
         />
         
         {localValue && (
