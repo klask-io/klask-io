@@ -1,4 +1,5 @@
 use crate::models::{Repository, RepositoryType};
+use crate::repositories::RepositoryRepository;
 use crate::services::{
     encryption::EncryptionService,
     gitlab::GitLabService,
@@ -161,10 +162,16 @@ impl CrawlerService {
     }
 
     pub async fn crawl_repository(&self, repository: &Repository) -> Result<()> {
+        let crawl_start_time = std::time::Instant::now();
+        let repo_repo = RepositoryRepository::new(self.database.clone());
+
         info!(
             "Starting crawl for repository: {} ({}) - Type: {:?}",
             repository.name, repository.url, repository.repository_type
         );
+
+        // Mark crawl as started in database
+        repo_repo.start_crawl(repository.id, None).await?;
 
         // Delete all existing documents for this repository/project before crawling
         // This ensures no duplicates when re-crawling
@@ -255,6 +262,8 @@ impl CrawlerService {
                         self.progress_tracker
                             .set_error(repository.id, error_msg.clone())
                             .await;
+                        // Mark crawl as failed in database
+                        let _ = repo_repo.fail_crawl(repository.id).await;
                         self.cleanup_cancellation_token(repository.id).await;
                         return Err(anyhow!(error_msg));
                     }
@@ -281,6 +290,8 @@ impl CrawlerService {
             self.progress_tracker
                 .set_error(repository.id, error_msg.clone())
                 .await;
+            // Mark crawl as failed in database
+            let _ = repo_repo.fail_crawl(repository.id).await;
             self.cleanup_cancellation_token(repository.id).await;
             return Err(anyhow!(error_msg));
         }
@@ -290,6 +301,8 @@ impl CrawlerService {
             self.progress_tracker
                 .set_error(repository.id, error_msg.clone())
                 .await;
+            // Mark crawl as failed in database
+            let _ = repo_repo.fail_crawl(repository.id).await;
             self.cleanup_cancellation_token(repository.id).await;
             return Err(anyhow!(error_msg));
         }
@@ -335,10 +348,24 @@ impl CrawlerService {
             .await;
 
         // Commit the Tantivy index to make changes searchable
-        self.search_service.commit().await?;
+        info!(
+            "Committing Tantivy index for repository: {}",
+            repository.name
+        );
+        tokio::time::timeout(
+            std::time::Duration::from_secs(60), // 1 minute timeout for Tantivy commit
+            self.search_service.commit(),
+        )
+        .await
+        .map_err(|_| anyhow!("Tantivy commit timed out after 1 minute"))??;
 
-        // Update repository last_crawled timestamp
-        self.update_repository_crawl_time(repository.id).await?;
+        // Update repository last_crawled timestamp with duration
+        let crawl_duration_seconds = crawl_start_time.elapsed().as_secs() as i32;
+        self.update_repository_crawl_time(repository.id, Some(crawl_duration_seconds))
+            .await?;
+
+        // Mark crawl as completed in database
+        repo_repo.complete_crawl(repository.id).await?;
 
         // Complete the progress tracking
         self.progress_tracker.complete_crawl(repository.id).await;
@@ -370,60 +397,65 @@ impl CrawlerService {
         if repo_path.exists() {
             debug!("Updating existing repository at: {:?}", repo_path);
 
-            // Use spawn_blocking to run git2 operations in a blocking thread
-            let result = tokio::task::spawn_blocking(move || -> Result<GitRepository> {
-                // Try to open the existing repository
-                let git_repo = GitRepository::open(&repo_path_owned)?;
+            // Use spawn_blocking to run git2 operations in a blocking thread with timeout
+            info!("Starting git update operation for existing repository");
+            let result = tokio::time::timeout(
+                std::time::Duration::from_secs(180), // 3 minutes timeout for updates
+                tokio::task::spawn_blocking(move || -> Result<GitRepository> {
+                    // Try to open the existing repository
+                    let git_repo = GitRepository::open(&repo_path_owned)?;
 
-                // For GitHub repos, skip fetch to avoid authentication issues
-                if repository_url.contains("github.com") {
-                    debug!("Skipping fetch for GitHub repository to avoid auth issues");
-                    return Ok(git_repo);
-                }
+                    // For GitHub repos, skip fetch to avoid authentication issues
+                    if repository_url.contains("github.com") {
+                        debug!("Skipping fetch for GitHub repository to avoid auth issues");
+                        return Ok(git_repo);
+                    }
 
-                // Try to fetch latest changes for non-GitHub repos
-                match git_repo.find_remote("origin") {
-                    Ok(mut remote) => {
-                        debug!("Fetching latest changes from origin");
-                        if let Err(e) =
-                            remote.fetch(&["refs/heads/*:refs/remotes/origin/*"], None, None)
-                        {
+                    // Try to fetch latest changes for non-GitHub repos
+                    match git_repo.find_remote("origin") {
+                        Ok(mut remote) => {
+                            debug!("Fetching latest changes from origin");
+                            if let Err(e) =
+                                remote.fetch(&["refs/heads/*:refs/remotes/origin/*"], None, None)
+                            {
+                                warn!(
+                                    "Failed to fetch from remote, using existing local copy: {}",
+                                    e
+                                );
+                                // Continue with existing local copy
+                            }
+                        }
+                        Err(e) => {
                             warn!(
-                                "Failed to fetch from remote, using existing local copy: {}",
+                                "Failed to find origin remote, using existing local copy: {}",
                                 e
                             );
                             // Continue with existing local copy
                         }
                     }
-                    Err(e) => {
-                        warn!(
-                            "Failed to find origin remote, using existing local copy: {}",
-                            e
-                        );
-                        // Continue with existing local copy
+
+                    // Reset to latest commit on the target branch
+                    let branch_name = repository_branch.as_deref().unwrap_or("main");
+                    let branch_ref = format!("refs/remotes/origin/{}", branch_name);
+
+                    if let Ok(reference) = git_repo.find_reference(&branch_ref) {
+                        let target_commit = reference
+                            .target()
+                            .ok_or_else(|| anyhow!("No target for reference"))?;
+                        let commit = git_repo
+                            .find_commit(target_commit)
+                            .map_err(|e| anyhow!("Failed to find target commit: {}", e))?;
+
+                        git_repo
+                            .reset(commit.as_object(), git2::ResetType::Hard, None)
+                            .map_err(|e| anyhow!("Failed to reset to latest commit: {}", e))?;
                     }
-                }
 
-                // Reset to latest commit on the target branch
-                let branch_name = repository_branch.as_deref().unwrap_or("main");
-                let branch_ref = format!("refs/remotes/origin/{}", branch_name);
-
-                if let Ok(reference) = git_repo.find_reference(&branch_ref) {
-                    let target_commit = reference
-                        .target()
-                        .ok_or_else(|| anyhow!("No target for reference"))?;
-                    let commit = git_repo
-                        .find_commit(target_commit)
-                        .map_err(|e| anyhow!("Failed to find target commit: {}", e))?;
-
-                    git_repo
-                        .reset(commit.as_object(), git2::ResetType::Hard, None)
-                        .map_err(|e| anyhow!("Failed to reset to latest commit: {}", e))?;
-                }
-
-                Ok(git_repo)
-            })
-            .await?;
+                    Ok(git_repo)
+                }),
+            )
+            .await
+            .map_err(|_| anyhow!("Git update operation timed out after 3 minutes"))??;
 
             match result {
                 Ok(repo) => Ok(repo),
@@ -482,117 +514,122 @@ impl CrawlerService {
 
         debug!("Using clone URL: {}", clone_url);
 
-        // Use spawn_blocking to run git2 clone operations in a blocking thread
-        let git_repo = tokio::task::spawn_blocking(move || -> Result<GitRepository> {
-            // Configure git2 to clone all branches
-            let mut builder = git2::build::RepoBuilder::new();
+        // Use spawn_blocking to run git2 clone operations in a blocking thread with timeout
+        info!("Starting clone operation for: {}", clone_url);
+        let git_repo = tokio::time::timeout(
+            std::time::Duration::from_secs(300), // 5 minutes timeout
+            tokio::task::spawn_blocking(move || -> Result<GitRepository> {
+                // Configure git2 to clone all branches
+                let mut builder = git2::build::RepoBuilder::new();
 
-            // Set up fetch options to get all branches
-            let mut fetch_options = git2::FetchOptions::new();
-            let remote_callbacks = git2::RemoteCallbacks::new();
-
-            // Add authentication for GitLab if needed
-            if clone_url.contains("oauth2:") {
-                // URL already has authentication embedded
-                debug!("Using URL-embedded authentication for clone");
-            }
-
-            fetch_options.remote_callbacks(remote_callbacks);
-            builder.fetch_options(fetch_options);
-
-            // Clone the repository
-            let git_repo = builder
-                .clone(&clone_url, &repo_path_owned)
-                .or_else(|_| {
-                    // If clone fails, try the original URL
-                    debug!(
-                        "Clone failed with auth URL, trying original URL: {}",
-                        original_url
-                    );
-                    let mut builder2 = git2::build::RepoBuilder::new();
-                    builder2.clone(&original_url, &repo_path_owned)
-                })
-                .map_err(|e| anyhow!("Failed to clone repository: {}", e))?;
-
-            // After cloning, fetch all remote branches to ensure we have them
-            info!("Fetching all remote branches after clone");
-            if let Ok(mut remote) = git_repo.find_remote("origin") {
+                // Set up fetch options to get all branches
                 let mut fetch_options = git2::FetchOptions::new();
+                let remote_callbacks = git2::RemoteCallbacks::new();
 
-                // Set up authentication if needed
+                // Add authentication for GitLab if needed
                 if clone_url.contains("oauth2:") {
-                    let mut callbacks = git2::RemoteCallbacks::new();
-                    // Extract token from URL for authentication callback
-                    if let Some(token_part) = clone_url.split("oauth2:").nth(1) {
-                        if let Some(token) = token_part.split("@").next() {
-                            let token_for_callback = token.to_string();
-                            callbacks.credentials(
-                                move |_url, username_from_url, _allowed_types| {
-                                    if let Some(username) = username_from_url {
-                                        git2::Cred::userpass_plaintext(
-                                            username,
-                                            &token_for_callback,
-                                        )
-                                    } else {
-                                        git2::Cred::userpass_plaintext(
-                                            "oauth2",
-                                            &token_for_callback,
-                                        )
-                                    }
-                                },
-                            );
-                        }
-                    }
-                    fetch_options.remote_callbacks(callbacks);
+                    // URL already has authentication embedded
+                    debug!("Using URL-embedded authentication for clone");
                 }
 
-                match remote.fetch(
-                    &["+refs/heads/*:refs/remotes/origin/*"],
-                    Some(&mut fetch_options),
-                    None,
-                ) {
-                    Ok(_) => {
-                        info!("Successfully fetched all remote branches after clone");
+                fetch_options.remote_callbacks(remote_callbacks);
+                builder.fetch_options(fetch_options);
 
-                        // List what we got
-                        if let Ok(refs) = git_repo.references() {
-                            let mut remote_refs = Vec::new();
-                            for ref_item in refs.flatten() {
-                                if let Some(name) = ref_item.name() {
-                                    if name.starts_with("refs/remotes/origin/") {
-                                        remote_refs.push(name.to_string());
+                // Clone the repository
+                let git_repo = builder
+                    .clone(&clone_url, &repo_path_owned)
+                    .or_else(|_| {
+                        // If clone fails, try the original URL
+                        debug!(
+                            "Clone failed with auth URL, trying original URL: {}",
+                            original_url
+                        );
+                        let mut builder2 = git2::build::RepoBuilder::new();
+                        builder2.clone(&original_url, &repo_path_owned)
+                    })
+                    .map_err(|e| anyhow!("Failed to clone repository: {}", e))?;
+
+                // After cloning, fetch all remote branches to ensure we have them
+                info!("Fetching all remote branches after clone");
+                if let Ok(mut remote) = git_repo.find_remote("origin") {
+                    let mut fetch_options = git2::FetchOptions::new();
+
+                    // Set up authentication if needed
+                    if clone_url.contains("oauth2:") {
+                        let mut callbacks = git2::RemoteCallbacks::new();
+                        // Extract token from URL for authentication callback
+                        if let Some(token_part) = clone_url.split("oauth2:").nth(1) {
+                            if let Some(token) = token_part.split("@").next() {
+                                let token_for_callback = token.to_string();
+                                callbacks.credentials(
+                                    move |_url, username_from_url, _allowed_types| {
+                                        if let Some(username) = username_from_url {
+                                            git2::Cred::userpass_plaintext(
+                                                username,
+                                                &token_for_callback,
+                                            )
+                                        } else {
+                                            git2::Cred::userpass_plaintext(
+                                                "oauth2",
+                                                &token_for_callback,
+                                            )
+                                        }
+                                    },
+                                );
+                            }
+                        }
+                        fetch_options.remote_callbacks(callbacks);
+                    }
+
+                    match remote.fetch(
+                        &["+refs/heads/*:refs/remotes/origin/*"],
+                        Some(&mut fetch_options),
+                        None,
+                    ) {
+                        Ok(_) => {
+                            info!("Successfully fetched all remote branches after clone");
+
+                            // List what we got
+                            if let Ok(refs) = git_repo.references() {
+                                let mut remote_refs = Vec::new();
+                                for ref_item in refs.flatten() {
+                                    if let Some(name) = ref_item.name() {
+                                        if name.starts_with("refs/remotes/origin/") {
+                                            remote_refs.push(name.to_string());
+                                        }
                                     }
                                 }
+                                info!("Remote refs after fetch: {:?}", remote_refs);
                             }
-                            info!("Remote refs after fetch: {:?}", remote_refs);
+                        }
+                        Err(e) => {
+                            warn!("Failed to fetch all branches after clone: {}", e);
                         }
                     }
-                    Err(e) => {
-                        warn!("Failed to fetch all branches after clone: {}", e);
+                }
+
+                // Checkout the specified branch if provided
+                if let Some(branch) = &repository_branch {
+                    let branch_ref = format!("refs/remotes/origin/{}", branch);
+                    if let Ok(reference) = git_repo.find_reference(&branch_ref) {
+                        let target_commit = reference
+                            .target()
+                            .ok_or_else(|| anyhow!("No target for branch reference"))?;
+                        let commit = git_repo
+                            .find_commit(target_commit)
+                            .map_err(|e| anyhow!("Failed to find branch commit: {}", e))?;
+
+                        git_repo
+                            .reset(commit.as_object(), git2::ResetType::Hard, None)
+                            .map_err(|e| anyhow!("Failed to checkout branch: {}", e))?;
                     }
                 }
-            }
 
-            // Checkout the specified branch if provided
-            if let Some(branch) = &repository_branch {
-                let branch_ref = format!("refs/remotes/origin/{}", branch);
-                if let Ok(reference) = git_repo.find_reference(&branch_ref) {
-                    let target_commit = reference
-                        .target()
-                        .ok_or_else(|| anyhow!("No target for branch reference"))?;
-                    let commit = git_repo
-                        .find_commit(target_commit)
-                        .map_err(|e| anyhow!("Failed to find branch commit: {}", e))?;
-
-                    git_repo
-                        .reset(commit.as_object(), git2::ResetType::Hard, None)
-                        .map_err(|e| anyhow!("Failed to checkout branch: {}", e))?;
-                }
-            }
-
-            Ok(git_repo)
-        })
-        .await??;
+                Ok(git_repo)
+            }),
+        )
+        .await
+        .map_err(|_| anyhow!("Git clone operation timed out after 5 minutes"))???;
 
         Ok(git_repo)
     }
@@ -1527,7 +1564,14 @@ impl CrawlerService {
                 "Committing {} indexed files to Tantivy for branch '{}' in repository {}",
                 progress.files_indexed, branch_name, repository.name
             );
-            match self.search_service.commit().await {
+            match tokio::time::timeout(
+                std::time::Duration::from_secs(60), // 1 minute timeout for branch commit
+                self.search_service.commit(),
+            )
+            .await
+            .map_err(|_| anyhow!("Tantivy branch commit timed out after 1 minute"))
+            .and_then(|r| r)
+            {
                 Ok(()) => {
                     info!(
                         "Successfully committed Tantivy index for branch '{}' in repository {}",
@@ -1691,13 +1735,35 @@ impl CrawlerService {
 
     // Removed: Files are only indexed in Tantivy, index is rebuilt fresh on each crawl
 
-    pub async fn update_repository_crawl_time(&self, repository_id: Uuid) -> Result<()> {
-        sqlx::query("UPDATE repositories SET last_crawled = $1, updated_at = $1 WHERE id = $2")
-            .bind(chrono::Utc::now())
-            .bind(repository_id)
+    pub async fn update_repository_crawl_time(
+        &self,
+        repository_id: Uuid,
+        duration_seconds: Option<i32>,
+    ) -> Result<()> {
+        let query = if let Some(duration) = duration_seconds {
+            sqlx::query("UPDATE repositories SET last_crawled = $1, last_crawl_duration_seconds = $2, updated_at = $1 WHERE id = $3")
+                .bind(chrono::Utc::now())
+                .bind(duration)
+                .bind(repository_id)
+        } else {
+            sqlx::query("UPDATE repositories SET last_crawled = $1, updated_at = $1 WHERE id = $2")
+                .bind(chrono::Utc::now())
+                .bind(repository_id)
+        };
+
+        query
             .execute(&self.database)
             .await
             .map_err(|e| anyhow!("Failed to update repository crawl time: {}", e))?;
+
+        if let Some(duration) = duration_seconds {
+            info!(
+                "Updated repository {} crawl time with duration: {}s",
+                repository_id, duration
+            );
+        } else {
+            info!("Updated repository {} crawl time", repository_id);
+        }
 
         Ok(())
     }
@@ -1733,10 +1799,16 @@ impl CrawlerService {
         repository: &Repository,
         cancellation_token: CancellationToken,
     ) -> Result<()> {
+        let gitlab_crawl_start_time = std::time::Instant::now();
+        let repo_repo = RepositoryRepository::new(self.database.clone());
+
         info!(
             "Starting GitLab discovery for repository: {}",
             repository.name
         );
+
+        // Mark crawl as started in database
+        repo_repo.start_crawl(repository.id, None).await?;
 
         // Extract and decrypt access token from repository
         let encrypted_token = repository
@@ -1777,6 +1849,8 @@ impl CrawlerService {
                 self.progress_tracker
                     .set_error(repository.id, error_msg.to_string())
                     .await;
+                // Mark crawl as failed in database
+                let _ = repo_repo.fail_crawl(repository.id).await;
                 self.cleanup_cancellation_token(repository.id).await;
                 return Err(anyhow!(error_msg));
             }
@@ -1789,6 +1863,8 @@ impl CrawlerService {
                 self.progress_tracker
                     .set_error(repository.id, error_msg.clone())
                     .await;
+                // Mark crawl as failed in database
+                let _ = repo_repo.fail_crawl(repository.id).await;
                 self.cleanup_cancellation_token(repository.id).await;
                 return Err(anyhow!(error_msg));
             }
@@ -1817,29 +1893,61 @@ impl CrawlerService {
                 self.progress_tracker
                     .set_error(repository.id, error_msg.clone())
                     .await;
+                // Mark crawl as failed in database
+                let _ = repo_repo.fail_crawl(repository.id).await;
                 self.cleanup_cancellation_token(repository.id).await;
                 return Err(anyhow!(error_msg));
             }
         };
 
-        if projects.is_empty() {
-            let error_msg = "No accessible GitLab projects found";
+        // Filter out excluded projects using repository-specific exclusions
+        let excluded_projects: Vec<String> = repository
+            .gitlab_excluded_projects
+            .as_ref()
+            .map(|s| {
+                s.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_else(Vec::new);
+        let excluded_patterns: Vec<String> = repository
+            .gitlab_excluded_patterns
+            .as_ref()
+            .map(|s| {
+                s.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_else(Vec::new);
+
+        let filtered_projects = gitlab_service.filter_excluded_projects_with_config(
+            projects,
+            &excluded_projects,
+            &excluded_patterns,
+        );
+
+        if filtered_projects.is_empty() {
+            let error_msg = "No accessible GitLab projects found after exclusion filtering";
             self.progress_tracker
                 .set_error(repository.id, error_msg.to_string())
                 .await;
+            // Mark crawl as failed in database
+            let _ = repo_repo.fail_crawl(repository.id).await;
             self.cleanup_cancellation_token(repository.id).await;
             return Err(anyhow!(error_msg));
         }
 
         info!(
-            "Discovered {} GitLab projects for repository {}",
-            projects.len(),
+            "Discovered {} GitLab projects for repository {} (after exclusion filtering)",
+            filtered_projects.len(),
             repository.name
         );
 
         // Initialize hierarchical progress tracking for GitLab
         self.progress_tracker
-            .set_gitlab_projects_total(repository.id, projects.len())
+            .set_gitlab_projects_total(repository.id, filtered_projects.len())
             .await;
 
         // Create base directory for this GitLab repository
@@ -1853,7 +1961,11 @@ impl CrawlerService {
         let mut all_errors = Vec::new();
 
         // Process each discovered project
-        for (project_index, project) in projects.iter().enumerate() {
+        for (project_index, project) in filtered_projects.iter().enumerate() {
+            // Update progress in database before processing each project
+            repo_repo
+                .update_crawl_progress(repository.id, Some(project.path_with_namespace.clone()))
+                .await?;
             // Check for cancellation before each project
             if cancellation_token.is_cancelled() {
                 self.progress_tracker.cancel_crawl(repository.id).await;
@@ -1864,7 +1976,7 @@ impl CrawlerService {
             info!(
                 "Processing GitLab project {}/{}: {}",
                 project_index + 1,
-                projects.len(),
+                filtered_projects.len(),
                 project.path_with_namespace
             );
 
@@ -1898,6 +2010,12 @@ impl CrawlerService {
                 next_crawl_at: repository.next_crawl_at,
                 crawl_frequency_hours: repository.crawl_frequency_hours,
                 max_crawl_duration_minutes: repository.max_crawl_duration_minutes,
+                last_crawl_duration_seconds: repository.last_crawl_duration_seconds,
+                gitlab_excluded_projects: repository.gitlab_excluded_projects.clone(),
+                gitlab_excluded_patterns: repository.gitlab_excluded_patterns.clone(),
+                crawl_state: repository.crawl_state.clone(),
+                last_processed_project: repository.last_processed_project.clone(),
+                crawl_started_at: repository.crawl_started_at,
             };
 
             // Clone this specific project
@@ -1979,8 +2097,13 @@ impl CrawlerService {
                 .await;
         }
 
-        // Update repository crawl time
-        self.update_repository_crawl_time(repository.id).await?;
+        // Update repository crawl time with duration
+        let gitlab_crawl_duration_seconds = gitlab_crawl_start_time.elapsed().as_secs() as i32;
+        self.update_repository_crawl_time(repository.id, Some(gitlab_crawl_duration_seconds))
+            .await?;
+
+        // Mark crawl as completed in database
+        repo_repo.complete_crawl(repository.id).await?;
 
         // Complete the crawl
         self.progress_tracker.complete_crawl(repository.id).await;
@@ -2101,6 +2224,364 @@ impl CrawlerService {
                 files.push(path);
             }
         }
+        Ok(())
+    }
+
+    // Crawl resumption methods
+    pub async fn check_and_resume_incomplete_crawls(&self) -> Result<()> {
+        let repo_repo = RepositoryRepository::new(self.database.clone());
+
+        info!("Checking for incomplete crawls to resume...");
+
+        // Find repositories that were being crawled when server crashed
+        let incomplete_repos = repo_repo.find_incomplete_crawls().await?;
+
+        if incomplete_repos.is_empty() {
+            info!("No incomplete crawls found");
+            return Ok(());
+        }
+
+        info!(
+            "Found {} incomplete crawls to resume",
+            incomplete_repos.len()
+        );
+
+        for repository in incomplete_repos {
+            info!(
+                "Resuming crawl for repository: {} (last project: {:?})",
+                repository.name, repository.last_processed_project
+            );
+
+            // Resume the crawl from where it left off
+            match self.resume_repository_crawl(&repository).await {
+                Ok(()) => {
+                    info!(
+                        "Successfully resumed crawl for repository: {}",
+                        repository.name
+                    );
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to resume crawl for repository {}: {}",
+                        repository.name, e
+                    );
+                    // Mark as failed so it doesn't get stuck in "in_progress" state
+                    let _ = repo_repo.fail_crawl(repository.id).await;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn resume_repository_crawl(&self, repository: &Repository) -> Result<()> {
+        info!(
+            "Resuming crawl for repository: {} from project: {:?}",
+            repository.name, repository.last_processed_project
+        );
+
+        match repository.repository_type {
+            RepositoryType::GitLab => self.resume_gitlab_repository_crawl(repository).await,
+            RepositoryType::Git | RepositoryType::FileSystem => {
+                // For Git and FileSystem, just restart the entire crawl
+                // since tracking at project level doesn't apply
+                info!(
+                    "Git/FileSystem repository, restarting entire crawl: {}",
+                    repository.name
+                );
+                self.crawl_repository(repository).await
+            }
+        }
+    }
+
+    async fn resume_gitlab_repository_crawl(&self, repository: &Repository) -> Result<()> {
+        let repo_repo = RepositoryRepository::new(self.database.clone());
+        let gitlab_crawl_start_time = std::time::Instant::now();
+
+        info!(
+            "Resuming GitLab crawl for repository: {} from project: {:?}",
+            repository.name, repository.last_processed_project
+        );
+
+        // Extract and decrypt access token
+        let encrypted_token = repository
+            .access_token
+            .as_ref()
+            .ok_or_else(|| anyhow!("GitLab repository missing access token"))?;
+
+        let access_token = self
+            .encryption_service
+            .decrypt(encrypted_token)
+            .map_err(|e| anyhow!("Failed to decrypt GitLab access token: {}", e))?;
+
+        let gitlab_url = if repository.url.is_empty() || repository.url == "placeholder" {
+            "https://gitlab.com".to_string()
+        } else {
+            repository.url.clone()
+        };
+
+        // Create cancellation token
+        let cancellation_token = CancellationToken::new();
+        {
+            let mut tokens = self.cancellation_tokens.write().await;
+            tokens.insert(repository.id, cancellation_token.clone());
+        }
+
+        // Start progress tracking
+        self.progress_tracker
+            .start_crawl(repository.id, repository.name.clone())
+            .await;
+
+        // Discover projects again
+        let gitlab_service = GitLabService::new();
+        let projects = gitlab_service
+            .discover_projects(
+                &gitlab_url,
+                &access_token,
+                repository.gitlab_namespace.as_deref(),
+            )
+            .await?;
+
+        // Filter out excluded projects using repository-specific exclusions
+        let excluded_projects: Vec<String> = repository
+            .gitlab_excluded_projects
+            .as_ref()
+            .map(|s| {
+                s.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_else(Vec::new);
+        let excluded_patterns: Vec<String> = repository
+            .gitlab_excluded_patterns
+            .as_ref()
+            .map(|s| {
+                s.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_else(Vec::new);
+
+        let filtered_projects = gitlab_service.filter_excluded_projects_with_config(
+            projects,
+            &excluded_projects,
+            &excluded_patterns,
+        );
+
+        // Find where to resume from
+        let resume_index = if let Some(ref last_project) = repository.last_processed_project {
+            filtered_projects
+                .iter()
+                .position(|p| p.path_with_namespace == *last_project)
+                .map(|i| i + 1) // Start from the next project
+                .unwrap_or(0) // If not found, start from beginning
+        } else {
+            0 // Start from beginning if no last project
+        };
+
+        info!(
+            "Resuming GitLab crawl from project index: {} / {}",
+            resume_index,
+            filtered_projects.len()
+        );
+
+        // Initialize progress tracking
+        self.progress_tracker
+            .set_gitlab_projects_total(repository.id, filtered_projects.len())
+            .await;
+
+        // Create base directory
+        let base_repo_path = self
+            .temp_dir
+            .join(format!("{}-{}", repository.name, repository.id));
+        std::fs::create_dir_all(&base_repo_path)?;
+
+        let mut total_files_processed = 0;
+        let mut total_files_indexed = 0;
+        let mut all_errors = Vec::new();
+
+        // Process projects starting from resume index
+        for (project_index, project) in filtered_projects.iter().enumerate().skip(resume_index) {
+            // Check for cancellation
+            if cancellation_token.is_cancelled() {
+                self.progress_tracker.cancel_crawl(repository.id).await;
+                self.cleanup_cancellation_token(repository.id).await;
+                return Ok(());
+            }
+
+            info!(
+                "Resuming GitLab project {}/{}: {}",
+                project_index + 1,
+                filtered_projects.len(),
+                project.path_with_namespace
+            );
+
+            // Update progress in database
+            repo_repo
+                .update_crawl_progress(repository.id, Some(project.path_with_namespace.clone()))
+                .await?;
+
+            // Update current project in progress tracker
+            self.progress_tracker
+                .set_current_gitlab_project(
+                    repository.id,
+                    Some(project.path_with_namespace.clone()),
+                )
+                .await;
+
+            // Process the project (same logic as normal crawl)
+            let project_path = base_repo_path.join(&project.path_with_namespace);
+
+            let project_repository = Repository {
+                id: repository.id,
+                name: project.path_with_namespace.clone(),
+                url: project.http_url_to_repo.clone(),
+                repository_type: RepositoryType::Git,
+                branch: project.default_branch.clone(),
+                enabled: repository.enabled,
+                access_token: repository.access_token.clone(),
+                gitlab_namespace: repository.gitlab_namespace.clone(),
+                is_group: false,
+                created_at: repository.created_at,
+                updated_at: repository.updated_at,
+                last_crawled: repository.last_crawled,
+                auto_crawl_enabled: repository.auto_crawl_enabled,
+                cron_schedule: repository.cron_schedule.clone(),
+                next_crawl_at: repository.next_crawl_at,
+                crawl_frequency_hours: repository.crawl_frequency_hours,
+                max_crawl_duration_minutes: repository.max_crawl_duration_minutes,
+                last_crawl_duration_seconds: repository.last_crawl_duration_seconds,
+                gitlab_excluded_projects: repository.gitlab_excluded_projects.clone(),
+                gitlab_excluded_patterns: repository.gitlab_excluded_patterns.clone(),
+                crawl_state: repository.crawl_state.clone(),
+                last_processed_project: repository.last_processed_project.clone(),
+                crawl_started_at: repository.crawl_started_at,
+            };
+
+            // Clone and process this project
+            match self
+                .clone_or_update_repository(&project_repository, &project_path)
+                .await
+            {
+                Ok(_) => {
+                    let mut project_progress = CrawlProgress {
+                        files_processed: 0,
+                        files_indexed: 0,
+                        errors: Vec::new(),
+                    };
+
+                    match self
+                        .process_repository_files_with_gitlab_tracking(
+                            &project_repository,
+                            &project_path,
+                            &mut project_progress,
+                            &cancellation_token,
+                            repository.id,
+                        )
+                        .await
+                    {
+                        Ok(()) => {
+                            info!(
+                                "Successfully resumed and processed GitLab project: {}",
+                                project.path_with_namespace
+                            );
+                            total_files_processed += project_progress.files_processed;
+                            total_files_indexed += project_progress.files_indexed;
+                            all_errors.extend(project_progress.errors);
+                        }
+                        Err(e) => {
+                            let error_msg = format!(
+                                "Failed to process files for resumed project {}: {}",
+                                project.path_with_namespace, e
+                            );
+                            warn!("{}", error_msg);
+                            all_errors.push(error_msg);
+                        }
+                    }
+
+                    self.progress_tracker
+                        .complete_current_gitlab_project(repository.id)
+                        .await;
+                }
+                Err(e) => {
+                    let error_msg = format!(
+                        "Failed to clone resumed GitLab project {}: {}",
+                        project.path_with_namespace, e
+                    );
+                    warn!("{}", error_msg);
+                    all_errors.push(error_msg);
+                }
+            }
+        }
+
+        // Complete the resumed crawl
+        self.progress_tracker
+            .update_progress(
+                repository.id,
+                total_files_processed,
+                None,
+                total_files_indexed,
+            )
+            .await;
+
+        if !all_errors.is_empty() {
+            let combined_errors = all_errors.join("; ");
+            self.progress_tracker
+                .set_error(
+                    repository.id,
+                    format!("Some resumed projects failed: {}", combined_errors),
+                )
+                .await;
+        }
+
+        // Update repository crawl time and complete
+        let gitlab_crawl_duration_seconds = gitlab_crawl_start_time.elapsed().as_secs() as i32;
+        self.update_repository_crawl_time(repository.id, Some(gitlab_crawl_duration_seconds))
+            .await?;
+
+        // Mark crawl as completed in database
+        repo_repo.complete_crawl(repository.id).await?;
+
+        self.progress_tracker.complete_crawl(repository.id).await;
+        self.cleanup_cancellation_token(repository.id).await;
+
+        info!(
+            "Completed resumed GitLab repository crawl for: {}",
+            repository.name
+        );
+        Ok(())
+    }
+
+    pub async fn cleanup_abandoned_crawls(&self, timeout_minutes: i64) -> Result<()> {
+        let repo_repo = RepositoryRepository::new(self.database.clone());
+
+        info!(
+            "Checking for abandoned crawls (timeout: {} minutes)...",
+            timeout_minutes
+        );
+
+        let abandoned_repos = repo_repo.find_abandoned_crawls(timeout_minutes).await?;
+
+        if abandoned_repos.is_empty() {
+            info!("No abandoned crawls found");
+            return Ok(());
+        }
+
+        info!(
+            "Found {} abandoned crawls to clean up",
+            abandoned_repos.len()
+        );
+
+        for repository in abandoned_repos {
+            warn!(
+                "Marking abandoned crawl as failed: {} (started at: {:?})",
+                repository.name, repository.crawl_started_at
+            );
+            repo_repo.fail_crawl(repository.id).await?;
+        }
+
         Ok(())
     }
 }
@@ -2256,6 +2737,10 @@ mod tests {
             next_crawl_at: None,
             crawl_frequency_hours: None,
             max_crawl_duration_minutes: None,
+            last_crawl_duration_seconds: None,
+            crawl_state: None,
+            last_processed_project: None,
+            crawl_started_at: None,
         };
 
         // Create a test repository - Git type
@@ -2277,6 +2762,10 @@ mod tests {
             next_crawl_at: None,
             crawl_frequency_hours: None,
             max_crawl_duration_minutes: None,
+            last_crawl_duration_seconds: None,
+            crawl_state: None,
+            last_processed_project: None,
+            crawl_started_at: None,
         };
 
         // Test ID generation algorithm directly without needing CrawlerService instance
