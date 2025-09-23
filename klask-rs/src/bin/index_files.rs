@@ -30,6 +30,12 @@ async fn main() -> Result<()> {
         next_crawl_at: None,
         crawl_frequency_hours: None,
         max_crawl_duration_minutes: Some(60),
+        last_crawl_duration_seconds: None,
+        gitlab_excluded_projects: None,
+        gitlab_excluded_patterns: None,
+        crawl_state: None,
+        last_processed_project: None,
+        crawl_started_at: None,
     };
 
     // Initialize crawler service (database is optional for this direct indexing)

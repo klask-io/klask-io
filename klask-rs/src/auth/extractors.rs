@@ -2,7 +2,7 @@ use crate::auth::{claims::TokenClaims, errors::AuthError, jwt::JwtService};
 use crate::database::Database;
 use crate::models::user::{User, UserRole};
 use crate::repositories::user_repository::UserRepository;
-use crate::services::progress::ProgressTracker;
+use crate::services::{encryption::EncryptionService, progress::ProgressTracker};
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -20,6 +20,7 @@ pub struct AppState {
     pub progress_tracker: Arc<ProgressTracker>,
     pub scheduler_service: Option<Arc<crate::services::scheduler::SchedulerService>>,
     pub jwt_service: JwtService,
+    pub encryption_service: Arc<EncryptionService>,
     #[allow(dead_code)]
     pub config: crate::config::AppConfig,
     pub crawl_tasks: Arc<RwLock<HashMap<Uuid, tokio::task::JoinHandle<()>>>>,

@@ -116,6 +116,20 @@ async fn main() -> Result<()> {
     ) {
         Ok(service) => {
             info!("Crawler service initialized successfully");
+
+            // Check for incomplete crawls and resume them
+            info!("Checking for incomplete crawls to resume...");
+            if let Err(e) = service.check_and_resume_incomplete_crawls().await {
+                error!("Failed to resume incomplete crawls: {}", e);
+                // Don't fail startup, just log the error
+            }
+
+            // Clean up any abandoned crawls (older than 2 hours)
+            if let Err(e) = service.cleanup_abandoned_crawls(120).await {
+                error!("Failed to cleanup abandoned crawls: {}", e);
+                // Don't fail startup, just log the error
+            }
+
             service
         }
         Err(e) => {
@@ -152,6 +166,7 @@ async fn main() -> Result<()> {
         progress_tracker,
         scheduler_service: Some(Arc::new(scheduler_service)),
         jwt_service,
+        encryption_service,
         config: config.clone(),
         crawl_tasks: Arc::new(RwLock::new(HashMap::new())),
         startup_time,

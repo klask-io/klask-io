@@ -61,6 +61,9 @@ async fn setup_test_server() -> Result<(TestServer, AppState)> {
         config,
         crawl_tasks: Arc::new(RwLock::new(HashMap::new())),
         startup_time: Instant::now(),
+        encryption_service: Arc::new(
+            EncryptionService::new("test-encryption-key-32bytes").unwrap(),
+        ),
     };
 
     let app = klask_rs::api::create_router()
