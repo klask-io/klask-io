@@ -21,14 +21,14 @@ import {
   useActiveProgress,
 } from '../../hooks/useRepositories';
 import { getErrorMessage, apiClient } from '../../lib/api';
-import type { Repository, CreateRepositoryRequest } from '../../types';
+import type { Repository, RepositoryWithStats, CreateRepositoryRequest } from '../../types';
 
 type FilterType = 'all' | 'enabled' | 'disabled' | 'crawled' | 'not-crawled';
 
 const RepositoriesPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const [editingRepository, setEditingRepository] = useState<Repository | null>(null);
+  const [editingRepository, setEditingRepository] = useState<RepositoryWithStats | null>(null);
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [crawlingRepos, setCrawlingRepos] = useState<Set<string>>(new Set());
@@ -61,7 +61,20 @@ const RepositoriesPage: React.FC = () => {
     return selectedRepos.filter(repoId => isRepositoryCrawling(repoId));
   }, [selectedRepos, isRepositoryCrawling]);
 
-  const filteredRepositories = repositories.filter(repo => {
+  const filteredRepositories = repositories.filter(repoWithStats => {
+    // Debug: log the structure to understand what we're getting
+    if (!repoWithStats) {
+      console.log('Found null/undefined repoWithStats');
+      return false;
+    }
+    
+    // Check if it's already a Repository (not wrapped in RepositoryWithStats)
+    const repo = repoWithStats.repository || repoWithStats;
+    if (!repo) {
+      console.log('No repository found in:', repoWithStats);
+      return false;
+    }
+    
     switch (filter) {
       case 'enabled':
         return repo.enabled;
@@ -100,7 +113,7 @@ const RepositoriesPage: React.FC = () => {
     
     try {
       await updateMutation.mutateAsync({ 
-        id: editingRepository.id, 
+        id: editingRepository.repository.id, 
         data 
       });
       setEditingRepository(null);
@@ -110,7 +123,8 @@ const RepositoriesPage: React.FC = () => {
     }
   }, [editingRepository, updateMutation]);
 
-  const handleDelete = useCallback(async (repository: Repository) => {
+  const handleDelete = useCallback(async (repositoryWithStats: RepositoryWithStats) => {
+    const repository = repositoryWithStats.repository || repositoryWithStats;
     if (!confirm(`Are you sure you want to delete "${repository.name}"?`)) return;
     
     try {
@@ -121,7 +135,8 @@ const RepositoriesPage: React.FC = () => {
     }
   }, [deleteMutation]);
 
-  const handleCrawl = useCallback(async (repository: Repository) => {
+  const handleCrawl = useCallback(async (repositoryWithStats: RepositoryWithStats) => {
+    const repository = repositoryWithStats.repository || repositoryWithStats;
     // Check if already crawling
     if (isRepositoryCrawling(repository.id)) {
       toast.error(`Repository "${repository.name}" is already being crawled`);
@@ -150,7 +165,8 @@ const RepositoriesPage: React.FC = () => {
     }
   }, [crawlMutation, isRepositoryCrawling]);
 
-  const handleToggleEnabled = useCallback(async (repository: Repository) => {
+  const handleToggleEnabled = useCallback(async (repositoryWithStats: RepositoryWithStats) => {
+    const repository = repositoryWithStats.repository || repositoryWithStats;
     try {
       await updateMutation.mutateAsync({
         id: repository.id,
@@ -173,7 +189,7 @@ const RepositoriesPage: React.FC = () => {
   const handleSelectAll = useCallback(() => {
     setSelectedRepos(selectedRepos.length === filteredRepositories.length 
       ? [] 
-      : filteredRepositories.map(repo => repo.id)
+      : filteredRepositories.map(repoWithStats => (repoWithStats.repository || repoWithStats).id)
     );
   }, [selectedRepos, filteredRepositories]);
 
@@ -460,27 +476,40 @@ const RepositoriesPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredRepositories.map((repository) => (
-            <SelectableRepositoryCard
-              key={repository.id}
-              repository={repository}
-              selected={selectedRepos.includes(repository.id)}
-              onSelect={(selected) => handleSelectRepo(repository.id, selected)}
-              onEdit={setEditingRepository}
-              onDelete={handleDelete}
-              onCrawl={handleCrawl}
-              onToggleEnabled={handleToggleEnabled}
-              activeProgress={activeProgress}
-              isCrawling={crawlingRepos.has(repository.id)}
-            />
-          ))}
+          {filteredRepositories.map((repositoryWithStats) => {
+            // Handle both RepositoryWithStats and plain Repository
+            const repo = repositoryWithStats.repository || repositoryWithStats;
+            const repoWithStatsNormalized: RepositoryWithStats = repositoryWithStats.repository 
+              ? repositoryWithStats 
+              : { 
+                  repository: repositoryWithStats as any, 
+                  diskSizeMb: undefined, 
+                  fileCount: undefined, 
+                  lastCrawlDurationMinutes: undefined 
+                };
+            
+            return (
+              <SelectableRepositoryCard
+                key={repo.id}
+                repository={repoWithStatsNormalized}
+                selected={selectedRepos.includes(repo.id)}
+                onSelect={(selected) => handleSelectRepo(repo.id, selected)}
+                onEdit={setEditingRepository}
+                onDelete={handleDelete}
+                onCrawl={handleCrawl}
+                onToggleEnabled={handleToggleEnabled}
+                activeProgress={activeProgress}
+                isCrawling={crawlingRepos.has(repo.id)}
+              />
+            );
+          })}
         </div>
       )}
 
       {/* Repository Form Modal */}
       <RepositoryForm
-        key={editingRepository?.id || 'new'}
-        repository={editingRepository || undefined}
+        key={editingRepository?.repository.id || 'new'}
+        repository={editingRepository?.repository || undefined}
         isOpen={showForm || !!editingRepository}
         onClose={() => {
           setShowForm(false);

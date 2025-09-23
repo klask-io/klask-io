@@ -1,18 +1,18 @@
 import React from 'react';
 import { RepositoryCard } from './RepositoryCard';
 import { CheckIcon } from '@heroicons/react/24/outline';
-import type { Repository } from '../../types';
+import type { Repository, RepositoryWithStats } from '../../types';
 import type { CrawlProgressInfo } from '../../hooks/useProgress';
 import { clsx } from 'clsx';
 
 interface SelectableRepositoryCardProps {
-  repository: Repository;
+  repository: RepositoryWithStats;
   selected: boolean;
   onSelect: (selected: boolean) => void;
-  onEdit: (repository: Repository) => void;
-  onDelete: (repository: Repository) => void;
-  onCrawl: (repository: Repository) => void;
-  onToggleEnabled: (repository: Repository) => void;
+  onEdit: (repository: RepositoryWithStats) => void;
+  onDelete: (repository: RepositoryWithStats) => void;
+  onCrawl: (repository: RepositoryWithStats) => void;
+  onToggleEnabled: (repository: RepositoryWithStats) => void;
   activeProgress: CrawlProgressInfo[];
   isLoading?: boolean;
   isCrawling?: boolean;

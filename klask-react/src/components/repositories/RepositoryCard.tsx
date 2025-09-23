@@ -17,7 +17,7 @@ import {
   BoltIcon,
   StopCircleIcon,
 } from '@heroicons/react/24/outline';
-import type { Repository } from '../../types';
+import type { Repository, RepositoryWithStats } from '../../types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { CrawlProgressBar, GitLabHierarchicalProgressBar } from '../ui/ProgressBar';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -25,12 +25,12 @@ import { useStopCrawl } from '../../hooks/useRepositories';
 import { isRepositoryCrawling, getRepositoryProgressFromActive, type CrawlProgressInfo } from '../../hooks/useProgress';
 
 interface RepositoryCardProps {
-  repository: Repository;
-  onEdit: (repository: Repository) => void;
-  onDelete: (repository: Repository) => void;
-  onCrawl: (repository: Repository) => void;
-  onStopCrawl?: (repository: Repository) => void;
-  onToggleEnabled: (repository: Repository) => void;
+  repository: RepositoryWithStats;
+  onEdit: (repository: RepositoryWithStats) => void;
+  onDelete: (repository: RepositoryWithStats) => void;
+  onCrawl: (repository: RepositoryWithStats) => void;
+  onStopCrawl?: (repository: RepositoryWithStats) => void;
+  onToggleEnabled: (repository: RepositoryWithStats) => void;
   activeProgress: CrawlProgressInfo[];
   isLoading?: boolean;
   isCrawling?: boolean;
@@ -54,9 +54,14 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
   // activeProgress is now passed as prop to avoid multiple polling instances
   const stopCrawlMutation = useStopCrawl();
   
+  // Extract repository data and stats
+  const isWithStats = 'repository' in repository;
+  const repoData = isWithStats ? (repository as RepositoryWithStats).repository : (repository as Repository);
+  const stats = isWithStats ? (repository as RepositoryWithStats) : null;
+  
   // Check if this repository is currently crawling
-  const isCurrentlyCrawling = isRepositoryCrawling(repository.id, activeProgress);
-  const crawlProgress = getRepositoryProgressFromActive(repository.id, activeProgress);
+  const isCurrentlyCrawling = isRepositoryCrawling(repoData.id, activeProgress);
+  const crawlProgress = getRepositoryProgressFromActive(repoData.id, activeProgress);
   
   // Override the isCrawling prop with real-time data
   const actuallyIsCrawling = isCurrentlyCrawling || isCrawling;
@@ -92,24 +97,24 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
   };
 
   const getStatusColor = () => {
-    if (!repository.enabled) return 'text-gray-400';
-    if (repository.lastCrawled) return 'text-green-500';
+    if (!repoData.enabled) return 'text-gray-400';
+    if (repoData.lastCrawled) return 'text-green-500';
     return 'text-yellow-500';
   };
 
   const getStatusIcon = () => {
-    if (!repository.enabled) {
+    if (!repoData.enabled) {
       return <PauseCircleIcon className="h-5 w-5 text-gray-400" />;
     }
-    if (repository.lastCrawled) {
+    if (repoData.lastCrawled) {
       return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
     }
     return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />;
   };
 
   const getStatusText = () => {
-    if (!repository.enabled) return 'Disabled';
-    if (repository.lastCrawled) return 'Ready';
+    if (!repoData.enabled) return 'Disabled';
+    if (repoData.lastCrawled) return 'Ready';
     return 'Not Crawled';
   };
 
@@ -126,7 +131,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
 
   const handleConfirmStopCrawl = async () => {
     try {
-      await stopCrawlMutation?.mutateAsync(repository.id);
+      await stopCrawlMutation?.mutateAsync(repoData.id);
       if (onStopCrawl) {
         onStopCrawl(repository);
       }
@@ -230,7 +235,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                     }}
                     className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
-                    {repository.enabled ? (
+                    {repoData.enabled ? (
                       <>
                         <PauseCircleIcon className="h-4 w-4 mr-3" />
                         Disable
@@ -262,7 +267,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                         onCrawl(repository);
                         setShowMenu(false);
                       }}
-                      disabled={!repository.enabled}
+                      disabled={!repoData.enabled}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <ArrowPathIcon className="h-4 w-4 mr-3" />
@@ -292,15 +297,35 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
         <div className="mb-4 pr-12">
           <div className="flex items-center space-x-3 min-w-0">
             <div className="flex-shrink-0">
-              {getTypeIcon(repository.repositoryType)}
+              {getTypeIcon(repoData.repositoryType)}
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-lg font-semibold text-gray-900 truncate">
-                {repository.name}
+                {repoData.name}
               </h3>
               <p className="text-sm text-gray-500 truncate">
-                {repository.url}
+                {repoData.url}
               </p>
+              {/* Display stats if available */}
+              {stats && (stats.diskSizeMb !== undefined || stats.fileCount !== undefined) && (
+                <div className="flex items-center space-x-3 mt-1">
+                  {stats.diskSizeMb !== undefined && stats.diskSizeMb > 0 && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                      📁 {stats.diskSizeMb < 1 
+                        ? `${(stats.diskSizeMb * 1024).toFixed(0)} KB`
+                        : stats.diskSizeMb < 1024
+                        ? `${stats.diskSizeMb.toFixed(1)} MB`
+                        : `${(stats.diskSizeMb / 1024).toFixed(1)} GB`
+                      }
+                    </span>
+                  )}
+                  {stats.fileCount !== undefined && stats.fileCount > 0 && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                      📄 {stats.fileCount.toLocaleString()} files
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -323,14 +348,14 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
         {/* Badges - positioned above metadata, horizontal and right-aligned */}
         <div className="flex justify-end items-center gap-2 mb-3">
           <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-            {repository.repositoryType}
+            {repoData.repositoryType}
           </span>
-          {repository.branch && (
+          {repoData.branch && (
             <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-              {repository.branch}
+              {repoData.branch}
             </span>
           )}
-          {repository.autoCrawlEnabled && (
+          {repoData.autoCrawlEnabled && (
             <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded flex items-center space-x-1">
               <BoltIcon className="h-3 w-3" />
               <span>Auto-crawl</span>
@@ -342,19 +367,27 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
         <div className="space-y-2 text-sm text-gray-600">
           <div className="flex items-center space-x-2">
             <ClockIcon className="h-4 w-4 flex-shrink-0" />
-            <span>Last crawled: {formatLastCrawled(repository.lastCrawled)}</span>
+            <span>Last crawled: {formatLastCrawled(repoData.lastCrawled)}</span>
+            {stats?.lastCrawlDurationMinutes && (
+              <span className="text-gray-400">
+                ({stats.lastCrawlDurationMinutes < 1 
+                  ? `${(stats.lastCrawlDurationMinutes * 60).toFixed(0)}s`
+                  : `${stats.lastCrawlDurationMinutes.toFixed(1)}m`
+                })
+              </span>
+            )}
           </div>
           
-          {repository.autoCrawlEnabled && repository.nextCrawlAt && (
+          {repoData.autoCrawlEnabled && repoData.nextCrawlAt && (
             <div className="flex items-center space-x-2 text-green-600">
               <BoltIcon className="h-4 w-4 flex-shrink-0" />
-              <span>Next crawl: {formatNextCrawl(repository.nextCrawlAt)}</span>
+              <span>Next crawl: {formatNextCrawl(repoData.nextCrawlAt)}</span>
             </div>
           )}
           
           <div className="flex items-center space-x-2">
             <span className="text-xs text-gray-500">
-              Created {formatCreatedAt(repository.createdAt)}
+              Created {formatCreatedAt(repoData.createdAt)}
             </span>
           </div>
         </div>
@@ -362,7 +395,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
         {/* Progress Bar - Show when crawling */}
         {crawlProgress && actuallyIsCrawling && (
           <div className="mt-4">
-            {repository.repositoryType === 'GitLab' ? (
+            {repoData.repositoryType === 'GitLab' ? (
               <GitLabHierarchicalProgressBar
                 progressInfo={crawlProgress}
               />
@@ -387,12 +420,12 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
               onClick={() => onToggleEnabled(repository)}
               disabled={isLoading}
               className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-                repository.enabled
+                repoData.enabled
                   ? 'bg-green-100 text-green-800 hover:bg-green-200'
                   : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
               }`}
             >
-              {repository.enabled ? (
+              {repoData.enabled ? (
                 <>
                   <CheckCircleIcon className="h-3 w-3 mr-1" />
                   Enabled
@@ -422,7 +455,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
           ) : (
             <button
               onClick={() => onCrawl(repository)}
-              disabled={!repository.enabled || isLoading}
+              disabled={!repoData.enabled || isLoading}
               className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ArrowPathIcon className="h-3 w-3 mr-1" />
@@ -446,7 +479,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
         onClose={() => setShowStopConfirm(false)}
         onConfirm={handleConfirmStopCrawl}
         title="Stop Crawl"
-        message={`Are you sure you want to stop the crawl for "${repository.name}"? This will cancel the current operation and any progress will be lost.`}
+        message={`Are you sure you want to stop the crawl for "${repoData.name}"? This will cancel the current operation and any progress will be lost.`}
         confirmText="Stop Crawl"
         cancelText="Cancel"
         variant="warning"

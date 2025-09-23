@@ -7,18 +7,18 @@ import {
   GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 import { SelectableRepositoryCard } from './SelectableRepositoryCard';
-import type { Repository } from '../../types';
+import type { Repository, RepositoryWithStats } from '../../types';
 import type { CrawlProgressInfo } from '../../hooks/useProgress';
 
 interface GroupedRepositoryListProps {
-  repositories: Repository[];
+  repositories: RepositoryWithStats[];
   selectedRepos: string[];
   onToggleSelection: (repositoryId: string) => void;
-  onEdit: (repository: Repository) => void;
-  onDelete: (repository: Repository) => void;
-  onCrawl: (repository: Repository) => void;
-  onStopCrawl: (repository: Repository) => void;
-  onToggleEnabled: (repository: Repository) => void;
+  onEdit: (repository: RepositoryWithStats) => void;
+  onDelete: (repository: RepositoryWithStats) => void;
+  onCrawl: (repository: RepositoryWithStats) => void;
+  onStopCrawl: (repository: RepositoryWithStats) => void;
+  onToggleEnabled: (repository: RepositoryWithStats) => void;
   activeProgress: CrawlProgressInfo[];
   crawlingRepos: Set<string>;
 }
@@ -27,7 +27,7 @@ interface RepositoryGroup {
   name: string;
   namespace?: string;
   url: string;
-  repositories: Repository[];
+  repositories: RepositoryWithStats[];
   type: 'GitLab' | 'Other';
 }
 
@@ -48,9 +48,10 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
   // Group repositories by GitLab namespace or standalone
   const groupedRepositories = useMemo(() => {
     const groups: Map<string, RepositoryGroup> = new Map();
-    const standaloneRepos: Repository[] = [];
+    const standaloneRepos: RepositoryWithStats[] = [];
 
-    repositories.forEach(repo => {
+    repositories.forEach(repoWithStats => {
+      const repo = repoWithStats.repository;
       if (repo.repositoryType === 'GitLab' && repo.gitlabNamespace) {
         // Extract base URL for grouping
         const urlParts = new URL(repo.url);
@@ -66,15 +67,15 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
             type: 'GitLab',
           });
         }
-        groups.get(groupKey)!.repositories.push(repo);
+        groups.get(groupKey)!.repositories.push(repoWithStats);
       } else {
-        standaloneRepos.push(repo);
+        standaloneRepos.push(repoWithStats);
       }
     });
 
     // Sort repositories within each group
     groups.forEach(group => {
-      group.repositories.sort((a, b) => a.name.localeCompare(b.name));
+      group.repositories.sort((a, b) => a.repository.name.localeCompare(b.repository.name));
     });
 
     return { groups: Array.from(groups.values()), standalone: standaloneRepos };
@@ -91,7 +92,7 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
   };
 
   const toggleGroupSelection = (group: RepositoryGroup) => {
-    const groupRepoIds = group.repositories.map(r => r.id);
+    const groupRepoIds = group.repositories.map(r => r.repository.id);
     const allSelected = groupRepoIds.every(id => selectedRepos.includes(id));
     
     groupRepoIds.forEach(id => {
@@ -105,13 +106,13 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
   };
 
   const isGroupPartiallySelected = (group: RepositoryGroup) => {
-    const groupRepoIds = group.repositories.map(r => r.id);
+    const groupRepoIds = group.repositories.map(r => r.repository.id);
     const selectedCount = groupRepoIds.filter(id => selectedRepos.includes(id)).length;
     return selectedCount > 0 && selectedCount < groupRepoIds.length;
   };
 
   const isGroupFullySelected = (group: RepositoryGroup) => {
-    const groupRepoIds = group.repositories.map(r => r.id);
+    const groupRepoIds = group.repositories.map(r => r.repository.id);
     return groupRepoIds.length > 0 && groupRepoIds.every(id => selectedRepos.includes(id));
   };
 
@@ -179,10 +180,10 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
                     GitLab Group
                   </span>
                   <span>
-                    {group.repositories.filter(r => r.enabled).length} enabled
+                    {group.repositories.filter(r => r.repository.enabled).length} enabled
                   </span>
                   <span>
-                    {group.repositories.filter(r => r.lastCrawled).length} crawled
+                    {group.repositories.filter(r => r.repository.lastCrawled).length} crawled
                   </span>
                 </div>
               </div>
@@ -190,18 +191,18 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
               {/* Expanded content - repositories */}
               {isExpanded && (
                 <div className="mt-4 space-y-3 pl-11">
-                  {group.repositories.map(repo => (
-                    <div key={repo.id} className="border-l-2 border-gray-200 pl-4">
+                  {group.repositories.map(repoWithStats => (
+                    <div key={repoWithStats.repository.id} className="border-l-2 border-gray-200 pl-4">
                       <SelectableRepositoryCard
-                        repository={repo}
-                        selected={selectedRepos.includes(repo.id)}
-                        onSelect={(selected) => onToggleSelection(repo.id)}
+                        repository={repoWithStats}
+                        selected={selectedRepos.includes(repoWithStats.repository.id)}
+                        onSelect={(selected) => onToggleSelection(repoWithStats.repository.id)}
                         onEdit={onEdit}
                         onDelete={onDelete}
                         onCrawl={onCrawl}
                         onToggleEnabled={onToggleEnabled}
                         activeProgress={activeProgress}
-                        isCrawling={crawlingRepos.has(repo.id)}
+                        isCrawling={crawlingRepos.has(repoWithStats.repository.id)}
                       />
                     </div>
                   ))}
@@ -213,18 +214,18 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
       })}
 
       {/* Standalone Repositories */}
-      {groupedRepositories.standalone.map(repo => (
+      {groupedRepositories.standalone.map(repoWithStats => (
         <SelectableRepositoryCard
-          key={repo.id}
-          repository={repo}
-          selected={selectedRepos.includes(repo.id)}
-          onSelect={(selected) => onToggleSelection(repo.id)}
+          key={repoWithStats.repository.id}
+          repository={repoWithStats}
+          selected={selectedRepos.includes(repoWithStats.repository.id)}
+          onSelect={(selected) => onToggleSelection(repoWithStats.repository.id)}
           onEdit={onEdit}
           onDelete={onDelete}
           onCrawl={onCrawl}
           onToggleEnabled={onToggleEnabled}
           activeProgress={activeProgress}
-          isCrawling={crawlingRepos.has(repo.id)}
+          isCrawling={crawlingRepos.has(repoWithStats.repository.id)}
         />
       ))}
     </div>

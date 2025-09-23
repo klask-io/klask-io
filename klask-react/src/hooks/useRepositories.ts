@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, getErrorMessage } from '../lib/api';
-import type { Repository, CreateRepositoryRequest } from '../types';
+import type { Repository, RepositoryWithStats, CreateRepositoryRequest } from '../types';
 
 // Get all repositories
 export const useRepositories = () => {
@@ -52,9 +52,13 @@ export const useUpdateRepository = () => {
       queryClient.setQueryData(['repositories', updatedRepo.id], updatedRepo);
       
       // Update the repository in the list
-      queryClient.setQueryData(['repositories'], (old: Repository[] | undefined) => {
-        if (!old) return [updatedRepo];
-        return old.map(repo => repo.id === updatedRepo.id ? updatedRepo : repo);
+      queryClient.setQueryData(['repositories'], (old: RepositoryWithStats[] | undefined) => {
+        if (!old) return [{ repository: updatedRepo, diskSizeMb: undefined, fileCount: undefined }];
+        return old.map(repoWithStats => 
+          repoWithStats.repository.id === updatedRepo.id 
+            ? { ...repoWithStats, repository: updatedRepo }
+            : repoWithStats
+        );
       });
     },
     onError: (error) => {
@@ -71,9 +75,9 @@ export const useDeleteRepository = () => {
     mutationFn: (id: string) => apiClient.deleteRepository(id),
     onSuccess: (_, deletedId) => {
       // Remove from repositories list
-      queryClient.setQueryData(['repositories'], (old: Repository[] | undefined) => {
+      queryClient.setQueryData(['repositories'], (old: RepositoryWithStats[] | undefined) => {
         if (!old) return [];
-        return old.filter(repo => repo.id !== deletedId);
+        return old.filter(repoWithStats => repoWithStats.repository.id !== deletedId);
       });
       
       // Remove individual repository cache
@@ -137,12 +141,13 @@ export const useRepositoryStats = () => {
   const stats = React.useMemo(() => {
     if (!repositories) return null;
     
-    const total = repositories.length;
-    const enabled = repositories.filter(repo => repo.enabled).length;
-    const crawled = repositories.filter(repo => repo.lastCrawled).length;
-    const gitRepos = repositories.filter(repo => repo.repositoryType === 'Git').length;
-    const gitlabRepos = repositories.filter(repo => repo.repositoryType === 'GitLab').length;
-    const filesystemRepos = repositories.filter(repo => repo.repositoryType === 'FileSystem').length;
+    const validRepos = repositories.filter(repoWithStats => repoWithStats?.repository);
+    const total = validRepos.length;
+    const enabled = validRepos.filter(repoWithStats => repoWithStats.repository.enabled).length;
+    const crawled = validRepos.filter(repoWithStats => repoWithStats.repository.lastCrawled).length;
+    const gitRepos = validRepos.filter(repoWithStats => repoWithStats.repository.repositoryType === 'Git').length;
+    const gitlabRepos = validRepos.filter(repoWithStats => repoWithStats.repository.repositoryType === 'GitLab').length;
+    const filesystemRepos = validRepos.filter(repoWithStats => repoWithStats.repository.repositoryType === 'FileSystem').length;
     
     return {
       total,
