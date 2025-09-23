@@ -2,6 +2,7 @@ import type {
   ApiResponse, 
   User, 
   Repository, 
+  RepositoryWithStats,
   File, 
   SearchQuery, 
   SearchResponse, 
@@ -199,8 +200,9 @@ class ApiClient {
   }
 
   // Repository API
-  async getRepositories(): Promise<Repository[]> {
-    return this.request<Repository[]>('/api/repositories');
+  async getRepositories(): Promise<RepositoryWithStats[]> {
+    const response = await this.request<{ repositories: RepositoryWithStats[], total: number }>('/api/repositories');
+    return response.repositories;
   }
 
   async getRepository(id: string): Promise<Repository> {
@@ -244,7 +246,8 @@ class ApiClient {
   }
 
   async getActiveProgress(): Promise<CrawlProgressInfo[]> {
-    return this.request<CrawlProgressInfo[]>('/api/repositories/progress/active');
+    const response = await this.request<{ active_progress: CrawlProgressInfo[] }>('/api/repositories/progress/active');
+    return response.active_progress;
   }
 
   async updateRepositorySchedule(id: string, data: ScheduleRepositoryRequest): Promise<Repository> {

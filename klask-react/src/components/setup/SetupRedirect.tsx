@@ -37,8 +37,8 @@ const SetupRedirect: React.FC = () => {
     return <Navigate to="/setup" replace />;
   }
 
-  // Sinon, rediriger vers /search (on est déjà dans le contexte protégé)
-  return <Navigate to="/search" replace />;
+  // Sinon, rediriger vers /home (on est déjà dans le contexte protégé)
+  return <Navigate to="/home" replace />;
 };
 
 export default SetupRedirect;

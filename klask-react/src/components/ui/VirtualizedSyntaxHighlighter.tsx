@@ -134,7 +134,7 @@ const VirtualizedSyntaxHighlighter: React.FC<VirtualizedSyntaxHighlighterProps> 
           className={`whitespace-pre-wrap font-mono text-sm overflow-auto ${className}`}
           style={{
             padding: '24px',
-            background: '#1e1e1e',
+            backgroundColor: '#1e1e1e',
             color: '#d4d4d4',
             fontSize: '14px',
             lineHeight: '1.5',
@@ -169,7 +169,7 @@ const VirtualizedSyntaxHighlighter: React.FC<VirtualizedSyntaxHighlighterProps> 
       {/* Virtualized content */}
       <div
         style={{
-          background: '#1e1e1e',
+          backgroundColor: '#1e1e1e',
           ...customStyle,
         }}
       >

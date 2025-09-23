@@ -26,8 +26,8 @@ const FileBrowserPage: React.FC = () => {
 
   // Get project name from repository data
   const { data: repositories } = useRepositories();
-  const repository = repositories?.find(repo => repo.id === repositoryId);
-  const projectName = repository?.name || '';
+  const repositoryWithStats = repositories?.find(repo => repo.repository.id === repositoryId);
+  const projectName = repositoryWithStats?.repository.name || '';
 
   // Get file statistics
   const { data: fileStats } = useFileStats(projectName);
@@ -65,7 +65,7 @@ const FileBrowserPage: React.FC = () => {
     );
   }
 
-  if (!repository) {
+  if (!repositoryWithStats) {
     return (
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-center min-h-96">
@@ -84,12 +84,12 @@ const FileBrowserPage: React.FC = () => {
       <div className="md:flex md:items-center md:justify-between">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold leading-7 text-slate-900 sm:truncate sm:text-3xl sm:tracking-tight">
-            {repository.name}
+            {repositoryWithStats?.repository.name}
           </h1>
           <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-6">
             <div className="mt-2 flex items-center text-sm text-slate-500">
               <FolderIcon className="h-4 w-4 mr-1" />
-              {repository.repositoryType}
+              {repositoryWithStats?.repository.repositoryType}
             </div>
             {fileStats && (
               <>

@@ -224,7 +224,7 @@ describe('VirtualizedSyntaxHighlighter', () => {
     );
 
     const contentContainer = screen.getByTestId('virtualized-list').parentElement;
-    expect(contentContainer).toHaveStyle('background: #1e1e1e'); // Default background is applied
+    expect(contentContainer).toHaveStyle('backgroundColor: #1e1e1e'); // Default background is applied
   });
 
   it('applies custom className', () => {
