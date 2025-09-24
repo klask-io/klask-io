@@ -48,17 +48,38 @@ export const useUpdateRepository = () => {
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateRepositoryRequest> }) => 
       apiClient.updateRepository(id, data),
     onSuccess: (updatedRepo) => {
+      console.log('Update success - updatedRepo:', updatedRepo);
+      console.log('updatedRepo.id:', updatedRepo?.id);
       // Update the specific repository in cache
       queryClient.setQueryData(['repositories', updatedRepo.id], updatedRepo);
       
       // Update the repository in the list
       queryClient.setQueryData(['repositories'], (old: RepositoryWithStats[] | undefined) => {
         if (!old) return [{ repository: updatedRepo, diskSizeMb: undefined, fileCount: undefined }];
-        return old.map(repoWithStats => 
-          repoWithStats.repository.id === updatedRepo.id 
-            ? { ...repoWithStats, repository: updatedRepo }
-            : repoWithStats
-        );
+        return old.map(repoWithStats => {
+          // Handle case where cache contains Repository directly instead of RepositoryWithStats
+          if (!repoWithStats) {
+            return repoWithStats;
+          }
+
+          // If it's a direct Repository object (legacy data structure)
+          if ('id' in repoWithStats && !('repository' in repoWithStats)) {
+            const directRepo = repoWithStats as any as Repository;
+            return directRepo.id === updatedRepo.id
+              ? { repository: updatedRepo, diskSizeMb: undefined, fileCount: undefined }
+              : { repository: directRepo, diskSizeMb: undefined, fileCount: undefined };
+          }
+
+          // Standard RepositoryWithStats structure
+          if (repoWithStats.repository) {
+            return repoWithStats.repository.id === updatedRepo.id
+              ? { ...repoWithStats, repository: updatedRepo }
+              : repoWithStats;
+          }
+
+          console.warn('Unexpected repoWithStats structure:', repoWithStats);
+          return repoWithStats;
+        });
       });
     },
     onError: (error) => {

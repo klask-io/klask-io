@@ -3,6 +3,7 @@ use crate::models::{Repository, RepositoryType};
 use crate::repositories::RepositoryRepository;
 use anyhow::Result;
 use axum::{
+    body::Bytes,
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
@@ -17,6 +18,7 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateRepositoryRequest {
     pub name: String,
     pub url: String,
@@ -37,6 +39,7 @@ pub struct CreateRepositoryRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateRepositoryRequest {
     pub name: Option<String>,
     pub url: Option<String>,
@@ -387,8 +390,24 @@ async fn get_repositories_stats(
 async fn create_repository(
     _user: AdminUser,
     State(app_state): State<AppState>,
-    Json(request): Json<CreateRepositoryRequest>,
+    body: Bytes,
 ) -> Result<Json<Repository>, StatusCode> {
+    debug!(
+        "Received raw JSON body: {:?}",
+        String::from_utf8_lossy(&body)
+    );
+
+    let request: CreateRepositoryRequest = match serde_json::from_slice(&body) {
+        Ok(req) => {
+            debug!("Successfully parsed create repository request: {:?}", req);
+            req
+        }
+        Err(e) => {
+            error!("Failed to parse JSON request: {}", e);
+            error!("Raw body: {}", String::from_utf8_lossy(&body));
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+    };
     let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
 
     // Encrypt access token if provided
@@ -468,6 +487,10 @@ async fn update_repository(
     Path(id): Path<Uuid>,
     Json(request): Json<UpdateRepositoryRequest>,
 ) -> Result<Json<Repository>, StatusCode> {
+    info!(
+        "Update repository request received - ID: {}, Request: {:?}",
+        id, request
+    );
     let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
 
     // Get existing repository
@@ -521,16 +544,30 @@ async fn update_repository(
     if let Some(max_crawl_duration_minutes) = request.max_crawl_duration_minutes {
         repository.max_crawl_duration_minutes = Some(max_crawl_duration_minutes);
     }
+    if let Some(gitlab_excluded_projects) = request.gitlab_excluded_projects {
+        repository.gitlab_excluded_projects = Some(gitlab_excluded_projects);
+    }
+    if let Some(gitlab_excluded_patterns) = request.gitlab_excluded_patterns {
+        repository.gitlab_excluded_patterns = Some(gitlab_excluded_patterns);
+    }
 
     // Handle access token update with encryption
     if let Some(access_token) = request.access_token {
-        repository.access_token = match app_state.encryption_service.encrypt(&access_token) {
-            Ok(encrypted) => Some(encrypted),
-            Err(e) => {
-                error!("Failed to encrypt access token: {}", e);
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        };
+        // Check if the token is already encrypted (i.e., it's the same as what's already stored)
+        if repository.access_token.as_ref() == Some(&access_token) {
+            // Token is already encrypted and unchanged, don't re-encrypt
+            info!("Access token unchanged, keeping existing encrypted token");
+        } else {
+            // This is a new token that needs to be encrypted
+            repository.access_token = match app_state.encryption_service.encrypt(&access_token) {
+                Ok(encrypted) => Some(encrypted),
+                Err(e) => {
+                    error!("Failed to encrypt access token: {}", e);
+                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                }
+            };
+            info!("Access token updated and encrypted");
+        }
     }
 
     repository.updated_at = Utc::now();
@@ -563,6 +600,7 @@ async fn update_repository(
                 "Updated repository: {} ({})",
                 updated_repo.name, updated_repo.id
             );
+            info!("Returning updated repository: {:?}", updated_repo);
             Ok(Json(updated_repo))
         }
         Err(e) => {
@@ -628,11 +666,45 @@ async fn delete_repository(
 
 async fn crawl_repository(
     _user: AdminUser,
-    State(_app_state): State<AppState>,
-    Path(_id): Path<Uuid>,
-) -> Result<StatusCode, StatusCode> {
-    // Implementation would go here
-    Err(StatusCode::NOT_IMPLEMENTED)
+    State(app_state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get repository from database
+    let repo_repo = RepositoryRepository::new(app_state.database.pool().clone());
+    let repository = repo_repo
+        .get_repository(id)
+        .await
+        .map_err(|e| {
+            error!("Failed to get repository {}: {}", id, e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or_else(|| {
+            error!("Repository not found: {}", id);
+            StatusCode::NOT_FOUND
+        })?;
+
+    // Check if repository is enabled
+    if !repository.enabled {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Start crawl using the crawler service
+    let crawler_service = app_state.crawler_service.clone();
+    let repository_clone = repository.clone();
+
+    // Spawn crawl task in background
+    tokio::spawn(async move {
+        if let Err(e) = crawler_service.crawl_repository(&repository_clone).await {
+            error!(
+                "Crawl failed for repository {}: {}",
+                repository_clone.name, e
+            );
+        }
+    });
+
+    Ok(Json(serde_json::json!({
+        "message": "Crawl started successfully"
+    })))
 }
 
 async fn test_repository_connection(

@@ -7,7 +7,7 @@ import type { Repository, RepositoryType } from '../../types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { CronScheduleForm } from './CronScheduleForm';
 
-const repositorySchema = z.object({
+const createRepositorySchema = (isEditing: boolean, hasExistingToken: boolean) => z.object({
   name: z
     .string()
     .min(1, 'Repository name is required')
@@ -23,7 +23,11 @@ const repositorySchema = z.object({
     .refine((val) => !val || val.length >= 1, 'Branch name cannot be empty if provided'),
   accessToken: z
     .string()
-    .optional(),
+    .optional()
+    .refine((val) => {
+      // Only validate as required for new GitLab repositories in create mode
+      return true; // Let the main refine handle the validation contextually
+    }),
   gitlabNamespace: z
     .string()
     .optional(),
@@ -36,9 +40,15 @@ const repositorySchema = z.object({
   isGroup: z.boolean().default(false),
   enabled: z.boolean().default(true),
 }).refine((data) => {
-  // For GitLab, accessToken is required, URL is optional (defaults to gitlab.com)
+  // For GitLab, accessToken is required only for new repositories
+  // For editing, we allow empty token if it was previously set
   if (data.repositoryType === 'GitLab') {
-    if (!data.accessToken || data.accessToken.trim() === '') {
+    // For new repositories, accessToken is required
+    if (!isEditing && (!data.accessToken || data.accessToken.trim() === '')) {
+      return false;
+    }
+    // For editing, accessToken is optional if it was previously set
+    if (isEditing && !hasExistingToken && (!data.accessToken || data.accessToken.trim() === '')) {
       return false;
     }
     // If URL is provided, validate it
@@ -68,7 +78,7 @@ const repositorySchema = z.object({
   }
   return true;
 }, {
-  message: 'Please provide required fields for the selected repository type',
+  message: 'Please provide valid URL/path for the selected repository type',
   path: ['url'],
 }).refine((data) => {
   // Additional validation for GitLab access token
@@ -122,6 +132,12 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
   // Track if scheduling data has changed for edit mode
   const [hasSchedulingChanged, setHasSchedulingChanged] = useState(false);
 
+  // Track if user wants to change the access token in edit mode
+  const [showTokenField, setShowTokenField] = useState(!isEditing);
+  const hasExistingToken = isEditing && repository?.accessToken;
+
+  const repositorySchema = createRepositorySchema(isEditing, hasExistingToken);
+
   const {
     register,
     handleSubmit,
@@ -136,12 +152,22 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
       repositoryType: repository.repositoryType,
       branch: repository.branch || '',
       enabled: repository.enabled,
+      accessToken: repository.accessToken || '',
+      gitlabNamespace: repository.gitlabNamespace || '',
+      gitlabExcludedProjects: repository.gitlabExcludedProjects || '',
+      gitlabExcludedPatterns: repository.gitlabExcludedPatterns || '',
+      isGroup: repository.isGroup || false,
     } : {
       name: '',
       url: '',
       repositoryType: 'Git',
       branch: '',
       enabled: true,
+      accessToken: '',
+      gitlabNamespace: '',
+      gitlabExcludedProjects: '',
+      gitlabExcludedPatterns: '',
+      isGroup: false,
     },
   });
 
@@ -264,6 +290,14 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
     const submitData: RepositoryFormSubmitData = {
       ...data,
       branch: data.branch?.trim() || undefined,
+      // For GitLab repositories, default to gitlab.com if URL is empty
+      url: data.repositoryType === 'GitLab' && (!data.url || data.url.trim() === '')
+        ? 'https://gitlab.com'
+        : data.url,
+      // If we're editing and not showing the token field, preserve the existing token
+      accessToken: hasExistingToken && !showTokenField
+        ? repository?.accessToken
+        : data.accessToken,
       ...schedulingData,
     };
     onSubmit(submitData);
@@ -443,15 +477,46 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
 
                 <div>
                   <label htmlFor="accessToken" className="block text-sm font-medium text-gray-700 mb-1">
-                    Personal Access Token *
+                    Personal Access Token {!isEditing || !hasExistingToken ? '*' : ''}
                   </label>
-                  <input
-                    {...register('accessToken')}
-                    type="password"
-                    className={`input-field ${errors.accessToken ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
-                    placeholder="glpat-..."
-                    required
-                  />
+
+                  {hasExistingToken && !showTokenField ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                          <span className="text-sm text-green-700">Access token configured</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowTokenField(true)}
+                          className="text-sm text-blue-600 hover:text-blue-800 underline"
+                        >
+                          Change token
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        {...register('accessToken')}
+                        type="password"
+                        className={`input-field ${errors.accessToken ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                        placeholder="glpat-..."
+                        required={!isEditing || !hasExistingToken}
+                      />
+                      {hasExistingToken && showTokenField && (
+                        <button
+                          type="button"
+                          onClick={() => setShowTokenField(false)}
+                          className="text-sm text-gray-600 hover:text-gray-800 underline"
+                        >
+                          Keep existing token
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {errors.accessToken && (
                     <p className="mt-1 text-sm text-red-600">{errors.accessToken.message}</p>
                   )}
