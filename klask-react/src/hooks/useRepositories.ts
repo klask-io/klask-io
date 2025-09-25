@@ -3,12 +3,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, getErrorMessage } from '../lib/api';
 import type { Repository, RepositoryWithStats, CreateRepositoryRequest } from '../types';
 
-// Get all repositories
+// Get all repositories (fast load without stats)
 export const useRepositories = () => {
   return useQuery({
     queryKey: ['repositories'],
     queryFn: () => apiClient.getRepositories(),
     staleTime: 30000, // 30 seconds
+    retry: 2,
+  });
+};
+
+// Get all repositories with full stats (slower)
+export const useRepositoriesWithStats = () => {
+  return useQuery({
+    queryKey: ['repositories', 'with-stats'],
+    queryFn: () => apiClient.getRepositoriesWithStats(),
+    staleTime: 60000, // 1 minute
     retry: 2,
   });
 };

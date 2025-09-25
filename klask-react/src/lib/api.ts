@@ -205,6 +205,11 @@ class ApiClient {
     return response.repositories;
   }
 
+  async getRepositoriesWithStats(): Promise<RepositoryWithStats[]> {
+    const response = await this.request<{ repositories: RepositoryWithStats[], total: number }>('/api/repositories?include_stats=true');
+    return response.repositories;
+  }
+
   async getRepository(id: string): Promise<Repository> {
     return this.request<Repository>(`/api/repositories/${id}`);
   }
@@ -394,6 +399,7 @@ export const api = {
 
   // Repositories
   getRepositories: () => apiClient.getRepositories(),
+  getRepositoriesWithStats: () => apiClient.getRepositoriesWithStats(),
   getRepository: (id: string) => apiClient.getRepository(id),
   createRepository: (data: CreateRepositoryRequest) => apiClient.createRepository(data),
   updateRepository: (id: string, data: Partial<CreateRepositoryRequest>) => 

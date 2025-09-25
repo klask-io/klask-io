@@ -39,6 +39,9 @@ const RepositoriesPage: React.FC = () => {
   const { data: repositories = [], isLoading, error, refetch } = useRepositories();
   const { data: activeProgress = [], refetch: refetchActiveProgress } = useActiveProgress();
   const stats = useRepositoryStats();
+  
+  // Optimize stats calculation to avoid recalculating on every render
+  const memoizedStats = React.useMemo(() => stats, [stats]);
   const createMutation = useCreateRepository();
   const updateMutation = useUpdateRepository();
   const deleteMutation = useDeleteRepository();
@@ -321,26 +324,26 @@ const RepositoriesPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      {stats && (
+      {memoizedStats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+            <div className="text-2xl font-bold text-gray-900">{memoizedStats.total}</div>
             <div className="text-sm text-gray-500">Total Repositories</div>
           </div>
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="text-2xl font-bold text-green-600">{stats.enabled}</div>
+            <div className="text-2xl font-bold text-green-600">{memoizedStats.enabled}</div>
             <div className="text-sm text-gray-500">Enabled</div>
           </div>
           <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="text-2xl font-bold text-blue-600">{stats.crawled}</div>
+            <div className="text-2xl font-bold text-blue-600">{memoizedStats.crawled}</div>
             <div className="text-sm text-gray-500">Crawled</div>
           </div>
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="text-2xl font-bold text-gray-600">
-              {stats.byType.git + stats.byType.gitlab + stats.byType.filesystem}
+              {memoizedStats.byType.git + memoizedStats.byType.gitlab + memoizedStats.byType.filesystem}
             </div>
             <div className="text-sm text-gray-500">
-              Git: {stats.byType.git} | GitLab: {stats.byType.gitlab} | FS: {stats.byType.filesystem}
+              Git: {memoizedStats.byType.git} | GitLab: {memoizedStats.byType.gitlab} | FS: {memoizedStats.byType.filesystem}
             </div>
           </div>
         </div>

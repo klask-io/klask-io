@@ -106,24 +106,57 @@ async fn list_repositories(
 
     match repo_repository.list_repositories().await {
         Ok(repositories) => {
+            // Check if stats are requested
+            let include_stats = params
+                .get("include_stats")
+                .map(|v| v == "true")
+                .unwrap_or(false);
+
             let mut repositories_with_stats = Vec::new();
 
-            for repo in repositories {
-                // Calculate disk size for each repository
-                let disk_size_mb = calculate_repository_disk_size(&repo).await.unwrap_or(0.0);
-                let file_count = get_repository_file_count(&repo, &app_state)
-                    .await
-                    .unwrap_or(0);
-                let last_crawl_duration_minutes = repo
-                    .last_crawl_duration_seconds
-                    .map(|seconds| seconds as f64 / 60.0);
+            if include_stats {
+                // Process stats in parallel using futures::future::join_all
+                use futures::future::join_all;
 
-                repositories_with_stats.push(RepositoryWithStats {
-                    repository: repo,
-                    disk_size_mb: Some(disk_size_mb),
-                    file_count: Some(file_count),
-                    last_crawl_duration_minutes,
-                });
+                let stat_futures: Vec<_> = repositories
+                    .into_iter()
+                    .map(|repo| {
+                        let app_state = app_state.clone();
+                        async move {
+                            let disk_size_mb =
+                                calculate_repository_disk_size(&repo).await.unwrap_or(0.0);
+                            let file_count = get_repository_file_count(&repo, &app_state)
+                                .await
+                                .unwrap_or(0);
+                            let last_crawl_duration_minutes = repo
+                                .last_crawl_duration_seconds
+                                .map(|seconds| seconds as f64 / 60.0);
+
+                            RepositoryWithStats {
+                                repository: repo,
+                                disk_size_mb: Some(disk_size_mb),
+                                file_count: Some(file_count),
+                                last_crawl_duration_minutes,
+                            }
+                        }
+                    })
+                    .collect();
+
+                repositories_with_stats = join_all(stat_futures).await;
+            } else {
+                // Fast path: return repositories without expensive stats
+                for repo in repositories {
+                    let last_crawl_duration_minutes = repo
+                        .last_crawl_duration_seconds
+                        .map(|seconds| seconds as f64 / 60.0);
+
+                    repositories_with_stats.push(RepositoryWithStats {
+                        repository: repo,
+                        disk_size_mb: None, // Lazy load these stats
+                        file_count: None,   // Lazy load these stats
+                        last_crawl_duration_minutes,
+                    });
+                }
             }
 
             let total = repositories_with_stats.len();
