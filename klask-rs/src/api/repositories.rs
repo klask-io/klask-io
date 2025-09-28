@@ -83,7 +83,10 @@ pub async fn create_router() -> Result<Router<AppState>> {
                 .put(update_repository)
                 .delete(delete_repository),
         )
-        .route("/:id/crawl", post(crawl_repository))
+        .route(
+            "/:id/crawl",
+            post(crawl_repository).delete(stop_crawl_repository),
+        )
         .route("/:id/test", post(test_repository_connection))
         .route("/:id/stats", get(get_repository_stats))
         .route("/import/gitlab", post(import_gitlab_projects))
@@ -261,7 +264,7 @@ async fn calculate_directory_size(dir: &PathBuf) -> Result<u64> {
 }
 
 // Helper function to get file count for a repository
-async fn get_repository_file_count(repository: &Repository, app_state: &AppState) -> Result<i64> {
+async fn get_repository_file_count(repository: &Repository, _app_state: &AppState) -> Result<i64> {
     // Try to get count from search index if available
     // For now, return estimated count based on repository type
     match repository.repository_type {
@@ -738,6 +741,67 @@ async fn crawl_repository(
     Ok(Json(serde_json::json!({
         "message": "Crawl started successfully"
     })))
+}
+
+async fn stop_crawl_repository(
+    _user: AdminUser,
+    State(app_state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Get repository from database
+    let repo_repo = RepositoryRepository::new(app_state.database.pool().clone());
+    let repository = repo_repo
+        .get_repository(id)
+        .await
+        .map_err(|e| {
+            error!("Failed to get repository {}: {}", id, e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or_else(|| {
+            error!("Repository not found: {}", id);
+            StatusCode::NOT_FOUND
+        })?;
+
+    // Check if repository is currently being crawled
+    let crawler_service = app_state.crawler_service.clone();
+    let is_crawling = crawler_service.is_crawling(repository.id).await;
+
+    if !is_crawling {
+        return Ok(Json(serde_json::json!({
+            "message": "No active crawl found for this repository",
+            "repository_id": repository.id,
+            "repository_name": repository.name
+        })));
+    }
+
+    // Cancel the crawl
+    match crawler_service.cancel_crawl(repository.id).await {
+        Ok(true) => {
+            info!(
+                "Crawl stopped for repository: {} ({})",
+                repository.name, repository.id
+            );
+            Ok(Json(serde_json::json!({
+                "message": "Crawl stopped successfully",
+                "repository_id": repository.id,
+                "repository_name": repository.name
+            })))
+        }
+        Ok(false) => {
+            warn!(
+                "Failed to stop crawl for repository: {} ({})",
+                repository.name, repository.id
+            );
+            Err(StatusCode::NOT_FOUND)
+        }
+        Err(e) => {
+            error!(
+                "Error stopping crawl for repository {}: {}",
+                repository.id, e
+            );
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
 
 async fn test_repository_connection(
