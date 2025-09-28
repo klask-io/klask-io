@@ -23,7 +23,7 @@ RUN cargo build --release && rm src/main.rs
 # Copy source code and sqlx cache
 COPY src/ ./src/
 COPY migrations/ ./migrations/
-COPY .sqlx/ ./.sqlx/
+# COPY .sqlx/ ./.sqlx/
 
 # Build the application
 ENV SQLX_OFFLINE=true

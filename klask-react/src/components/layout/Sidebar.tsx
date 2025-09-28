@@ -10,10 +10,21 @@ import {
 } from '@heroicons/react/24/outline';
 
 import { authSelectors } from '../../stores/auth-store';
+import { SidebarFilters } from '../search/SidebarFilters';
+import { useSearchFiltersContext } from '../../contexts/SearchFiltersContext';
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const isAdmin = authSelectors.isAdmin();
+
+  // Try to get search filters context, but don't fail if not available
+  let searchFiltersContext;
+  try {
+    searchFiltersContext = useSearchFiltersContext();
+  } catch {
+    // Context not available, probably not on search page
+    searchFiltersContext = null;
+  }
 
   const navigation = [
     { name: 'Search', href: '/search', icon: MagnifyingGlassIcon },
@@ -67,7 +78,20 @@ export const Sidebar: React.FC = () => {
               })}
             </ul>
           </li>
-          
+
+          {/* Search Filters */}
+          {searchFiltersContext && (
+            <li>
+              <SidebarFilters
+                filters={searchFiltersContext.filters}
+                onFiltersChange={searchFiltersContext.setFilters}
+                availableFilters={searchFiltersContext.availableFilters}
+                isLoading={searchFiltersContext.isLoading}
+                currentQuery={searchFiltersContext.currentQuery}
+              />
+            </li>
+          )}
+
           {/* Admin navigation */}
           {isAdmin && (
             <li>

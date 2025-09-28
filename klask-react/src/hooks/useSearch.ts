@@ -135,23 +135,17 @@ export const useMultiSelectSearch = (
         searchParams.set('q', query.trim());
       }
       
-      // Handle multi-select filters
-      if (filters.projects && filters.projects.length > 0) {
-        filters.projects.forEach(project => {
-          searchParams.append('projects', project);
-        });
+      // Handle multi-select filters - join with commas
+      if (filters.project && filters.project.length > 0) {
+        searchParams.set('projects', filters.project.join(','));
       }
-      
-      if (filters.versions && filters.versions.length > 0) {
-        filters.versions.forEach(version => {
-          searchParams.append('versions', version);
-        });
+
+      if (filters.version && filters.version.length > 0) {
+        searchParams.set('versions', filters.version.join(','));
       }
-      
-      if (filters.extensions && filters.extensions.length > 0) {
-        filters.extensions.forEach(extension => {
-          searchParams.append('extensions', extension);
-        });
+
+      if (filters.extension && filters.extension.length > 0) {
+        searchParams.set('extensions', filters.extension.join(','));
       }
       
       searchParams.set('limit', pageSize.toString());

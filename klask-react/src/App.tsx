@@ -9,6 +9,7 @@ import { initializeAuth } from './stores/auth-store';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { AdminRoute } from './components/common/AdminRoute';
+import { SearchFiltersProvider } from './contexts/SearchFiltersContext';
 
 // Lazy load pages for better performance
 import { Suspense } from 'react';
@@ -92,11 +93,13 @@ function App() {
             />
             
             {/* Protected routes with layout */}
-            <Route 
-              path="/" 
+            <Route
+              path="/"
               element={
                 <ProtectedRoute>
-                  <AppLayout />
+                  <SearchFiltersProvider>
+                    <AppLayout />
+                  </SearchFiltersProvider>
                 </ProtectedRoute>
               }
             >

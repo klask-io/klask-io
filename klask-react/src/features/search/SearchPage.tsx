@@ -1,51 +1,46 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SearchBar } from '../../components/search/SearchBar';
-import { SearchFiltersComponent, type SearchFilters } from '../../components/search/SearchFilters';
 import { SearchResults } from '../../components/search/SearchResults';
-import { usePaginatedSearch, useSearchFilters, useSearchHistory } from '../../hooks/useSearch';
+import { useMultiSelectSearch, useSearchHistory } from '../../hooks/useSearch';
 import { getErrorMessage } from '../../lib/api';
 import type { SearchResult } from '../../types';
-import { 
-  ClockIcon, 
-  Cog6ToothIcon,
+import { useSearchFiltersContext } from '../../contexts/SearchFiltersContext';
+import {
+  ClockIcon,
   ChartBarIcon,
-  DocumentMagnifyingGlassIcon 
+  DocumentMagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 
 const SearchPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<SearchFilters>({});
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const { history, addToHistory, clearHistory } = useSearchHistory();
+  const { filters, setFilters, currentQuery, setCurrentQuery, updateDynamicFilters } = useSearchFiltersContext();
   
   // Function to update URL with current search state
-  const updateURL = useCallback((searchQuery: string, searchFilters: SearchFilters, advanced: boolean, page: number = 1) => {
+  const updateURL = useCallback((searchQuery: string, searchFilters: any, page: number = 1) => {
     const params = new URLSearchParams();
-    
+
     if (searchQuery.trim()) {
       params.set('q', searchQuery.trim());
     }
-    if (searchFilters.project) {
-      params.set('project', searchFilters.project);
+    // Handle array-based filters
+    if (searchFilters.project && searchFilters.project.length > 0) {
+      params.set('project', searchFilters.project.join(','));
     }
-    if (searchFilters.version) {
-      params.set('version', searchFilters.version);
+    if (searchFilters.version && searchFilters.version.length > 0) {
+      params.set('version', searchFilters.version.join(','));
     }
-    if (searchFilters.extension) {
-      params.set('extension', searchFilters.extension);
-    }
-    if (advanced) {
-      params.set('advanced', 'true');
+    if (searchFilters.extension && searchFilters.extension.length > 0) {
+      params.set('extension', searchFilters.extension.join(','));
     }
     if (page > 1) {
       params.set('page', page.toString());
     }
-    
+
     const newURL = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
     window.history.replaceState(null, '', newURL);
   }, []);
@@ -53,39 +48,36 @@ const SearchPage: React.FC = () => {
   // Track if we're initializing to avoid double URL updates
   const [isInitializing, setIsInitializing] = useState(true);
   
-  // Initialize from URL parameters ONLY - use URL as single source of truth
+  // Initialize from URL parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const urlQuery = urlParams.get('q') || '';
-    const urlProject = urlParams.get('project') || undefined;
-    const urlVersion = urlParams.get('version') || undefined;
-    const urlExtension = urlParams.get('extension') || undefined;
-    const urlAdvanced = urlParams.get('advanced') === 'true';
+    const urlProject = urlParams.get('project');
+    const urlVersion = urlParams.get('version');
+    const urlExtension = urlParams.get('extension');
     const urlPage = parseInt(urlParams.get('page') || '1', 10);
-    
-    // Set React state from URL
-    setQuery(urlQuery);
+
+    // Parse comma-separated values into arrays
+    const parseFilterValues = (value: string | null): string[] | undefined => {
+      return value ? value.split(',').filter(v => v.trim()) : undefined;
+    };
+
+    // Set state from URL
+    setCurrentQuery(urlQuery);
     setFilters({
-      project: urlProject,
-      version: urlVersion,
-      extension: urlExtension,
+      project: parseFilterValues(urlProject),
+      version: parseFilterValues(urlVersion),
+      extension: parseFilterValues(urlExtension),
     });
-    setShowAdvanced(urlAdvanced);
     setCurrentPage(urlPage);
     setIsInitializing(false);
-  }, [location.search]); // Only depend on URL, not on state
-  
+  }, [location.search, setCurrentQuery, setFilters]);
+
   // Update URL whenever search state changes (only after initialization)
   useEffect(() => {
     if (isInitializing) return;
-    updateURL(query, filters, showAdvanced, currentPage);
-  }, [query, filters, showAdvanced, currentPage, updateURL, isInitializing]);
-  
-  const {
-    data: availableFilters,
-    isLoading: filtersLoading,
-    error: filtersError,
-  } = useSearchFilters();
+    updateURL(currentQuery, filters, currentPage);
+  }, [currentQuery, filters, currentPage, updateURL, isInitializing]);
 
   const {
     data: searchData,
@@ -94,9 +86,19 @@ const SearchPage: React.FC = () => {
     isError,
     error,
     refetch,
-  } = usePaginatedSearch(query, filters as Record<string, string | undefined>, currentPage, {
-    enabled: !!query.trim(),
+  } = useMultiSelectSearch(currentQuery, filters as Record<string, string[] | undefined>, currentPage, {
+    enabled: !!currentQuery.trim(),
   });
+
+  // Update dynamic filters when search data changes
+  useEffect(() => {
+    if (searchData?.facets) {
+      updateDynamicFilters(searchData.facets);
+    } else if (!currentQuery.trim()) {
+      // Clear dynamic filters when no query (use static filters)
+      updateDynamicFilters(null);
+    }
+  }, [searchData, currentQuery, updateDynamicFilters]);
   
 
   const results = searchData?.results || [];
@@ -107,49 +109,47 @@ const SearchPage: React.FC = () => {
 
   const handleSearch = useCallback((searchQuery: string) => {
     // Only reset to page 1 if the query actually changed
-    if (searchQuery !== query) {
+    if (searchQuery !== currentQuery) {
       setCurrentPage(1); // Reset to first page on new search
     }
-    // Query unchanged - keeping current page'
-    
-    setQuery(searchQuery);
+
+    setCurrentQuery(searchQuery);
     if (searchQuery.trim()) {
       addToHistory(searchQuery.trim());
     }
     // URL will be updated by the useEffect automatically
-  }, [addToHistory, query]);
+  }, [addToHistory, currentQuery, setCurrentQuery]);
 
   const handleFileClick = useCallback((result: SearchResult) => {
     navigate(`/files/doc/${result.doc_address}`, {
       state: { 
-        searchQuery: query,
+        searchQuery: currentQuery,
         searchResult: result,
         // Preserve search state for return navigation
         searchState: {
-          initialQuery: query,
+          initialQuery: currentQuery,
           filters: filters,
-          showAdvanced: showAdvanced,
           page: currentPage
         }
       }
     });
-  }, [navigate, query, filters, showAdvanced, currentPage]);
+  }, [navigate, currentQuery, filters, currentPage]);
 
   const handleHistoryClick = useCallback((historicalQuery: string) => {
     // Set query immediately and add to history
-    setQuery(historicalQuery);
+    setCurrentQuery(historicalQuery);
     setCurrentPage(1); // Reset to first page
     if (historicalQuery.trim()) {
       addToHistory(historicalQuery.trim());
     }
-    
+
     // Force a manual refetch of the search query to bypass any debounce issues
     setTimeout(() => {
       if (refetch) {
         refetch();
       }
-    }, 50); // Give time for setQuery to take effect
-  }, [addToHistory, refetch]);
+    }, 50); // Give time for setCurrentQuery to take effect
+  }, [addToHistory, refetch, setCurrentQuery]);
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
@@ -157,10 +157,6 @@ const SearchPage: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const handleFiltersChange = useCallback((newFilters: SearchFilters) => {
-    setFilters(newFilters);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, []);
 
   const searchError = isError ? getErrorMessage(error) : null;
 
@@ -178,17 +174,6 @@ const SearchPage: React.FC = () => {
         </div>
         
         <div className="mt-4 md:mt-0 flex items-center space-x-3">
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-              showAdvanced
-                ? 'border-primary-300 text-blue-700 bg-blue-50'
-                : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
-            }`}
-          >
-            <Cog6ToothIcon className="h-4 w-4 mr-2" />
-            Advanced
-          </button>
           
           {totalResults > 0 && (
             <div className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md bg-white text-gray-700">
@@ -202,15 +187,15 @@ const SearchPage: React.FC = () => {
       {/* Search Bar */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <SearchBar
-          value={query}
-          onChange={setQuery}
+          value={currentQuery}
+          onChange={setCurrentQuery}
           onSearch={handleSearch}
           placeholder="Search functions, classes, variables, comments..."
           isLoading={isLoading || isFetching}
         />
 
         {/* Search History */}
-        {!query && history.length > 0 && (
+        {!currentQuery && history.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-100">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
@@ -240,46 +225,11 @@ const SearchPage: React.FC = () => {
         )}
       </div>
 
-      {/* Advanced Filters */}
-      {showAdvanced && (
-        <SearchFiltersComponent
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          availableFilters={{
-            projects: availableFilters?.projects?.map(p => p.value || p) || [],
-            versions: availableFilters?.versions?.map(v => v.value || v) || [],
-            extensions: availableFilters?.extensions?.map(e => e.value || e) || [],
-            languages: [], // Will be derived from extensions
-          }}
-          isLoading={filtersLoading}
-        />
-      )}
-
-      {/* Error State for Filters */}
-      {filtersError && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <DocumentMagnifyingGlassIcon className="h-5 w-5 text-yellow-400" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">
-                Filters Unavailable
-              </h3>
-              <div className="mt-2 text-sm text-yellow-700">
-                <p>
-                  Unable to load search filters. You can still search, but filtering options may be limited.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Search Results */}
       <SearchResults
         results={results}
-        query={query}
+        query={currentQuery}
         isLoading={isLoading}
         error={searchError}
         totalResults={totalResults}
@@ -291,7 +241,7 @@ const SearchPage: React.FC = () => {
       />
 
       {/* Search Tips - shown when no query */}
-      {!query.trim() && !isLoading && (
+      {!currentQuery.trim() && !isLoading && (
         <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-lg p-6 border border-primary-100">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             Search Tips

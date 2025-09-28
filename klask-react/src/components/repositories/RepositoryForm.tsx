@@ -91,10 +91,11 @@ const createRepositorySchema = (isEditing: boolean, hasExistingToken: boolean) =
   path: ['accessToken'],
 });
 
-type RepositoryFormData = z.infer<typeof repositorySchema>;
+// Create base type from the schema creation function
+type BaseRepositoryFormData = z.infer<ReturnType<typeof createRepositorySchema>>;
 
 // Define a type that includes scheduling data
-type RepositoryFormSubmitData = RepositoryFormData & {
+type RepositoryFormSubmitData = BaseRepositoryFormData & {
   autoCrawlEnabled: boolean;
   cronSchedule?: string;
   crawlFrequencyHours?: number;
@@ -134,9 +135,10 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
 
   // Track if user wants to change the access token in edit mode
   const [showTokenField, setShowTokenField] = useState(!isEditing);
-  const hasExistingToken = isEditing && repository?.accessToken;
+  const hasExistingToken = isEditing && !!repository?.accessToken;
 
   const repositorySchema = createRepositorySchema(isEditing, hasExistingToken);
+  type RepositoryFormData = z.infer<typeof repositorySchema>;
 
   const {
     register,

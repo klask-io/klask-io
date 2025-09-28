@@ -18,13 +18,10 @@ pub struct SearchRequest {
     #[serde(alias = "max_results")]
     pub limit: Option<u32>,
     pub page: Option<u32>,
-    // Support both single values (legacy) and arrays (new multi-select)
-    pub project: Option<String>,
-    pub projects: Option<Vec<String>>,
-    pub version: Option<String>,
-    pub versions: Option<Vec<String>>,
-    pub extension: Option<String>,
-    pub extensions: Option<Vec<String>>,
+    // Multi-select filters as comma-separated strings
+    pub projects: Option<String>,
+    pub versions: Option<String>,
+    pub extensions: Option<String>,
     pub include_facets: Option<bool>,
 }
 
@@ -77,6 +74,8 @@ async fn search_files(
     State(app_state): State<AppState>,
     Query(params): Query<SearchRequest>,
 ) -> Result<Json<SearchResponse>, StatusCode> {
+    tracing::debug!("Search request params: {:?}", params);
+
     let page = params.page.unwrap_or(1);
     let limit = params.limit.unwrap_or(50).min(1000); // Cap at 1000 results max
     let offset = (page - 1) * limit;
@@ -84,55 +83,12 @@ async fn search_files(
     // Get search query from either 'q' or 'query' parameter
     let query_string = params.q.or(params.query).ok_or(StatusCode::BAD_REQUEST)?;
 
-    // Handle both single and multi-select filters
-    let project_filters = match (params.project, params.projects) {
-        (Some(single), None) => vec![single],
-        (None, Some(multiple)) => multiple,
-        (Some(single), Some(mut multiple)) => {
-            multiple.push(single);
-            multiple
-        }
-        (None, None) => vec![],
-    };
-
-    let version_filters = match (params.version, params.versions) {
-        (Some(single), None) => vec![single],
-        (None, Some(multiple)) => multiple,
-        (Some(single), Some(mut multiple)) => {
-            multiple.push(single);
-            multiple
-        }
-        (None, None) => vec![],
-    };
-
-    let extension_filters = match (params.extension, params.extensions) {
-        (Some(single), None) => vec![single],
-        (None, Some(multiple)) => multiple,
-        (Some(single), Some(mut multiple)) => {
-            multiple.push(single);
-            multiple
-        }
-        (None, None) => vec![],
-    };
-
-    // Build search query
+    // Build search query - filters are already comma-separated strings
     let search_query = SearchQuery {
         query: query_string,
-        project_filter: if project_filters.is_empty() {
-            None
-        } else {
-            Some(project_filters.join(","))
-        },
-        version_filter: if version_filters.is_empty() {
-            None
-        } else {
-            Some(version_filters.join(","))
-        },
-        extension_filter: if extension_filters.is_empty() {
-            None
-        } else {
-            Some(extension_filters.join(","))
-        },
+        project_filter: params.projects,
+        version_filter: params.versions,
+        extension_filter: params.extensions,
         limit: limit as usize,
         offset: offset as usize,
         include_facets: params.include_facets.unwrap_or(false),
