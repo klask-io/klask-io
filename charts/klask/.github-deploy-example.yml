@@ -1,0 +1,87 @@
+# Example GitHub Actions workflow for deploying Klask with Helm
+# Save this as .github/workflows/deploy.yml
+
+name: Deploy Klask to Kubernetes
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_BACKEND: klask-backend
+  IMAGE_NAME_FRONTEND: klask-frontend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Build Backend Image
+    - name: Build Backend Docker Image
+      run: |
+        cd klask-rs
+        docker build -t ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.sha }} .
+        docker build -t ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_BACKEND }}:latest .
+
+    # Build Frontend Image  
+    - name: Build Frontend Docker Image
+      run: |
+        cd klask-react
+        docker build -t ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ github.sha }} .
+        docker build -t ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_FRONTEND }}:latest .
+
+    # Login to GitHub Container Registry
+    - name: Login to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    # Push Images
+    - name: Push Backend Image
+      run: |
+        docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.sha }}
+        docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_BACKEND }}:latest
+
+    - name: Push Frontend Image  
+      run: |
+        docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ github.sha }}
+        docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_FRONTEND }}:latest
+
+    # Configure kubectl
+    - name: Configure kubectl
+      uses: azure/k8s-set-context@v3
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+    # Deploy with Helm
+    - name: Deploy with Helm
+      run: |
+        # Add Bitnami repo for PostgreSQL (or skip if using external DB)
+        helm repo add bitnami https://charts.bitnami.com/bitnami
+        helm repo update
+        
+        # Deploy or upgrade
+        helm upgrade --install klask ./helm/klask \
+          --set backend.image.repository=${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_BACKEND }} \
+          --set backend.image.tag=${{ github.sha }} \
+          --set frontend.image.repository=${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_FRONTEND }} \
+          --set frontend.image.tag=${{ github.sha }} \
+          --wait \
+          --timeout=10m
+
+    # Verify deployment
+    - name: Verify Deployment
+      run: |
+        kubectl get pods -l "app.kubernetes.io/instance=klask"
+        kubectl get services -l "app.kubernetes.io/instance=klask"

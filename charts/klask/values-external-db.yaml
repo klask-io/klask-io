@@ -1,0 +1,74 @@
+# Example values for using external PostgreSQL database
+# Use this when you want to use a managed database service instead of deploying PostgreSQL in Kubernetes
+
+# Disable internal PostgreSQL
+postgresql:
+  enabled: false
+
+# Backend configuration with external database
+backend:
+  enabled: true
+  image:
+    repository: ghcr.io/your-org/klask-backend
+    tag: latest
+    pullPolicy: Always
+  
+  env:
+    # Use external database URL
+    - name: DATABASE_URL
+      value: "postgresql://username:password@your-db-host:5432/klask"
+    # Alternative: use Kubernetes secret
+    # - name: DATABASE_URL
+    #   valueFrom:
+    #     secretKeyRef:
+    #       name: klask-db-secret
+    #       key: database-url
+    - name: RUST_LOG
+      value: "info"
+
+# Frontend configuration
+frontend:
+  enabled: true
+  image:
+    repository: ghcr.io/your-org/klask-frontend
+    tag: latest
+    pullPolicy: Always
+  
+  env:
+    - name: VITE_API_URL
+      value: "http://klask-backend:3000"
+
+# Enable ingress for external access
+ingress:
+  enabled: true
+  className: "nginx"  # or your ingress class
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # if using cert-manager
+  hosts:
+    - host: klask.yourdomain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: klask-tls
+      hosts:
+        - klask.yourdomain.com
+
+# Resource requests and limits
+backend:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+frontend:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
