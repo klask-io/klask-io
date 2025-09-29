@@ -6,11 +6,11 @@ name: Publish Helm Chart
 
 on:
   push:
-    branches: [ main, master, rust-modernization ]
+    branches: [ main, master ]
     tags: [ 'v*' ]
   workflow_run:
     workflows: ["CI/CD"]
-    branches: [ main, master, rust-modernization ]
+    branches: [ main, master ]
     types:
       - completed
 
@@ -67,36 +67,3 @@ jobs:
         # Push the chart
         helm push klask-${CHART_VERSION}.tgz oci://${{ env.REGISTRY }}/${{ github.repository_owner }}
 
-  update-chart-values:
-    runs-on: ubuntu-latest
-    needs: build-and-publish
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/rust-modernization' || github.head_ref == 'rust-modernization'
-    permissions:
-      contents: write
-      
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Update Chart.yaml with new images
-      run: |
-        cd charts/klask
-        
-        # Get the image digest from the previous job
-        BACKEND_IMAGE="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_BACKEND }}:latest"
-        FRONTEND_IMAGE="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_FRONTEND }}:latest"
-        
-        # Update values.yaml with the new image references
-        sed -i "s|repository: klask-backend|repository: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_BACKEND }}|g" values.yaml
-        sed -i "s|repository: klask-frontend|repository: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME_FRONTEND }}|g" values.yaml
-        sed -i "s|tag: latest|tag: latest|g" values.yaml
-
-    - name: Commit updated chart
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add charts/klask/values.yaml
-        git diff --staged --quiet || git commit -m "chore: update chart with new image references [skip ci]"
-        git push
