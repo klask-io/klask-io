@@ -23,6 +23,7 @@ pub struct AppState {
     pub encryption_service: Arc<EncryptionService>,
     #[allow(dead_code)]
     pub config: crate::config::AppConfig,
+    #[allow(dead_code)]
     pub crawl_tasks: Arc<RwLock<HashMap<Uuid, tokio::task::JoinHandle<()>>>>,
     pub startup_time: Instant,
 }

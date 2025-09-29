@@ -37,7 +37,7 @@ async fn test_crawler_service_initialization() -> Result<()> {
     let extensions = initialization_params["supported_extensions"]
         .as_array()
         .unwrap();
-    assert!(extensions.len() > 0);
+    assert!(!extensions.is_empty());
     assert!(extensions.iter().all(|ext| ext.is_string()));
 
     println!("✅ Crawler service initialization test passed!");
@@ -332,10 +332,10 @@ async fn test_repository_update_integration() -> Result<()> {
 
     let strategy = &repository_update["crawl_strategy"];
     assert_eq!(strategy["type"].as_str().unwrap(), "smart_incremental");
-    assert_eq!(strategy["process_added"].as_bool().unwrap(), true);
-    assert_eq!(strategy["process_modified"].as_bool().unwrap(), true);
-    assert_eq!(strategy["remove_deleted"].as_bool().unwrap(), true);
-    assert_eq!(strategy["full_reindex"].as_bool().unwrap(), false);
+    assert!(strategy["process_added"].as_bool().unwrap());
+    assert!(strategy["process_modified"].as_bool().unwrap());
+    assert!(strategy["remove_deleted"].as_bool().unwrap());
+    assert!(!strategy["full_reindex"].as_bool().unwrap());
 
     let outcome = &repository_update["expected_outcome"];
     assert_eq!(outcome["documents_added"].as_u64().unwrap(), 2);

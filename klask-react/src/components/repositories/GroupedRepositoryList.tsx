@@ -7,7 +7,7 @@ import {
   GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 import { SelectableRepositoryCard } from './SelectableRepositoryCard';
-import type { Repository, RepositoryWithStats } from '../../types';
+import type { RepositoryWithStats } from '../../types';
 import type { CrawlProgressInfo } from '../../hooks/useProgress';
 
 interface GroupedRepositoryListProps {
@@ -38,7 +38,7 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
   onEdit,
   onDelete,
   onCrawl,
-  onStopCrawl,
+  // onStopCrawl unused
   onToggleEnabled,
   activeProgress,
   crawlingRepos,
@@ -196,7 +196,7 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
                       <SelectableRepositoryCard
                         repository={repoWithStats}
                         selected={selectedRepos.includes(repoWithStats.repository.id)}
-                        onSelect={(selected) => onToggleSelection(repoWithStats.repository.id)}
+                        onSelect={() => onToggleSelection(repoWithStats.repository.id)}
                         onEdit={onEdit}
                         onDelete={onDelete}
                         onCrawl={onCrawl}
@@ -219,7 +219,7 @@ export const GroupedRepositoryList: React.FC<GroupedRepositoryListProps> = ({
           key={repoWithStats.repository.id}
           repository={repoWithStats}
           selected={selectedRepos.includes(repoWithStats.repository.id)}
-          onSelect={(selected) => onToggleSelection(repoWithStats.repository.id)}
+          onSelect={() => onToggleSelection(repoWithStats.repository.id)}
           onEdit={onEdit}
           onDelete={onDelete}
           onCrawl={onCrawl}

@@ -181,6 +181,7 @@ impl ProgressTracker {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn get_progress(&self, repository_id: Uuid) -> Option<CrawlProgressInfo> {
         let map = self.progress_map.read().await;
         map.get(&repository_id).cloned()
@@ -235,6 +236,7 @@ impl ProgressTracker {
     }
 
     // Check if a repository is currently being crawled
+    #[allow(dead_code)]
     pub async fn is_crawling(&self, repository_id: Uuid) -> bool {
         let map = self.progress_map.read().await;
         map.get(&repository_id)

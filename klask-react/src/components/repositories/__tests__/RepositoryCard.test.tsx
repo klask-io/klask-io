@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '../../../test/utils';
+import { render, screen, waitFor } from '../../../test/utils';
 import userEvent from '@testing-library/user-event';
 import { RepositoryCard } from '../RepositoryCard';
 import type { Repository, CrawlProgressInfo } from '../../../types';
@@ -217,7 +217,6 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
   });
 
   it('should show loading state while stop mutation is pending', async () => {
-    const user = userEvent.setup();
     const pendingStopCrawl = {
       ...mockStopCrawl,
       isPending: true,
@@ -248,7 +247,7 @@ describe('RepositoryCard Stop Crawl Functionality', () => {
     mockUseActiveProgress.mockReturnValue({ data: mockActiveProgress });
 
     // Render without onStopCrawl prop
-    const { onStopCrawl, ...propsWithoutCallback } = defaultProps;
+    const { onStopCrawl: _onStopCrawl, ...propsWithoutCallback } = defaultProps;
     render(<RepositoryCard {...propsWithoutCallback} />);
 
     // Should still work without callback

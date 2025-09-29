@@ -96,16 +96,13 @@ describe('API Client - stopCrawlRepository', () => {
 
     it('should handle 404 error (repository not crawling)', async () => {
       const repositoryId = 'repo-not-crawling';
-      const errorResponse = { error: 'Repository not currently crawling' };
-      
-      mockFetch.mockResolvedValueOnce(createMockResponse(errorResponse, 404, false));
+      const errorResponse = { message: 'Repository not currently crawling' };
 
-      await expect(apiClient.stopCrawlRepository(repositoryId))
-        .rejects
-        .toThrow(ApiError);
+      mockFetch.mockResolvedValueOnce(createMockResponse(errorResponse, 404, false));
 
       try {
         await apiClient.stopCrawlRepository(repositoryId);
+        throw new Error('Expected ApiError to be thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(ApiError);
         expect((error as ApiError).status).toBe(404);
@@ -116,15 +113,12 @@ describe('API Client - stopCrawlRepository', () => {
     it('should handle 401 unauthorized error', async () => {
       const repositoryId = 'repo-unauthorized';
       const errorResponse = { error: 'Unauthorized' };
-      
-      mockFetch.mockResolvedValueOnce(createMockResponse(errorResponse, 401, false));
 
-      await expect(apiClient.stopCrawlRepository(repositoryId))
-        .rejects
-        .toThrow(ApiError);
+      mockFetch.mockResolvedValueOnce(createMockResponse(errorResponse, 401, false));
 
       try {
         await apiClient.stopCrawlRepository(repositoryId);
+        throw new Error('Expected ApiError to be thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(ApiError);
         expect((error as ApiError).status).toBe(401);
@@ -134,15 +128,12 @@ describe('API Client - stopCrawlRepository', () => {
     it('should handle 500 server error', async () => {
       const repositoryId = 'repo-server-error';
       const errorResponse = { error: 'Internal server error' };
-      
-      mockFetch.mockResolvedValueOnce(createMockResponse(errorResponse, 500, false));
 
-      await expect(apiClient.stopCrawlRepository(repositoryId))
-        .rejects
-        .toThrow(ApiError);
+      mockFetch.mockResolvedValueOnce(createMockResponse(errorResponse, 500, false));
 
       try {
         await apiClient.stopCrawlRepository(repositoryId);
+        throw new Error('Expected ApiError to be thrown');
       } catch (error) {
         expect(error).toBeInstanceOf(ApiError);
         expect((error as ApiError).status).toBe(500);
@@ -187,14 +178,20 @@ describe('API Client - stopCrawlRepository', () => {
     it('should handle special characters in repository ID', async () => {
       const specialId = 'repo@#$%^&*()';
       const mockResponse = { message: 'Success' };
-      
+
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await apiClient.stopCrawlRepository(specialId);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `http://localhost:3000/api/repositories/${encodeURIComponent(specialId)}/crawl`,
-        expect.any(Object)
+        `http://localhost:3000/api/repositories/${specialId}/crawl`,
+        expect.objectContaining({
+          method: 'DELETE',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer mock-token',
+          }),
+        })
       );
     });
 

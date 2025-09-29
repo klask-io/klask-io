@@ -98,7 +98,7 @@ async fn test_seeding_response_structure() -> Result<()> {
         "timestamp": "2024-01-15T10:30:00Z"
     });
 
-    assert_eq!(seed_response["success"].as_bool().unwrap(), true);
+    assert!(seed_response["success"].as_bool().unwrap());
     assert!(seed_response["message"].is_string());
     assert!(seed_response["stats"].is_object());
     assert!(seed_response["timestamp"].is_string());
@@ -125,7 +125,7 @@ async fn test_error_handling_structure() -> Result<()> {
         }
     });
 
-    assert_eq!(error_response["success"].as_bool().unwrap(), false);
+    assert!(!error_response["success"].as_bool().unwrap());
     assert!(error_response["error"].is_string());
     assert!(error_response["code"].is_string());
     assert!(error_response["timestamp"].is_string());

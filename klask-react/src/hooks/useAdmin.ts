@@ -55,7 +55,7 @@ export const useRepositoryStats = () => {
 // Get content stats (via search stats)
 export const useContentStats = () => {
   return useQuery({
-    queryKey: ['admin', 'content', 'stats'],
+    queryKey: ['admin', 'search', 'stats'], // Use same key as search stats
     queryFn: () => apiClient.getAdminSearchStats(),
     staleTime: 60000, // 1 minute
     retry: false, // Admin endpoints should fail fast for immediate feedback
@@ -87,21 +87,18 @@ export const useAdminMetrics = () => {
   const systemStats = useSystemStats();
   const userStats = useAdminUserStats();
   const repositoryStats = useRepositoryStats();
-  const contentStats = useContentStats();
-  const searchStats = useAdminSearchStats();
+  const searchStats = useAdminSearchStats(); // Renamed for clarity
   const recentActivity = useRecentActivity();
 
   const isLoading = systemStats.isLoading ||
                    userStats.isLoading ||
                    repositoryStats.isLoading ||
-                   contentStats.isLoading ||
                    searchStats.isLoading ||
                    recentActivity.isLoading;
 
   const error = systemStats.error ||
                userStats.error ||
                repositoryStats.error ||
-               contentStats.error ||
                searchStats.error ||
                recentActivity.error;
 
@@ -109,7 +106,7 @@ export const useAdminMetrics = () => {
     system: systemStats.data,
     users: userStats.data,
     repositories: repositoryStats.data,
-    content: contentStats.data,
+    content: searchStats.data, // Use search stats data for content
     search: searchStats.data,
     recent_activity: recentActivity.data,
   };
@@ -122,7 +119,6 @@ export const useAdminMetrics = () => {
       systemStats.refetch();
       userStats.refetch();
       repositoryStats.refetch();
-      contentStats.refetch();
       searchStats.refetch();
       recentActivity.refetch();
     }

@@ -21,7 +21,6 @@ vi.mock('../../lib/api', () => ({
     getSystemStats: vi.fn(),
     getAdminUserStats: vi.fn(),
     getRepositoryStats: vi.fn(),
-    getContentStats: vi.fn(),
     getAdminSearchStats: vi.fn(),
     getRecentActivity: vi.fn(),
   },
@@ -228,7 +227,7 @@ describe('useAdmin hooks', () => {
         recent_additions: 1200,
       };
 
-      mockApiClient.getContentStats.mockResolvedValue(mockContentStats);
+      mockApiClient.getAdminSearchStats.mockResolvedValue(mockContentStats);
 
       const { result } = renderHookWithQueryClient(() => useContentStats());
 
@@ -395,7 +394,6 @@ describe('useAdmin hooks', () => {
       mockApiClient.getSystemStats.mockResolvedValue(mockSystemStats);
       mockApiClient.getAdminUserStats.mockResolvedValue(mockUserStats);
       mockApiClient.getRepositoryStats.mockResolvedValue(mockRepoStats);
-      mockApiClient.getContentStats.mockResolvedValue(mockContentStats);
       mockApiClient.getAdminSearchStats.mockResolvedValue(mockSearchStats);
       mockApiClient.getRecentActivity.mockResolvedValue(mockActivity);
 
@@ -410,7 +408,7 @@ describe('useAdmin hooks', () => {
         system: mockSystemStats,
         users: mockUserStats,
         repositories: mockRepoStats,
-        content: mockContentStats,
+        content: mockSearchStats, // Both content and search use the same data
         search: mockSearchStats,
         recent_activity: mockActivity,
       });
@@ -419,7 +417,6 @@ describe('useAdmin hooks', () => {
       expect(mockApiClient.getSystemStats).toHaveBeenCalled();
       expect(mockApiClient.getAdminUserStats).toHaveBeenCalled();
       expect(mockApiClient.getRepositoryStats).toHaveBeenCalled();
-      expect(mockApiClient.getContentStats).toHaveBeenCalled();
       expect(mockApiClient.getAdminSearchStats).toHaveBeenCalled();
       expect(mockApiClient.getRecentActivity).toHaveBeenCalled();
     });
@@ -444,7 +441,7 @@ describe('useAdmin hooks', () => {
         never_crawled: 2,
       });
 
-      mockApiClient.getContentStats.mockRejectedValue(new Error('Content stats error'));
+      mockApiClient.getAdminSearchStats.mockRejectedValue(new Error('Content stats error'));
       mockApiClient.getAdminSearchStats.mockResolvedValue({
         total_documents: 1000,
         index_size_mb: 10.5,
@@ -493,13 +490,6 @@ describe('useAdmin hooks', () => {
         recently_crawled: 0,
         never_crawled: 1,
       });
-      mockApiClient.getContentStats.mockResolvedValue({
-        total_files: 1,
-        total_size_bytes: 1000,
-        files_by_extension: [],
-        files_by_project: [],
-        recent_additions: 1,
-      });
       mockApiClient.getAdminSearchStats.mockResolvedValue({
         total_documents: 1,
         index_size_mb: 0.1,
@@ -531,7 +521,6 @@ describe('useAdmin hooks', () => {
       expect(mockApiClient.getSystemStats).toHaveBeenCalled();
       expect(mockApiClient.getAdminUserStats).toHaveBeenCalled();
       expect(mockApiClient.getRepositoryStats).toHaveBeenCalled();
-      expect(mockApiClient.getContentStats).toHaveBeenCalled();
       expect(mockApiClient.getAdminSearchStats).toHaveBeenCalled();
       expect(mockApiClient.getRecentActivity).toHaveBeenCalled();
     });
@@ -554,10 +543,6 @@ describe('useAdmin hooks', () => {
         total_repositories: 1, enabled_repositories: 1, disabled_repositories: 0,
         git_repositories: 1, gitlab_repositories: 0, filesystem_repositories: 0,
         recently_crawled: 0, never_crawled: 1,
-      });
-      mockApiClient.getContentStats.mockResolvedValue({
-        total_files: 1, total_size_bytes: 1000, files_by_extension: [],
-        files_by_project: [], recent_additions: 1,
       });
       mockApiClient.getAdminSearchStats.mockResolvedValue({
         total_documents: 1, index_size_mb: 0.1, avg_search_time_ms: 1.0, popular_queries: [],

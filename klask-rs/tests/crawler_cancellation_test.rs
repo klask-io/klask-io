@@ -276,7 +276,7 @@ async fn test_cancellation_response_format() -> Result<()> {
         "partial_results_available": true
     });
 
-    assert_eq!(success_response["success"].as_bool().unwrap(), true);
+    assert!(success_response["success"].as_bool().unwrap());
     assert!(success_response["message"].is_string());
     assert!(success_response["cancellation_id"].is_string());
     assert!(success_response["repository_id"].is_string());
@@ -284,12 +284,9 @@ async fn test_cancellation_response_format() -> Result<()> {
     assert!(success_response["estimated_completion_seconds"]
         .as_u64()
         .is_some());
-    assert_eq!(
-        success_response["partial_results_available"]
-            .as_bool()
-            .unwrap(),
-        true
-    );
+    assert!(success_response["partial_results_available"]
+        .as_bool()
+        .unwrap());
 
     println!("✅ Cancellation response format test passed!");
     Ok(())

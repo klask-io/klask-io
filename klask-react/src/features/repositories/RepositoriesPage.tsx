@@ -403,12 +403,13 @@ const RepositoriesPage: React.FC = () => {
                   ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
                   : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
               }`}
-              title={selectedReposNotCrawling().length === 0 
-                ? 'All selected repositories are already being crawled' 
+              title={selectedReposNotCrawling().length === 0
+                ? 'All selected repositories are already being crawled'
                 : `Crawl ${selectedReposNotCrawling().length} repositories`
               }
+              data-testid="bulk-crawl-button"
             >
-              Crawl {selectedReposNotCrawling().length > 0 && selectedReposCrawling().length > 0 && 
+              Crawl {selectedReposNotCrawling().length > 0 && selectedReposCrawling().length > 0 &&
                 `(${selectedReposNotCrawling().length})`}
             </button>
             <button

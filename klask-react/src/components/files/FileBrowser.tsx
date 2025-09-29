@@ -30,7 +30,7 @@ export const FileBrowser: React.FC<FileBrowserProps> = ({
 }) => {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['']));
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPath, setCurrentPath] = useState<string>('');
+  const [currentPath] = useState<string>('');
 
   const { data: fileTree, isLoading, error, refetch } = useFileTree(project, currentPath);
 

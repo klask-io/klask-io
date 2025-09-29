@@ -221,8 +221,8 @@ async fn test_multiple_repositories_cancellation() -> Result<()> {
     assert_eq!(active_progress.len(), num_repos);
 
     // Cancel half of them
-    for i in 0..num_repos / 2 {
-        tracker.cancel_crawl(repo_ids[i]).await;
+    for repo_id in repo_ids.iter().take(num_repos / 2) {
+        tracker.cancel_crawl(*repo_id).await;
     }
 
     // Verify correct number are still active
@@ -230,9 +230,9 @@ async fn test_multiple_repositories_cancellation() -> Result<()> {
     assert_eq!(active_progress.len(), num_repos - num_repos / 2);
 
     // Verify correct repos are cancelled vs active
-    for i in 0..num_repos {
+    for (i, repo_id) in repo_ids.iter().enumerate() {
         let expected_crawling = i >= num_repos / 2;
-        assert_eq!(tracker.is_crawling(repo_ids[i]).await, expected_crawling);
+        assert_eq!(tracker.is_crawling(*repo_id).await, expected_crawling);
     }
 
     Ok(())

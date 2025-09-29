@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { 
+import {
   FolderIcon,
-  GlobeAltIcon,
-  ServerIcon,
   PlayCircleIcon,
   PauseCircleIcon,
   ArrowPathIcon,
@@ -269,6 +267,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
                       }}
                       disabled={!repoData.enabled}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      data-testid={`individual-crawl-menu-button-${repoData.id}`}
                     >
                       <ArrowPathIcon className="h-4 w-4 mr-3" />
                       Crawl Now
@@ -457,6 +456,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
               onClick={() => onCrawl(repository)}
               disabled={!repoData.enabled || isLoading}
               className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              data-testid={`individual-crawl-button-${repoData.id}`}
             >
               <ArrowPathIcon className="h-3 w-3 mr-1" />
               Crawl

@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone)]
 pub struct GitLabService {
     client: Client,
+    #[allow(dead_code)]
     excluded_projects: Vec<String>,
+    #[allow(dead_code)]
     excluded_patterns: Vec<String>,
 }
 
@@ -249,6 +251,7 @@ impl GitLabService {
     }
 
     /// Check if a project should be excluded from crawling
+    #[allow(dead_code)]
     pub fn should_exclude_project(&self, project: &GitLabProject) -> bool {
         self.should_exclude_project_with_config(
             project,
@@ -335,6 +338,7 @@ impl GitLabService {
     }
 
     /// Filter out excluded projects from a list
+    #[allow(dead_code)]
     pub fn filter_excluded_projects(&self, projects: Vec<GitLabProject>) -> Vec<GitLabProject> {
         self.filter_excluded_projects_with_config(
             projects,
@@ -455,7 +459,7 @@ impl GitLabService {
                 if let Some(status) = e.status() {
                     tracing::error!("HTTP status: {}", status);
                 }
-                return Err(anyhow!("Network error: {} (URL: {})", e, url));
+                Err(anyhow!("Network error: {} (URL: {})", e, url))
             }
         }
     }

@@ -81,9 +81,15 @@ describe('useSearch', () => {
         { wrapper }
       );
 
+      // First wait for the query to be triggered
+      await waitFor(() => {
+        expect(result.current.isLoading || result.current.isError).toBe(true);
+      }, { timeout: 1000 });
+
+      // Then wait for the error state
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
-      });
+      }, { timeout: 2000 });
 
       expect(result.current.error).toBeTruthy();
     });
@@ -145,7 +151,8 @@ describe('useSearch', () => {
         project: 'my-project',
         extension: 'js',
         version: undefined,
-        maxResults: 50,
+        maxResults: 20,
+        offset: 0,
       });
     });
 
@@ -256,6 +263,23 @@ describe('useSearch', () => {
         extensions: ['js', 'ts', 'py'],
       };
 
+      const expectedFilters = {
+        projects: [
+          { value: 'project1', label: 'project1', count: 0 },
+          { value: 'project2', label: 'project2', count: 0 },
+        ],
+        versions: [
+          { value: '1.0.0', label: '1.0.0', count: 0 },
+          { value: '2.0.0', label: '2.0.0', count: 0 },
+        ],
+        extensions: [
+          { value: 'js', label: 'js', count: 0 },
+          { value: 'ts', label: 'ts', count: 0 },
+          { value: 'py', label: 'py', count: 0 },
+        ],
+        languages: [],
+      };
+
       mockApiClient.getSearchFilters.mockResolvedValue(mockFilters);
 
       const { result } = renderHook(() => useSearchFilters(), { wrapper });
@@ -264,7 +288,7 @@ describe('useSearch', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      expect(result.current.data).toEqual(mockFilters);
+      expect(result.current.data).toEqual(expectedFilters);
       expect(mockApiClient.getSearchFilters).toHaveBeenCalledTimes(1);
     });
 

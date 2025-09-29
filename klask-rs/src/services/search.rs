@@ -889,6 +889,7 @@ impl SearchService {
     }
 
     /// Collect facets from the entire search index for filtering
+    #[allow(dead_code)]
     async fn collect_facets_from_index(
         &self,
         searcher: &tantivy::Searcher,
@@ -970,11 +971,8 @@ impl SearchService {
         // This means calculating facets with the text query but WITHOUT the filter for that category.
 
         use std::collections::HashMap;
-        use tantivy::collector::TopDocs;
         use tantivy::query::{AllQuery, BooleanQuery, Occur, QueryParser, TermQuery};
         use tantivy::TantivyDocument;
-
-        const FACET_CALCULATION_LIMIT: usize = 50000;
 
         // Helper to build query with optional filter exclusion
         let build_query_excluding = |exclude_type: &str| -> Result<Box<dyn tantivy::query::Query>> {
@@ -984,7 +982,7 @@ impl SearchService {
             if !search_query.query.trim().is_empty() && search_query.query != "*" {
                 // Use the same fields as the main search query parser
                 let query_parser = QueryParser::for_index(
-                    &searcher.index(),
+                    searcher.index(),
                     vec![
                         self.fields.content,
                         self.fields.file_name,
@@ -1154,7 +1152,7 @@ impl SearchService {
             let test_query = if !search_query.query.trim().is_empty() && search_query.query != "*" {
                 // Use the same fields as the main search query parser
                 let query_parser = QueryParser::for_index(
-                    &searcher.index(),
+                    searcher.index(),
                     vec![
                         self.fields.content,
                         self.fields.file_name,

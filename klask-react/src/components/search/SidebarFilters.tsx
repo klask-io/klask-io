@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { FolderIcon, TagIcon, DocumentIcon } from '@heroicons/react/24/solid';
+import { useSearchFiltersContext } from '../../contexts/SearchFiltersContext';
 
 export interface SearchFilters {
   project?: string[];
@@ -18,9 +19,9 @@ interface FilterOption {
 }
 
 interface SidebarFiltersProps {
-  filters: SearchFilters;
-  onFiltersChange: (filters: SearchFilters) => void;
-  availableFilters: {
+  filters?: SearchFilters;
+  onFiltersChange?: (filters: SearchFilters) => void;
+  availableFilters?: {
     projects: FilterOption[];
     versions: FilterOption[];
     extensions: FilterOption[];
@@ -31,13 +32,21 @@ interface SidebarFiltersProps {
 }
 
 export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
-  filters,
-  onFiltersChange,
-  availableFilters,
-  isLoading = false,
-  currentQuery = '',
+  filters: propFilters,
+  onFiltersChange: propOnFiltersChange,
+  availableFilters: propAvailableFilters,
+  isLoading: propIsLoading = false,
+  currentQuery: propCurrentQuery = '',
 }) => {
   const location = useLocation();
+
+  // Use context values if props are not provided
+  const searchFiltersContext = useSearchFiltersContext();
+  const filters = propFilters || searchFiltersContext.filters;
+  const onFiltersChange = propOnFiltersChange || searchFiltersContext.setFilters;
+  const availableFilters = propAvailableFilters || searchFiltersContext.availableFilters;
+  const isLoading = propIsLoading || searchFiltersContext.isLoading;
+  const currentQuery = propCurrentQuery || searchFiltersContext.currentQuery;
 
   // Only show on search page
   if (!location.pathname.startsWith('/search')) {

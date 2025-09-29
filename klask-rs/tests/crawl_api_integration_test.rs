@@ -9,6 +9,7 @@ mod crawl_api_integration_tests {
 
     // Mock app state for testing
     #[derive(Clone)]
+    #[allow(dead_code)]
     struct MockAppState {
         progress_tracker: Arc<ProgressTracker>,
     }

@@ -48,10 +48,7 @@ async fn test_conflict_prevention_rules() -> Result<()> {
     });
 
     assert_eq!(running_status["status"].as_str().unwrap(), "running");
-    assert_eq!(
-        running_status["can_start_new_crawl"].as_bool().unwrap(),
-        false
-    );
+    assert!(!running_status["can_start_new_crawl"].as_bool().unwrap());
     assert!(running_status["conflict_reason"].is_string());
 
     // Test allowing crawl when idle
@@ -63,7 +60,7 @@ async fn test_conflict_prevention_rules() -> Result<()> {
     });
 
     assert_eq!(idle_status["status"].as_str().unwrap(), "idle");
-    assert_eq!(idle_status["can_start_new_crawl"].as_bool().unwrap(), true);
+    assert!(idle_status["can_start_new_crawl"].as_bool().unwrap());
     assert!(idle_status["conflict_reason"].is_null());
 
     println!("✅ Conflict prevention rules test passed!");
@@ -151,8 +148,8 @@ async fn test_crawl_status_cleanup() -> Result<()> {
         assert!(scenario["scenario"].is_string());
         assert!(scenario["repository_id"].is_string());
         assert!(scenario["final_status"].is_string());
-        assert_eq!(scenario["cleanup_required"].as_bool().unwrap(), true);
-        assert_eq!(scenario["can_start_new"].as_bool().unwrap(), true);
+        assert!(scenario["cleanup_required"].as_bool().unwrap());
+        assert!(scenario["can_start_new"].as_bool().unwrap());
     }
 
     println!("✅ Crawl status cleanup test passed!");
@@ -199,14 +196,11 @@ async fn test_repository_state_validation() -> Result<()> {
         let can_crawl = state["can_crawl"].as_bool().unwrap();
 
         if !enabled {
-            assert_eq!(
-                can_crawl, false,
-                "Disabled repositories should not allow crawl"
-            );
+            assert!(!can_crawl, "Disabled repositories should not allow crawl");
         }
         if status == "running" {
-            assert_eq!(
-                can_crawl, false,
+            assert!(
+                !can_crawl,
                 "Running repositories should not allow new crawl"
             );
         }
@@ -232,7 +226,7 @@ async fn test_crawl_conflict_responses() -> Result<()> {
         }
     });
 
-    assert_eq!(conflict_response["success"].as_bool().unwrap(), false);
+    assert!(!conflict_response["success"].as_bool().unwrap());
     assert_eq!(
         conflict_response["code"].as_str().unwrap(),
         "CRAWL_IN_PROGRESS"
@@ -328,8 +322,8 @@ async fn test_multiple_repository_isolation() -> Result<()> {
         let can_start = repo["can_start_new"].as_bool().unwrap();
 
         match status {
-            "running" => assert_eq!(can_start, false),
-            "idle" | "completed" | "failed" | "cancelled" => assert_eq!(can_start, true),
+            "running" => assert!(!can_start),
+            "idle" | "completed" | "failed" | "cancelled" => assert!(can_start),
             _ => panic!("Unknown status: {}", status),
         }
     }
@@ -367,8 +361,8 @@ async fn test_crawl_status_enum_values() -> Result<()> {
         let allows_new_crawl = status_data["allows_new_crawl"].as_bool().unwrap();
 
         if string_value == "running" {
-            assert_eq!(is_terminal, false);
-            assert_eq!(allows_new_crawl, false);
+            assert!(!is_terminal);
+            assert!(!allows_new_crawl);
         }
     }
 

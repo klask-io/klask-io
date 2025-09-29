@@ -154,7 +154,7 @@ mod crawl_prevention_tests {
 
         for _ in 0..10 {
             let tracker_clone = Arc::clone(&tracker);
-            let repo_id_clone = repo_id.clone();
+            let repo_id_clone = repo_id;
             let handle =
                 tokio::spawn(async move { tracker_clone.is_crawling(repo_id_clone).await });
             handles.push(handle);
@@ -164,7 +164,7 @@ mod crawl_prevention_tests {
         tracker.start_crawl(repo_id, repo_name).await;
 
         // Wait for all checks to complete
-        let results: Vec<bool> = futures::future::join_all(handles)
+        let _results: Vec<bool> = futures::future::join_all(handles)
             .await
             .into_iter()
             .map(|r| r.unwrap())
@@ -240,8 +240,8 @@ mod crawl_prevention_tests {
         }
 
         // Complete half of them
-        for i in 0..500 {
-            tracker.complete_crawl(repo_ids[i]).await;
+        for repo_id in repo_ids.iter().take(500) {
+            tracker.complete_crawl(*repo_id).await;
         }
 
         // Check is_crawling for all repositories
@@ -331,7 +331,7 @@ mod crawl_prevention_tests {
             .collect();
 
         // If we reach here without panicking, memory safety is maintained
-        assert!(true);
+        // Test passed if no panic occurred
     }
 }
 

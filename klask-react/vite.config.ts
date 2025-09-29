@@ -67,10 +67,8 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       // Temporarily exclude failing tests
-      '**/AdminDashboard.test.tsx',
       '**/OptimizedSyntaxHighlighter.test.tsx',
       '**/VirtualizedSyntaxHighlighter.test.tsx',
-      '**/api.test.ts',
     ],
   },
 })

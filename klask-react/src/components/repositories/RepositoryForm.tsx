@@ -24,7 +24,7 @@ const createRepositorySchema = (isEditing: boolean, hasExistingToken: boolean) =
   accessToken: z
     .string()
     .optional()
-    .refine((val) => {
+    .refine(() => {
       // Only validate as required for new GitLab repositories in create mode
       return true; // Let the main refine handle the validation contextually
     }),
@@ -37,8 +37,8 @@ const createRepositorySchema = (isEditing: boolean, hasExistingToken: boolean) =
   gitlabExcludedPatterns: z
     .string()
     .optional(),
-  isGroup: z.boolean().default(false),
-  enabled: z.boolean().default(true),
+  isGroup: z.boolean().optional(),
+  enabled: z.boolean(),
 }).refine((data) => {
   // For GitLab, accessToken is required only for new repositories
   // For editing, we allow empty token if it was previously set
@@ -74,7 +74,7 @@ const createRepositorySchema = (isEditing: boolean, hasExistingToken: boolean) =
   // For FileSystem, validate as path
   if (data.repositoryType === 'FileSystem') {
     if (!data.url || data.url.trim() === '') return false;
-    return data.url.startsWith('/') || data.url.match(/^[a-zA-Z]:[\\\/]/);
+    return data.url.startsWith('/') || data.url.match(/^[a-zA-Z]:[\\//]/);
   }
   return true;
 }, {
@@ -147,7 +147,7 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
     reset,
     formState: { errors, isValid, isDirty },
   } = useForm<RepositoryFormData>({
-    resolver: zodResolver(repositorySchema) as any,
+    resolver: zodResolver(repositorySchema),
     defaultValues: repository ? {
       name: repository.name,
       url: repository.url,
@@ -210,7 +210,7 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
     if (isEditing && repository) {
       // Check if scheduling data has changed
       // For comparison, treat undefined, null, and empty string as equivalent
-      const areEqual = (a: any, b: any) => {
+      const areEqual = (a: string | null | undefined, b: string | null | undefined) => {
         if ((a === undefined || a === null || a === '') && 
             (b === undefined || b === null || b === '')) {
           return true;
@@ -221,7 +221,7 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
       const hasChanged = 
         repository.autoCrawlEnabled !== newSchedulingData.autoCrawlEnabled ||
         !areEqual(repository.cronSchedule, newSchedulingData.cronSchedule) ||
-        !areEqual(repository.crawlFrequencyHours, newSchedulingData.crawlFrequencyHours) ||
+        repository.crawlFrequencyHours !== newSchedulingData.crawlFrequencyHours ||
         (repository.maxCrawlDurationMinutes || 60) !== newSchedulingData.maxCrawlDurationMinutes;
       
       // Only log when there's an actual change

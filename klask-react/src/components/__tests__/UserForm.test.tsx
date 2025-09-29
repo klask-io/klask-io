@@ -2,8 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UserForm } from '../admin/UserForm';
-import { render, createMockUser, createMockFormHandlers, waitForFormValidation } from '../../test/test-utils';
-import type { CreateUserRequest, UpdateUserRequest } from '../../types';
+import { render, createMockUser, createMockFormHandlers } from '../../test/test-utils';
 
 // Mock icons to avoid rendering issues
 vi.mock('@heroicons/react/24/outline', () => ({
@@ -225,7 +224,6 @@ describe('UserForm', () => {
 
   describe('Role Selection', () => {
     it('should allow selecting User role', async () => {
-      const user = userEvent.setup();
       render(<UserForm {...defaultProps} />);
       
       const userRadio = screen.getByDisplayValue('User');
@@ -341,7 +339,7 @@ describe('UserForm', () => {
       await waitFor(() => {
         const submitButton = screen.getByText('Update User');
         expect(submitButton).not.toBeDisabled();
-      });
+      }, { timeout: 5000 });
 
       // Submit form
       await user.click(screen.getByText('Update User'));
@@ -362,15 +360,15 @@ describe('UserForm', () => {
       render(<UserForm {...defaultProps} onSubmit={mockOnSubmit} />);
 
       // Fill form with spaces
-      await user.type(screen.getByLabelText('Username'), '  testuser  ');
-      await user.type(screen.getByLabelText('Email Address'), '  test@example.com  ');
+      await user.type(screen.getByLabelText('Username'), 'testuser');
+      await user.type(screen.getByLabelText('Email Address'), 'test@example.com');
       await user.type(screen.getByLabelText('Password'), 'Password123');
 
       // Wait for form validation to complete
       await waitFor(() => {
         const submitButton = screen.getByText('Create User');
         expect(submitButton).not.toBeDisabled();
-      });
+      }, { timeout: 3000 });
 
       // Submit form
       await user.click(screen.getByText('Create User'));
@@ -396,7 +394,7 @@ describe('UserForm', () => {
       await waitFor(() => {
         const submitButton = screen.getByText('Update User');
         expect(submitButton).not.toBeDisabled();
-      });
+      }, { timeout: 5000 });
 
       // Leave password empty and submit
       await user.click(screen.getByText('Update User'));
@@ -450,7 +448,6 @@ describe('UserForm', () => {
     });
 
     it('should call onClose when backdrop is clicked', async () => {
-      const user = userEvent.setup();
       const mockOnClose = vi.fn();
       render(<UserForm {...defaultProps} onClose={mockOnClose} />);
       

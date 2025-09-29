@@ -41,7 +41,7 @@ async fn test_system_uptime_tracking() -> Result<()> {
         uptime_data["current_timestamp"].as_u64().unwrap()
             >= uptime_data["startup_timestamp"].as_u64().unwrap()
     );
-    assert!(uptime_data["uptime_seconds"].as_u64().unwrap() >= 0);
+    assert!(uptime_data["uptime_seconds"].as_u64().is_some());
     assert!(uptime_data["uptime_formatted"].is_string());
 
     println!("✅ System uptime tracking test passed!");
@@ -197,7 +197,7 @@ async fn test_database_health_check() -> Result<()> {
 
     let connections = &health_check_result["connections"];
     assert!(connections["active"].as_u64().unwrap() > 0);
-    assert!(connections["idle"].as_u64().unwrap() >= 0);
+    assert!(connections["idle"].as_u64().is_some());
     assert!(connections["max"].as_u64().unwrap() > connections["active"].as_u64().unwrap());
 
     let checks = health_check_result["checks"].as_array().unwrap();
@@ -234,7 +234,7 @@ async fn test_search_service_initialization() -> Result<()> {
             assert_eq!(service_info["status"].as_str().unwrap(), "initialized");
             assert_eq!(service_info["document_count"].as_u64().unwrap(), 0);
             assert!(service_info["index_path"].is_string());
-            assert_eq!(service_info["is_ready"].as_bool().unwrap(), true);
+            assert!(service_info["is_ready"].as_bool().unwrap());
 
             println!("✅ Search service initialization test passed!");
         }
@@ -382,21 +382,15 @@ async fn test_search_index_persistence() -> Result<()> {
             .unwrap(),
         7
     );
-    assert_eq!(
-        persistence_config["compression_enabled"].as_bool().unwrap(),
-        true
-    );
-    assert_eq!(
-        persistence_config["checksum_verification"]
-            .as_bool()
-            .unwrap(),
-        true
-    );
+    assert!(persistence_config["compression_enabled"].as_bool().unwrap());
+    assert!(persistence_config["checksum_verification"]
+        .as_bool()
+        .unwrap());
 
     let recovery = &persistence_config["recovery_options"];
-    assert_eq!(recovery["auto_recovery"].as_bool().unwrap(), true);
-    assert_eq!(recovery["backup_fallback"].as_bool().unwrap(), true);
-    assert_eq!(recovery["rebuild_if_corrupted"].as_bool().unwrap(), true);
+    assert!(recovery["auto_recovery"].as_bool().unwrap());
+    assert!(recovery["backup_fallback"].as_bool().unwrap());
+    assert!(recovery["rebuild_if_corrupted"].as_bool().unwrap());
 
     println!("✅ Search index persistence test passed!");
     Ok(())

@@ -12,12 +12,14 @@ mod admin_api_tests {
     use serde_json::Value;
 
     // Mock app state for testing
+    #[allow(dead_code)]
     async fn create_test_app_state() -> AppState {
         // This would typically require setting up a test database and services
         // For now, we'll create a minimal mock
         unimplemented!("Test app state creation needed")
     }
 
+    #[allow(dead_code)]
     async fn create_admin_test_server() -> TestServer {
         // Create a test server with admin routes
         // This requires proper setup of the admin router and authentication

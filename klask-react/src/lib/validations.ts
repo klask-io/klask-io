@@ -87,7 +87,32 @@ export const updateUserSchema = z.object({
   active: z.boolean().optional(),
 });
 
+// Form-specific validation schema for UserForm component in edit mode
+export const updateUserFormSchema = z.object({
+  username: z
+    .string()
+    .min(1, 'Username is required')
+    .min(3, 'Username must be at least 3 characters')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens'),
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'Password must contain at least one lowercase letter, one uppercase letter, and one number'
+    )
+    .optional()
+    .or(z.literal('')),
+  role: z.enum(['Admin', 'User'] as const).default('User'),
+  active: z.boolean().default(true),
+});
+
 export type LoginForm = z.infer<typeof loginSchema>;
 export type RegisterForm = z.infer<typeof registerSchema>;
 export type CreateUserForm = z.infer<typeof createUserSchema>;
 export type UpdateUserForm = z.infer<typeof updateUserSchema>;
+export type UpdateUserFormData = z.infer<typeof updateUserFormSchema>;

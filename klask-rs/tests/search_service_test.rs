@@ -251,7 +251,8 @@ mod search_service_tests {
 
         let basic_results = service.search(basic_query).await.unwrap();
         // Just verify the search doesn't crash, not specific counts due to Tantivy complexity
-        assert!(basic_results.total >= 0);
+        // total is u64, so it's always >= 0, just verify it exists
+        let _ = basic_results.total;
 
         // Test project filter doesn't crash
         let project_query = SearchQuery {

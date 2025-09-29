@@ -346,8 +346,8 @@ mod crawl_edge_cases_tests {
         }
 
         // Complete some crawls
-        for i in 0..10 {
-            tracker.complete_crawl(repo_ids[i]).await;
+        for repo_id in repo_ids.iter().take(10) {
+            tracker.complete_crawl(*repo_id).await;
         }
 
         // Start concurrent operations while cleanup is running
@@ -364,8 +364,8 @@ mod crawl_edge_cases_tests {
         handles.push(cleanup_handle);
 
         // Spawn operations on active repositories
-        for i in 10..20 {
-            let repo_id = repo_ids[i];
+        for repo_id in repo_ids.iter().skip(10).take(10) {
+            let repo_id = *repo_id;
             let tracker_clone = Arc::clone(&tracker);
             let handle = tokio::spawn(async move {
                 for j in 0..10 {

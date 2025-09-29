@@ -81,13 +81,13 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
   // - If filters selected in a category → show all items (static) with current counts (dynamic)
   const hybridFilters = {
     projects: (filters.project && filters.project.length > 0)
-      ? mergeFiltersWithDynamicCounts(staticFilters?.projects, dynamicFilters?.projects)
+      ? mergeFiltersWithDynamicCounts(staticFilters?.projects || [], dynamicFilters?.projects || [])
       : dynamicFilters?.projects || staticFilters?.projects || [],
     versions: (filters.version && filters.version.length > 0)
-      ? mergeFiltersWithDynamicCounts(staticFilters?.versions, dynamicFilters?.versions)
+      ? mergeFiltersWithDynamicCounts(staticFilters?.versions || [], dynamicFilters?.versions || [])
       : dynamicFilters?.versions || staticFilters?.versions || [],
     extensions: (filters.extension && filters.extension.length > 0)
-      ? mergeFiltersWithDynamicCounts(staticFilters?.extensions, dynamicFilters?.extensions)
+      ? mergeFiltersWithDynamicCounts(staticFilters?.extensions || [], dynamicFilters?.extensions || [])
       : dynamicFilters?.extensions || staticFilters?.extensions || [],
   };
 
@@ -98,21 +98,21 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
     currentQuery,
     setCurrentQuery,
     availableFilters: {
-      projects: hybridFilters.projects?.map((p: any) => ({
+      projects: (hybridFilters.projects || []).map((p: any) => ({
         value: p.value || p.toString(),
         label: p.value || p.toString(),
         count: p.count || 0,
-      })) || [],
-      versions: hybridFilters.versions?.map((v: any) => ({
+      })),
+      versions: (hybridFilters.versions || []).map((v: any) => ({
         value: v.value || v.toString(),
         label: v.value || v.toString(),
         count: v.count || 0,
-      })) || [],
-      extensions: hybridFilters.extensions?.map((e: any) => ({
+      })),
+      extensions: (hybridFilters.extensions || []).map((e: any) => ({
         value: e.value || e.toString(),
         label: `.${e.value || e.toString()}`,
         count: e.count || 0,
-      })) || [],
+      })),
       languages: [], // Will be derived from extensions in the future
     },
     isLoading,

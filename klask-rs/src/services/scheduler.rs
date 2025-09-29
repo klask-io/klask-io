@@ -268,6 +268,7 @@ impl SchedulerService {
     }
 
     /// Update schedule for a repository
+    #[allow(dead_code)]
     pub async fn update_repository_schedule(&self, repository: &Repository) -> Result<()> {
         if repository.auto_crawl_enabled {
             self.schedule_repository(repository).await?;

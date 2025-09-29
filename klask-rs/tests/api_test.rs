@@ -65,7 +65,7 @@ async fn test_repository_data_structure() {
         test_repo_data["gitlabNamespace"].as_str().unwrap(),
         "test-user"
     );
-    assert_eq!(test_repo_data["isGroup"].as_bool().unwrap(), false);
+    assert!(!test_repo_data["isGroup"].as_bool().unwrap());
 
     // Test that all expected fields are present
     assert!(test_repo_data["accessToken"].is_string());

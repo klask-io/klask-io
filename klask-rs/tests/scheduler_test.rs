@@ -2,12 +2,12 @@
 mod scheduler_tests {
     use chrono::{DateTime, Timelike, Utc};
     use klask_rs::models::repository::RepositoryType;
-    use sqlx::Row;
 
     use uuid::Uuid;
 
     // Mock structs for testing
     #[derive(Debug, Clone)]
+    #[allow(dead_code)]
     struct MockRepository {
         pub id: Uuid,
         pub name: String,
@@ -245,8 +245,8 @@ mod scheduler_tests {
         let recent_time = now - chrono::Duration::hours(1); // 1 hour ago
 
         // Simulate repository completion times
-        let old_repo = MockRepository::new("old-repo");
-        let recent_repo = MockRepository::new("recent-repo");
+        let _old_repo = MockRepository::new("old-repo");
+        let _recent_repo = MockRepository::new("recent-repo");
 
         // In real implementation, these would have completion times
         // and the cleanup would filter based on those times
@@ -323,10 +323,9 @@ mod scheduler_tests {
                 None
             } else if let Some(ref cron) = repo.cron_schedule {
                 Some(cron.clone())
-            } else if let Some(hours) = repo.crawl_frequency_hours {
-                Some(format!("0 0 */{} * * *", hours))
             } else {
-                None
+                repo.crawl_frequency_hours
+                    .map(|hours| format!("0 0 */{} * * *", hours))
             };
 
             assert_eq!(
@@ -351,7 +350,7 @@ mod scheduler_tests {
         let mut handles = vec![];
 
         // Spawn multiple tasks that add/remove schedule entries
-        for i in 0..10 {
+        for _i in 0..10 {
             let job_ids_clone = Arc::clone(&job_ids);
             let handle = tokio::spawn(async move {
                 let repo_id = Uuid::new_v4();

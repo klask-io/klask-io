@@ -1,7 +1,7 @@
 import React from 'react';
 import { RepositoryCard } from './RepositoryCard';
 import { CheckIcon } from '@heroicons/react/24/outline';
-import type { Repository, RepositoryWithStats } from '../../types';
+import type { RepositoryWithStats } from '../../types';
 import type { CrawlProgressInfo } from '../../hooks/useProgress';
 import { clsx } from 'clsx';
 

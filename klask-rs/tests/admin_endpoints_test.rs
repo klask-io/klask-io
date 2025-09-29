@@ -100,14 +100,14 @@ async fn create_admin_token(app_state: &AppState) -> Result<String> {
         "INSERT INTO users (id, username, email, password_hash, role, active, created_at, updated_at) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
     )
-    .bind(&admin_user.id)
+    .bind(admin_user.id)
     .bind(&admin_user.username)
     .bind(&admin_user.email)
     .bind(&admin_user.password_hash)
     .bind(&admin_user.role)
-    .bind(&admin_user.active)
-    .bind(&admin_user.created_at)
-    .bind(&admin_user.updated_at)
+    .bind(admin_user.active)
+    .bind(admin_user.created_at)
+    .bind(admin_user.updated_at)
     .execute(app_state.database.pool())
     .await?;
 
@@ -145,14 +145,14 @@ async fn create_regular_user_token(app_state: &AppState) -> Result<String> {
         "INSERT INTO users (id, username, email, password_hash, role, active, created_at, updated_at) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
     )
-    .bind(&user.id)
+    .bind(user.id)
     .bind(&user.username)
     .bind(&user.email)
     .bind(&user.password_hash)
     .bind(&user.role)
-    .bind(&user.active)
-    .bind(&user.created_at)
-    .bind(&user.updated_at)
+    .bind(user.active)
+    .bind(user.created_at)
+    .bind(user.updated_at)
     .execute(app_state.database.pool())
     .await?;
 
@@ -217,13 +217,14 @@ async fn test_admin_dashboard_returns_complete_data() -> Result<()> {
     let dashboard_data: AdminDashboardData = response.json();
 
     // Verify all required sections are present
-    assert!(dashboard_data.system.version.len() > 0);
-    assert!(dashboard_data.system.environment.len() > 0);
+    assert!(!dashboard_data.system.version.is_empty());
+    assert!(!dashboard_data.system.environment.is_empty());
     assert!(
         dashboard_data.system.database_status == "Connected"
             || dashboard_data.system.database_status == "Disconnected"
     );
-    assert!(dashboard_data.system.uptime_seconds >= 0);
+    // uptime_seconds is u64, so it's always >= 0
+    let _ = dashboard_data.system.uptime_seconds;
 
     // User stats should include at least our test admin user
     assert!(dashboard_data.users.total_users >= 1);
@@ -251,9 +252,10 @@ async fn test_system_stats_endpoint() -> Result<()> {
 
     let system_stats: SystemStats = response.json();
 
-    assert!(system_stats.version.len() > 0);
-    assert!(system_stats.environment.len() > 0);
-    assert!(system_stats.uptime_seconds >= 0);
+    assert!(!system_stats.version.is_empty());
+    assert!(!system_stats.environment.is_empty());
+    // uptime_seconds is u64, so it's always >= 0
+    let _ = system_stats.uptime_seconds;
     assert!(
         system_stats.database_status == "Connected"
             || system_stats.database_status == "Disconnected"
@@ -483,7 +485,7 @@ async fn test_recent_activity_endpoint() -> Result<()> {
     let recent_users = activity["recent_users"].as_array().unwrap();
 
     // Should include our test admin user if created recently
-    assert!(recent_users.len() >= 1);
+    assert!(!recent_users.is_empty());
 
     Ok(())
 }

@@ -11,20 +11,13 @@ import {
 
 import { authSelectors } from '../../stores/auth-store';
 import { SidebarFilters } from '../search/SidebarFilters';
-import { useSearchFiltersContext } from '../../contexts/SearchFiltersContext';
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const isAdmin = authSelectors.isAdmin();
 
-  // Try to get search filters context, but don't fail if not available
-  let searchFiltersContext;
-  try {
-    searchFiltersContext = useSearchFiltersContext();
-  } catch {
-    // Context not available, probably not on search page
-    searchFiltersContext = null;
-  }
+  // Check if we're on a search page to conditionally render filters
+  const isSearchPage = location.pathname.includes('/search');
 
   const navigation = [
     { name: 'Search', href: '/search', icon: MagnifyingGlassIcon },
@@ -80,15 +73,9 @@ export const Sidebar: React.FC = () => {
           </li>
 
           {/* Search Filters */}
-          {searchFiltersContext && (
+          {isSearchPage && (
             <li>
-              <SidebarFilters
-                filters={searchFiltersContext.filters}
-                onFiltersChange={searchFiltersContext.setFilters}
-                availableFilters={searchFiltersContext.availableFilters}
-                isLoading={searchFiltersContext.isLoading}
-                currentQuery={searchFiltersContext.currentQuery}
-              />
+              <SidebarFilters />
             </li>
           )}
 

@@ -12,81 +12,81 @@ env:
   BACKEND_IMAGE_NAME: klask-backend
 
 jobs:
-  # test-frontend:
-  #   runs-on: ubuntu-latest
-  #   defaults:
-  #     run:
-  #       working-directory: ./klask-react
-    
-  #   steps:
-  #   - uses: actions/checkout@v4
-    
-  #   - name: Setup Node.js
-  #     uses: actions/setup-node@v4
-  #     with:
-  #       node-version: '22'
-  #       cache: 'npm'
-  #       cache-dependency-path: klask-react/package-lock.json
-    
-  #   - name: Install dependencies
-  #     run: npm ci
-    
-  #   - name: Run type check
-  #     run: npm run typecheck
-    
-  #   - name: Run tests
-  #     run: npm test -- --passWithNoTests
-  #     continue-on-error: true  # Allow tests to fail without failing CI
-    
-  #   - name: Build frontend
-  #     run: npm run build
+  test-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./klask-react
 
-  # test-backend:
-  #   runs-on: ubuntu-latest
-  #   defaults:
-  #     run:
-  #       working-directory: ./klask-rs
-    
-  #   services:
-  #     postgres:
-  #       image: postgres:15
-  #       env:
-  #         POSTGRES_PASSWORD: postgres
-  #         POSTGRES_DB: klask_test
-  #       options: >-
-  #         --health-cmd pg_isready
-  #         --health-interval 10s
-  #         --health-timeout 5s
-  #         --health-retries 5
-  #       ports:
-  #         - 5432:5432
-    
-  #   steps:
-  #   - uses: actions/checkout@v4
-    
-  #   - name: Setup Rust
-  #     uses: dtolnay/rust-toolchain@stable
-  #     with:
-  #       components: rustfmt, clippy
-    
-  #   - name: Rust Cache
-  #     uses: Swatinem/rust-cache@v2
-  #     with:
-  #       workspaces: klask-rs
-    
-  #   - name: Check formatting
-  #     run: cargo fmt -- --check
-    
-  #   - name: Run clippy
-  #     run: cargo clippy -- -D warnings
-    
-  #   - name: Run tests
-  #     run: cargo test
-  #     env:
-  #       DATABASE_URL: postgres://postgres:postgres@localhost:5432/klask_test
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: klask-react/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run type check
+      run: npm run typecheck
+
+    - name: Run tests
+      run: npm test -- --passWithNoTests
+      continue-on-error: true  # Allow tests to fail without failing CI
+
+    - name: Build frontend
+      run: npm run build
+
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./klask-rs
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: klask_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: klask-rs
+
+    - name: Check formatting
+      run: cargo fmt -- --check
+
+    - name: Run clippy
+      run: cargo clippy -- -D warnings
+
+    - name: Run tests
+      run: cargo test
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/klask_test
 
   build-and-push:
-    # needs: [test-frontend, test-backend]
+    needs: [test-frontend, test-backend]
     runs-on: ubuntu-latest
     if: (github.event_name == 'push' || github.event_name == 'pull_request') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/rust-modernization' || github.head_ref == 'rust-modernization')
     

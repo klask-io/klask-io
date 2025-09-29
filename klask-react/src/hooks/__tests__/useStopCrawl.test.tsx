@@ -10,6 +10,7 @@ vi.mock('../../lib/api', () => ({
   apiClient: {
     stopCrawlRepository: vi.fn(),
   },
+  getErrorMessage: vi.fn((error) => error?.message || 'Unknown error'),
 }));
 
 const mockApiClient = apiClient as any;
@@ -48,18 +49,16 @@ describe('useStopCrawl', () => {
       result.current.mutate(repositoryId);
     });
 
-    // Should be pending immediately
-    expect(result.current.isPending).toBe(true);
-    expect(result.current.isError).toBe(false);
-    expect(result.current.isSuccess).toBe(false);
-
+    // Wait for mutation to complete (may skip pending state if very fast)
     await waitFor(() => {
-      expect(result.current.isPending).toBe(false);
-      expect(result.current.isSuccess).toBe(true);
-      expect(result.current.isError).toBe(false);
-      expect(result.current.data).toBe(mockResponse);
-      expect(result.current.error).toBe(null);
-    });
+      expect(result.current.isSuccess || result.current.isError).toBe(true);
+    }, { timeout: 1000 });
+
+    expect(result.current.isPending).toBe(false);
+    expect(result.current.isSuccess).toBe(true);
+    expect(result.current.isError).toBe(false);
+    expect(result.current.data).toBe(mockResponse);
+    expect(result.current.error).toBe(null);
 
     expect(mockApiClient.stopCrawlRepository).toHaveBeenCalledWith(repositoryId);
     expect(mockApiClient.stopCrawlRepository).toHaveBeenCalledTimes(1);
@@ -76,15 +75,16 @@ describe('useStopCrawl', () => {
       result.current.mutate(repositoryId);
     });
 
-    expect(result.current.isPending).toBe(true);
-
+    // Wait for mutation to complete (may skip pending state if very fast)
     await waitFor(() => {
-      expect(result.current.isPending).toBe(false);
-      expect(result.current.isSuccess).toBe(false);
-      expect(result.current.isError).toBe(true);
-      expect(result.current.error).toBe(mockError);
-      expect(result.current.data).toBe(undefined);
-    });
+      expect(result.current.isSuccess || result.current.isError).toBe(true);
+    }, { timeout: 1000 });
+
+    expect(result.current.isPending).toBe(false);
+    expect(result.current.isSuccess).toBe(false);
+    expect(result.current.isError).toBe(true);
+    expect(result.current.error).toBe(mockError);
+    expect(result.current.data).toBe(undefined);
 
     expect(mockApiClient.stopCrawlRepository).toHaveBeenCalledWith(repositoryId);
     expect(mockApiClient.stopCrawlRepository).toHaveBeenCalledTimes(1);
@@ -164,8 +164,12 @@ describe('useStopCrawl', () => {
 
     expect(mutateAsyncResult).toBe(mockResponse);
     expect(mutateAsyncError).toBe(undefined);
-    expect(result.current.isSuccess).toBe(true);
-    expect(result.current.data).toBe(mockResponse);
+
+    // Wait for state to update after mutateAsync
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.data).toBe(mockResponse);
+    });
   });
 
   it('should reject mutateAsync on API error', async () => {
@@ -186,8 +190,12 @@ describe('useStopCrawl', () => {
     });
 
     expect(mutateAsyncError).toBe(mockError);
-    expect(result.current.isError).toBe(true);
-    expect(result.current.error).toBe(mockError);
+
+    // Wait for state to update after mutateAsync error
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+      expect(result.current.error).toBe(mockError);
+    });
   });
 
   it('should allow multiple sequential calls', async () => {
@@ -333,11 +341,14 @@ describe('useStopCrawl', () => {
       result.current.reset();
     });
 
-    expect(result.current.isPending).toBe(false);
-    expect(result.current.isError).toBe(false);
-    expect(result.current.isSuccess).toBe(false);
-    expect(result.current.error).toBe(null);
-    expect(result.current.data).toBe(undefined);
+    // Wait for reset to take effect
+    await waitFor(() => {
+      expect(result.current.isPending).toBe(false);
+      expect(result.current.isError).toBe(false);
+      expect(result.current.isSuccess).toBe(false);
+      expect(result.current.error).toBe(null);
+      expect(result.current.data).toBe(undefined);
+    });
   });
 
   it('should handle timeout errors', async () => {

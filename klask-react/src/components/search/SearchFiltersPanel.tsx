@@ -1,11 +1,10 @@
 import React from 'react';
-import { 
-  FunnelIcon, 
-  XMarkIcon, 
-  ChevronDownIcon, 
+import {
+  FunnelIcon,
+  XMarkIcon,
+  ChevronDownIcon,
   ChevronRightIcon,
   FolderIcon,
-  TagIcon,
   CodeBracketIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';

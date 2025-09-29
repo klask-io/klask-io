@@ -1769,6 +1769,7 @@ impl CrawlerService {
     }
 
     /// Cancel an ongoing crawl for a repository
+    #[allow(dead_code)]
     pub async fn cancel_crawl(&self, repository_id: Uuid) -> Result<bool> {
         let tokens = self.cancellation_tokens.read().await;
         if let Some(token) = tokens.get(&repository_id) {
@@ -1910,7 +1911,7 @@ impl CrawlerService {
                     .filter(|s| !s.is_empty())
                     .collect()
             })
-            .unwrap_or_else(Vec::new);
+            .unwrap_or_default();
         let excluded_patterns: Vec<String> = repository
             .gitlab_excluded_patterns
             .as_ref()
@@ -1920,7 +1921,7 @@ impl CrawlerService {
                     .filter(|s| !s.is_empty())
                     .collect()
             })
-            .unwrap_or_else(Vec::new);
+            .unwrap_or_default();
 
         let filtered_projects = gitlab_service.filter_excluded_projects_with_config(
             projects,
@@ -2352,7 +2353,7 @@ impl CrawlerService {
                     .filter(|s| !s.is_empty())
                     .collect()
             })
-            .unwrap_or_else(Vec::new);
+            .unwrap_or_default();
         let excluded_patterns: Vec<String> = repository
             .gitlab_excluded_patterns
             .as_ref()
@@ -2362,7 +2363,7 @@ impl CrawlerService {
                     .filter(|s| !s.is_empty())
                     .collect()
             })
-            .unwrap_or_else(Vec::new);
+            .unwrap_or_default();
 
         let filtered_projects = gitlab_service.filter_excluded_projects_with_config(
             projects,
@@ -2701,7 +2702,7 @@ mod tests {
 
         let search_results = search_service.search(search_query).await.unwrap();
         assert!(
-            search_results.results.len() > 0,
+            !search_results.results.is_empty(),
             "Should find the indexed document"
         );
 
@@ -2738,6 +2739,8 @@ mod tests {
             crawl_frequency_hours: None,
             max_crawl_duration_minutes: None,
             last_crawl_duration_seconds: None,
+            gitlab_excluded_projects: None,
+            gitlab_excluded_patterns: None,
             crawl_state: None,
             last_processed_project: None,
             crawl_started_at: None,
@@ -2763,6 +2766,8 @@ mod tests {
             crawl_frequency_hours: None,
             max_crawl_duration_minutes: None,
             last_crawl_duration_seconds: None,
+            gitlab_excluded_projects: None,
+            gitlab_excluded_patterns: None,
             crawl_state: None,
             last_processed_project: None,
             crawl_started_at: None,

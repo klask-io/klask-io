@@ -16,7 +16,7 @@ async fn test_stop_crawl_request_structure() -> Result<()> {
 
     assert!(stop_request["repository_id"].is_string());
     assert_eq!(stop_request["reason"].as_str().unwrap(), "user_requested");
-    assert_eq!(stop_request["force"].as_bool().unwrap(), false);
+    assert!(!stop_request["force"].as_bool().unwrap());
 
     println!("✅ Stop crawl request structure test passed!");
     Ok(())
@@ -38,7 +38,7 @@ async fn test_stop_crawl_response_structure() -> Result<()> {
         }
     });
 
-    assert_eq!(success_response["success"].as_bool().unwrap(), true);
+    assert!(success_response["success"].as_bool().unwrap());
     assert!(success_response["message"].is_string());
     assert!(success_response["repository_id"].is_string());
     assert_eq!(success_response["status"].as_str().unwrap(), "stopped");
@@ -65,7 +65,7 @@ async fn test_stop_crawl_error_responses() -> Result<()> {
         "timestamp": "2024-01-15T10:30:00Z"
     });
 
-    assert_eq!(not_running_error["success"].as_bool().unwrap(), false);
+    assert!(!not_running_error["success"].as_bool().unwrap());
     assert_eq!(
         not_running_error["error"].as_str().unwrap(),
         "No active crawl found"
@@ -84,7 +84,7 @@ async fn test_stop_crawl_error_responses() -> Result<()> {
         "timestamp": "2024-01-15T10:30:00Z"
     });
 
-    assert_eq!(permission_error["success"].as_bool().unwrap(), false);
+    assert!(!permission_error["success"].as_bool().unwrap());
     assert_eq!(
         permission_error["code"].as_str().unwrap(),
         "PERMISSION_DENIED"
@@ -132,7 +132,7 @@ async fn test_force_stop_parameters() -> Result<()> {
         "timeout_seconds": 30
     });
 
-    assert_eq!(force_stop_request["force"].as_bool().unwrap(), true);
+    assert!(force_stop_request["force"].as_bool().unwrap());
     assert_eq!(
         force_stop_request["reason"].as_str().unwrap(),
         "emergency_stop"
@@ -146,7 +146,7 @@ async fn test_force_stop_parameters() -> Result<()> {
         "reason": "user_requested"
     });
 
-    assert_eq!(graceful_stop_request["force"].as_bool().unwrap(), false);
+    assert!(!graceful_stop_request["force"].as_bool().unwrap());
 
     println!("✅ Force stop parameters test passed!");
     Ok(())
@@ -177,7 +177,7 @@ async fn test_stop_crawl_progress_preservation() -> Result<()> {
     assert_eq!(progress["errors_encountered"].as_u64().unwrap(), 2);
     assert_eq!(progress["progress_percentage"].as_f64().unwrap(), 65.0);
 
-    assert_eq!(progress_data["can_resume"].as_bool().unwrap(), true);
+    assert!(progress_data["can_resume"].as_bool().unwrap());
 
     println!("✅ Stop crawl progress preservation test passed!");
     Ok(())

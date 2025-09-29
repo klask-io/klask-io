@@ -68,7 +68,7 @@ export const CronScheduleForm: React.FC<CronScheduleFormProps> = ({
 
     // Additional basic validation could be added here
     const validParts = parts.every(part => {
-      return /^[\d\*\-\,\/\?]+$/.test(part) || part === '?';
+      return /^[\d*\-,/?]+$/.test(part) || part === '?';
     });
 
     if (!validParts) {

@@ -80,8 +80,8 @@ async fn test_task_cleanup_trigger_conditions() -> Result<()> {
 
         // Validate cleanup logic
         match status {
-            "running" => assert_eq!(should_cleanup, false),
-            "completed" | "failed" | "cancelled" | "timeout" => assert_eq!(should_cleanup, true),
+            "running" => assert!(!should_cleanup),
+            "completed" | "failed" | "cancelled" | "timeout" => assert!(should_cleanup),
             _ => panic!("Unknown status: {}", status),
         }
     }
@@ -140,19 +140,19 @@ async fn test_task_handle_cleanup_on_completion() -> Result<()> {
         match phase_name {
             "creation" => {
                 assert_eq!(handles_count, 0);
-                assert_eq!(cleanup_scheduled, false);
+                assert!(!cleanup_scheduled);
             }
             "start" => {
                 assert_eq!(handles_count, 1);
-                assert_eq!(cleanup_scheduled, false);
+                assert!(!cleanup_scheduled);
             }
             "completion" => {
                 assert_eq!(handles_count, 1);
-                assert_eq!(cleanup_scheduled, true);
+                assert!(cleanup_scheduled);
             }
             "cleanup" => {
                 assert_eq!(handles_count, 0);
-                assert_eq!(cleanup_scheduled, false);
+                assert!(!cleanup_scheduled);
             }
             _ => panic!("Unknown phase: {}", phase_name),
         }
@@ -387,7 +387,7 @@ async fn test_task_handle_validation() -> Result<()> {
         assert!(handle["validation_errors"].is_array());
 
         let is_valid = handle["is_valid"].as_bool().unwrap();
-        let can_cleanup = handle["can_cleanup"].as_bool().unwrap();
+        let _can_cleanup = handle["can_cleanup"].as_bool().unwrap();
         let errors = handle["validation_errors"].as_array().unwrap();
 
         // If task is invalid, it should have errors

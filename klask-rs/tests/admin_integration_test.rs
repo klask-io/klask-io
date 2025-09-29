@@ -181,7 +181,9 @@ async fn test_dashboard_data_structure() -> Result<()> {
     assert!(dashboard_data["search"].is_object());
 
     // Verify system stats
-    assert!(dashboard_data["system"]["uptime_seconds"].as_u64().unwrap() >= 0);
+    assert!(dashboard_data["system"]["uptime_seconds"]
+        .as_u64()
+        .is_some());
 
     // Verify user stats
     assert!(dashboard_data["users"]["total_users"].as_i64().unwrap() >= 0);
@@ -236,7 +238,7 @@ async fn test_admin_api_response_format() -> Result<()> {
         "timestamp": "2024-01-15T10:30:00Z"
     });
 
-    assert_eq!(success_response["success"].as_bool().unwrap(), true);
+    assert!(success_response["success"].as_bool().unwrap());
     assert!(success_response["data"].is_object());
     assert!(success_response["timestamp"].is_string());
 

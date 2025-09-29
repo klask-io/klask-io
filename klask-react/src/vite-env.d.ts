@@ -14,7 +14,7 @@ interface ImportMeta {
 }
 
 // Add process global for Node.js compatibility
-declare var process: {
+declare let process: {
   env: {
     NODE_ENV?: 'development' | 'production' | 'test'
   }

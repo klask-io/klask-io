@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '../../../test/test-utils';
+import { render, screen, fireEvent } from '../../../test/test-utils';
 import React from 'react';
 import { SelectableRepositoryCard } from '../SelectableRepositoryCard';
 import type { Repository } from '../../../types';
@@ -93,7 +93,7 @@ describe('SelectableRepositoryCard - Crawl Prevention', () => {
     });
 
     it('should apply different styling when repository is crawling', () => {
-      const { container } = render(
+      render(
         <SelectableRepositoryCard
           repository={mockRepository}
           selected={false}
@@ -350,7 +350,7 @@ describe('SelectableRepositoryCard - Crawl Prevention', () => {
     });
 
     it('should show visual indication when selected and crawling', () => {
-      const { container } = render(
+      render(
         <SelectableRepositoryCard
           repository={mockRepository}
           selected={true}

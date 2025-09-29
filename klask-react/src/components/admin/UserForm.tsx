@@ -9,7 +9,7 @@ import {
   EyeSlashIcon 
 } from '@heroicons/react/24/outline';
 import type { User, CreateUserRequest, UpdateUserRequest, UserRole } from '../../types';
-import { createUserSchema, updateUserSchema, type CreateUserForm, type UpdateUserForm } from '../../lib/validations';
+import { createUserSchema, updateUserFormSchema, type CreateUserForm, type UpdateUserFormData } from '../../lib/validations';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 interface UserFormProps {
@@ -39,8 +39,9 @@ export const UserForm: React.FC<UserFormProps> = ({
     watch,
     reset,
     formState: { errors, isValid },
-  } = useForm<CreateUserForm | UpdateUserForm>({
-    resolver: zodResolver(isEditing ? updateUserSchema : createUserSchema),
+  } = useForm({
+    resolver: zodResolver(isEditing ? updateUserFormSchema : createUserSchema),
+    mode: 'onChange', // Enable real-time validation
     defaultValues: user ? {
       username: user.username,
       email: user.email,
@@ -78,7 +79,7 @@ export const UserForm: React.FC<UserFormProps> = ({
     }
   }, [user, reset]);
 
-  const handleFormSubmit = (data: CreateUserForm | UpdateUserForm) => {
+  const handleFormSubmit = (data: CreateUserForm | UpdateUserFormData) => {
     // Clean up data and submit
     const cleanedData = {
       ...data,
