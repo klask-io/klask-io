@@ -2,9 +2,10 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ '**' ]  # Toutes les branches
+    tags: [ 'v*' ]      # Tags de version (v1.0.0, v2.1.3, etc.)
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master ]  # Pull requests vers les branches principales
 
 env:
   REGISTRY: ghcr.io
@@ -88,7 +89,14 @@ jobs:
   build-and-push:
     needs: [test-frontend, test-backend]
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' || github.event_name == 'pull_request') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    # Build seulement pour: PR, main/master, ou tags
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && (
+        github.ref == 'refs/heads/main' ||
+        github.ref == 'refs/heads/master' ||
+        startsWith(github.ref, 'refs/tags/v')
+      ))
     
     permissions:
       contents: read
@@ -116,7 +124,10 @@ jobs:
         tags: |
           type=ref,event=branch
           type=ref,event=pr
-          type=sha
+          type=sha,prefix=sha-
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
           type=raw,value=latest,enable={{is_default_branch}}
 
     - name: Extract metadata (backend)
@@ -127,7 +138,10 @@ jobs:
         tags: |
           type=ref,event=branch
           type=ref,event=pr
-          type=sha
+          type=sha,prefix=sha-
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
           type=raw,value=latest,enable={{is_default_branch}}
     
     - name: Build and push frontend
@@ -170,20 +184,40 @@ jobs:
   security-scan:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' || github.event_name == 'pull_request') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    # Security scan seulement si des images ont été construites
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && (
+        github.ref == 'refs/heads/main' ||
+        github.ref == 'refs/heads/master' ||
+        startsWith(github.ref, 'refs/tags/v')
+      ))
     
     steps:
+    - name: Determine image tag for security scan
+      id: tag
+      run: |
+        if [[ "${{ github.ref_type }}" == "tag" ]]; then
+          # Pour les tags Git (v1.0.0), utiliser la version
+          echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == "refs/heads/master" ]]; then
+          # Pour main/master, utiliser latest
+          echo "tag=latest" >> $GITHUB_OUTPUT
+        else
+          # Pour les autres branches, utiliser le nom de la branche
+          echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+        fi
     - name: Run Trivy vulnerability scanner (frontend)
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+        image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
         format: 'sarif'
         output: 'trivy-frontend.sarif'
     
     - name: Run Trivy vulnerability scanner (backend)
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.BACKEND_IMAGE_NAME }}:latest
+        image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
         format: 'sarif'
         output: 'trivy-backend.sarif'
     
