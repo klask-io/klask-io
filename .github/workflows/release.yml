@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  FRONTEND_IMAGE_NAME: klask-frontend
+  BACKEND_IMAGE_NAME: klask-backend
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Get version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "release" ]; then
+          echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+        else
+          echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Build and push frontend (release)
+      uses: docker/build-push-action@v5
+      with:
+        context: ./klask-react
+        file: ./klask-react/Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+          ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.FRONTEND_IMAGE_NAME }}:stable
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build and push backend (release)
+      uses: docker/build-push-action@v5
+      with:
+        context: ./klask-rs
+        file: ./klask-rs/Dockerfile
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+          ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.BACKEND_IMAGE_NAME }}:stable
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+        format: spdx-json
+        output-file: backend-sbom.spdx.json
+    
+    - name: Upload SBOM to release
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: backend-sbom.spdx.json
+        asset_name: klask-backend-sbom.spdx.json
+        asset_content_type: application/json

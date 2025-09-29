@@ -1,23 +1,6 @@
 - liste de requêtes prédéfinies (exemple sur date de création de fichier en cohérence avec le SVN : alors range "gte": "01/01/2016")
 cela permettrait de récupérer tous les derniers fichiers modifiés sur le SVN
 
-- mettre à jour jhipster quand c'est possible (update)
-- faire des liens dans les vues de fichiers
-
-- coloration syntaxique en fonction du fichier (voir http://prismjs.com/plugins/file-highlight/) ou autoload avec highlight.js
-- ajouter une détection automatique du charset (actuellement l'indexation dans le CrawlerService est fait en iso-8859-1
-et la restitution du FileResource en rest est converti en UTF-8 (l'html rendu par klask est en UTF-8)
-=> voir http://stackoverflow.com/questions/774075/character-encoding-detection-algorithm
-
-problème du map
-en supprimant les 2 lignes dans mapping.json sur path, cela refonctionne, mais difficile à expliquer (un get /file) montre que l'analyzer n'est pas créé dans elasticsearch)
-  "search_analyzer": "keyword",
-  "analyzer": "keyword"
-
-
-changelog 0.2 :
-- Highlight : fourni par ElasticSearch (encode : html)
-- Corrections diverses sur pagination et sélection multiples de projets
 - Corrections sur l'affichage des fragments d'aperçus de fichiers et mise en forme
 - fonctions d'échappement des caractères html angularjs "escapeall" (seulement pour le cas des findAll durant lequel le contenu est renvoyé brut,
 et ce n'est pas un highlight formatté par elasticsearch et le mode highlight encode html)
@@ -25,15 +8,6 @@ et ce n'est pas un highlight formatté par elasticsearch et le mode highlight en
 ## Mettre les filtres en exclusions
 exemple, par un ctrl+clic sur un filtre de version, afficher en rouge la version exclue, et lancer la recherche sur toutes les versions sauf celles exclues
 ou alors, par un bouton switch on/off si le filtre agit en inclusion/exclusion
-
-corriger le jenkinsfile pour utiliser le mvnw
-
-gestion des fichiers typescript .ts (prism à mettre à jour)
-
-** gestion des alias elasticsearch
-https://www.elastic.co/guide/en/elasticsearch/reference/current/api-conventions.html
-http://www.w3ii.com/fr/elasticsearch/elasticsearch_api_conventions.html
-
 
 SVN :
 utilisation du paramètre : -Dsvnkit.http.spoolDirectory=./spooldirectory
@@ -55,11 +29,8 @@ lastDate:[now-12h *]
 
 
 1)fonctionnalitée à inclure
-CronTrigger et utilisation du taskExecutor pour checkoutsvn intégré
-https://docs.spring.io/spring/docs/current/spring-framework-reference/html/scheduling.html
-penser à utiliser plutôt le @Async (à voir aussi pour le crawler)
-
 - inclure un moteur de recherche intégré à la page qui s'enregistre dans le navigateur, avec un raccourci clavier (k ?)
+- le crate https://docs.rs/croner/latest/croner/ a l'air mieux que cron
 
 2)filtre sur date de modif
 
@@ -73,8 +44,5 @@ Faire des filtres directement sur les entêtes des colonnes (on pourrait par exe
 cela permettra d'éviter d'écrire directement dans le champ de recherche pour les non initiés des requêtes du genre "version:branche1 AND extension:java"
 
 
-###### intégration continue
- - dans jenkins configurer la tâche "klask-release" pour réaliser une image docker (à containeriser)
- - faire un maven release
- - faire un gitpublisher sur la tâche "klask-release" pour réaliser un tag Git avec la version releasée
- - publier les versions releasées dans un nexus
+- quand, on réindex un document existant, comment on fait, date, est-ce qu'il est bien supprimé d'une version etc, ou tout court ?
+- enregistrer le document une seule fois dans l'index, et enregistrer une liste des versions, des paths, des projets, si le contenu est le même ?

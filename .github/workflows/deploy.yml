@@ -1,0 +1,88 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types:
+      - completed
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  FRONTEND_IMAGE_NAME: klask-frontend
+  BACKEND_IMAGE_NAME: klask-backend
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    environment: staging
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Deploy to staging
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        echo "Frontend: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.FRONTEND_IMAGE_NAME }}:latest"
+        echo "Backend: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.BACKEND_IMAGE_NAME }}:latest"
+        
+        # Ici vous pouvez ajouter vos commandes de déploiement
+        # Exemples :
+        # - kubectl apply -f k8s/
+        # - docker-compose -f docker-compose.prod.yml up -d
+        # - scp docker-compose.yml user@server:~/
+        # - ssh user@server 'cd ~/klask && docker-compose pull && docker-compose up -d'
+    
+    - name: Health check
+      run: |
+        echo "🔍 Running health checks..."
+        # curl -f http://staging.klask.io/health || exit 1
+        # curl -f http://staging.klask.io/api/status || exit 1
+    
+    - name: Notify deployment
+      if: always()
+      run: |
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "✅ Staging deployment successful!"
+        else
+          echo "❌ Staging deployment failed!"
+        fi
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: success() && github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Deploy to production
+      run: |
+        echo "🚀 Deploying to production environment..."
+        echo "Frontend: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.FRONTEND_IMAGE_NAME }}:latest"
+        echo "Backend: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.BACKEND_IMAGE_NAME }}:latest"
+        
+        # Production deployment commands
+        # Plus conservateur - peut nécessiter une approbation manuelle
+    
+    - name: Production health check
+      run: |
+        echo "🔍 Running production health checks..."
+        # curl -f https://klask.io/health || exit 1
+        # curl -f https://klask.io/api/status || exit 1
+    
+    - name: Notify production deployment
+      if: always()
+      run: |
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "✅ Production deployment successful!"
+          # Slack/Discord notification
+        else
+          echo "❌ Production deployment failed!"
+          # Alert notification
+        fi

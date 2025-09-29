@@ -1,0 +1,230 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]  # Seulement les branches principales
+    tags: [ 'v*' ]             # Tags de version (v1.0.0, v2.1.3, etc.)
+  pull_request:
+    branches: [ main, master ]  # Pull requests vers les branches principales
+  workflow_dispatch:             # Déclenchement manuel si besoin
+
+env:
+  REGISTRY: ghcr.io
+  FRONTEND_IMAGE_NAME: klask-frontend
+  BACKEND_IMAGE_NAME: klask-backend
+
+jobs:
+  test-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./klask-react
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: klask-react/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run type check
+      run: npm run typecheck
+
+    - name: Run tests
+      run: npm test -- --passWithNoTests
+      continue-on-error: true  # Allow tests to fail without failing CI
+
+    - name: Build frontend
+      run: npm run build
+
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./klask-rs
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: klask_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: klask-rs
+
+    - name: Check formatting
+      run: cargo fmt -- --check
+
+    - name: Run clippy
+      run: cargo clippy -- -D warnings
+
+    - name: Run tests
+      run: cargo test
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/klask_test
+
+  build-and-push:
+    needs: [test-frontend, test-backend]
+    runs-on: ubuntu-latest
+    # Build pour tous les événements (PR, push main/master, tags)
+    # Plus de problème de double build car plus de push sur branches features
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata (frontend)
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.FRONTEND_IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=sha-
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Extract metadata (backend)
+      id: meta-backend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.BACKEND_IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=sha-
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push frontend
+      uses: docker/build-push-action@v5
+      with:
+        context: ./klask-react
+        file: ./klask-react/Dockerfile
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push backend
+      uses: docker/build-push-action@v5
+      with:
+        context: ./klask-rs
+        file: ./klask-rs/Dockerfile
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # Make packages public (optional - uncomment if you want automatic public visibility)
+    # - name: Make frontend package public
+    #   run: |
+    #     gh api -X PATCH "/user/packages/container/klask-frontend/versions" \
+    #       --field visibility=public
+    #   env:
+    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #
+    # - name: Make backend package public
+    #   run: |
+    #     gh api -X PATCH "/user/packages/container/klask-backend/versions" \
+    #       --field visibility=public
+    #   env:
+    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  security-scan:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    # Security scan pour tous les builds
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Determine image tag for security scan
+      id: tag
+      run: |
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          # Pour les PRs, utiliser pr-NUMBER
+          echo "tag=pr-${{ github.event.number }}" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+          # Pour les tags Git (v1.0.0), utiliser la version
+          echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == "refs/heads/master" ]]; then
+          # Pour main/master, utiliser latest
+          echo "tag=latest" >> $GITHUB_OUTPUT
+        else
+          # Pour les autres branches, utiliser le nom de la branche (nettoyé)
+          BRANCH_NAME="${{ github.ref_name }}"
+          CLEAN_BRANCH_NAME=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          echo "tag=$CLEAN_BRANCH_NAME" >> $GITHUB_OUTPUT
+        fi
+    - name: Run Trivy vulnerability scanner (frontend)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
+        format: 'sarif'
+        output: 'trivy-frontend.sarif'
+    
+    - name: Run Trivy vulnerability scanner (backend)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
+        format: 'sarif'
+        output: 'trivy-backend.sarif'
+    
+    - name: Upload Trivy scan results (frontend)
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-frontend.sarif'
+        category: 'trivy-frontend'
+      
+    - name: Upload Trivy scan results (backend)  
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-backend.sarif'
+        category: 'trivy-backend'

@@ -1,0 +1,32 @@
+services:
+  klask-backend:
+    image: klask-backend-final:latest
+    container_name: klask-backend
+    ports:
+      - "3000:3000"
+    networks:
+      - klask-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/status"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  klask-frontend:
+    image: klask-frontend:latest
+    container_name: klask-frontend
+    ports:
+      - "3001:8080"
+    depends_on:
+      - klask-backend
+    networks:
+      - klask-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+networks:
+  klask-network:
+    driver: bridge

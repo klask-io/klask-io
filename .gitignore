@@ -4,6 +4,8 @@
 /target/www/**
 /src/main/webapp/bower_components
 
+**/target
+
 ######################
 # Node
 ######################
@@ -134,3 +136,8 @@ Desktop.ini
 ######################
 .eslintcache
 /target/
+
+# index of tantivy
+index/
+test_upsert_index*
+test_index*

@@ -1,0 +1,2 @@
+[alias]
+test-clean = "test && sh ./cleanup-test-dirs.sh"
