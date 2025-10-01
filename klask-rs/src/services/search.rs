@@ -384,9 +384,6 @@ impl SearchService {
             .parse_query(&search_query.query)
             .map_err(|e| anyhow!("Failed to parse query '{}': {}", search_query.query, e))?;
 
-        tracing::info!("🔍 [SEARCH] Main search query: '{}', filters: project={:?}, version={:?}, extension={:?}",
-            search_query.query, search_query.project_filter, search_query.version_filter, search_query.extension_filter);
-
         // Create snippet generator once for the entire search
         let snippet_generator = if search_query.limit > 0 {
             Some(self.create_snippet_generator(&searcher, &*base_query)?)
@@ -491,7 +488,6 @@ impl SearchService {
 
         // For performance with large indices, use Count collector for total
         let total = searcher.search(&final_query, &Count)? as u64;
-        tracing::info!("🔍 [SEARCH] Main search found {} total documents", total);
 
         // Ensure limit is at least 1 to avoid Tantivy panic
         let effective_limit = if search_query.limit == 0 {
@@ -550,12 +546,6 @@ impl SearchService {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
-
-                // Log first few results for debugging
-                if results.len() < 5 {
-                    tracing::info!("🔍 [SEARCH] Result #{}: project='{}', version='{}', extension='{}', path='{}'",
-                        results.len() + 1, project, version, extension, file_path);
-                }
 
                 // No need for post-query filtering anymore since we're using query-time filters
 
@@ -969,21 +959,17 @@ impl SearchService {
         })
     }
 
-    /// Collect facets from search results instead of entire index
-    /// OPTIMIZED VERSION: Fast facet collection for <100ms performance
+    /// Collect facets using Tantivy native aggregations API
+    /// ULTRA-OPTIMIZED VERSION: Using terms aggregations for <100ms performance
     async fn collect_facets_from_search_results(
         &self,
         searcher: &tantivy::Searcher,
         _query: &dyn tantivy::query::Query,
         search_query: &SearchQuery,
     ) -> Result<SearchFacets> {
-        let total_start = std::time::Instant::now();
-        tracing::info!("🔍 [FACETS] Starting OPTIMIZED facet collection");
-        tracing::info!("🔍 [FACETS] Facet search query: '{}', filters: project={:?}, version={:?}, extension={:?}",
-            search_query.query, search_query.project_filter, search_query.version_filter, search_query.extension_filter);
-
-        use std::collections::HashMap;
-        use tantivy::collector::DocSetCollector;
+        use tantivy::aggregation::agg_req::Aggregations;
+        use tantivy::aggregation::agg_result::AggregationResults;
+        use tantivy::aggregation::AggregationCollector;
         use tantivy::query::{AllQuery, BooleanQuery, Occur, QueryParser, TermQuery};
 
         // Helper to build query with specific filters
@@ -1116,156 +1102,109 @@ impl SearchService {
         // - Version facets: apply project & extension filters (but not version filter)
         // - Extension facets: apply project & version filters (but not extension filter)
 
-        let mut project_facets = Vec::new();
-        let mut version_facets = Vec::new();
-        let mut extension_facets = Vec::new();
-
         // Calculate project facets (with version & extension filters)
-        {
-            tracing::info!("🔍 [FACETS] Calculating project facets (excluding project filter)...");
+        let project_facets = {
+            tracing::info!("🔍 [FACETS] Calculating project facets using aggregations...");
             let query = build_query_with_filters(false, true, true)?;
-            let docs = searcher.search(&*query, &DocSetCollector)?;
-            tracing::info!("🔍 [FACETS] Found {} docs for project facets", docs.len());
 
-            let mut counts: HashMap<String, u64> = HashMap::new();
-            let mut skipped = 0;
-            let mut debug_count = 0;
-            for doc_address in docs {
-                let segment_reader = &searcher.segment_readers()[doc_address.segment_ord as usize];
+            // Build aggregation request using JSON
+            let agg_req: Aggregations = serde_json::from_value(serde_json::json!({
+                "project_terms": {
+                    "terms": {
+                        "field": "project",
+                        "size": 100
+                    }
+                }
+            }))?;
 
-                // Debug: for first 10 docs, compare fast field vs stored field
-                if debug_count < 10 {
-                    if let Ok(doc) = searcher.doc::<tantivy::TantivyDocument>(doc_address) {
-                        let stored_project = doc
-                            .get_first(self.fields.project)
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("(empty)");
+            let collector = AggregationCollector::from_aggs(agg_req, Default::default());
+            let agg_res: AggregationResults = searcher.search(&*query, &collector)?;
 
-                        if let Ok(Some(reader)) = segment_reader.fast_fields().str("project") {
-                            let mut buffer = Vec::new();
-                            let doc_id: u32 = doc_address.doc_id;
-                            // Get the term ordinals for this document (iterator, but we expect only one value for STRING fields)
-                            let mut term_ords = reader.term_ords(doc_id);
-                            // Take the first (and should be only) ordinal
-                            if let Some(term_ord) = term_ords.next() {
-                                // Then convert the ordinal to bytes
-                                if reader.ord_to_bytes(term_ord, &mut buffer).is_ok() {
-                                    if let Ok(fast_value) = std::str::from_utf8(&buffer) {
-                                        tracing::info!(
-                                            "🔍 [FACETS] Doc #{}: stored='{}' vs fast='{}'",
-                                            debug_count + 1,
-                                            stored_project,
-                                            fast_value
-                                        );
-                                    }
-                                }
-                            }
+            // Extract results
+            let mut facets = Vec::new();
+            if let Some(bucket) = agg_res.0.get("project_terms") {
+                if let tantivy::aggregation::agg_result::AggregationResult::BucketResult(
+                    tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
+                ) = bucket
+                {
+                    for entry in buckets {
+                        if let tantivy::aggregation::Key::Str(term) = &entry.key {
+                            facets.push((term.to_string(), entry.doc_count));
                         }
                     }
-                    debug_count += 1;
-                }
-
-                if let Ok(Some(reader)) = segment_reader.fast_fields().str("project") {
-                    let doc_id: u32 = doc_address.doc_id;
-                    let mut term_ords = reader.term_ords(doc_id);
-                    if let Some(term_ord) = term_ords.next() {
-                        let mut buffer = Vec::new();
-                        if reader.ord_to_bytes(term_ord, &mut buffer).is_ok() {
-                            if let Ok(value) = std::str::from_utf8(&buffer) {
-                                if !value.is_empty() {
-                                    *counts.entry(value.to_string()).or_insert(0) += 1;
-                                } else {
-                                    skipped += 1;
-                                }
-                            }
-                        }
-                    } else {
-                        skipped += 1;
-                    }
-                } else {
-                    skipped += 1;
                 }
             }
-            if skipped > 0 {
-                tracing::warn!(
-                    "🔍 [FACETS] Skipped {} documents without project field",
-                    skipped
-                );
-            }
-            tracing::info!("🔍 [FACETS] Project facet counts: {:?}", counts);
-            project_facets = counts.into_iter().collect();
-        }
+            tracing::info!("🔍 [FACETS] Found {} project facets", facets.len());
+            facets
+        };
 
         // Calculate version facets (with project & extension filters)
-        {
-            tracing::info!("🔍 [FACETS] Calculating version facets...");
+        let version_facets = {
+            tracing::info!("🔍 [FACETS] Calculating version facets using aggregations...");
             let query = build_query_with_filters(true, false, true)?;
-            let docs = searcher.search(&*query, &DocSetCollector)?;
-            tracing::info!("🔍 [FACETS] Found {} docs for version facets", docs.len());
 
-            let mut counts: HashMap<String, u64> = HashMap::new();
-            for doc_address in docs {
-                let segment_reader = &searcher.segment_readers()[doc_address.segment_ord as usize];
-                if let Ok(Some(reader)) = segment_reader.fast_fields().str("version") {
-                    let doc_id: u32 = doc_address.doc_id;
-                    let mut term_ords = reader.term_ords(doc_id);
-                    if let Some(term_ord) = term_ords.next() {
-                        let mut buffer = Vec::new();
-                        if reader.ord_to_bytes(term_ord, &mut buffer).is_ok() {
-                            if let Ok(value) = std::str::from_utf8(&buffer) {
-                                if !value.is_empty() {
-                                    *counts.entry(value.to_string()).or_insert(0) += 1;
-                                }
-                            }
+            let agg_req: Aggregations = serde_json::from_value(serde_json::json!({
+                "version_terms": {
+                    "terms": {
+                        "field": "version",
+                        "size": 100
+                    }
+                }
+            }))?;
+
+            let collector = AggregationCollector::from_aggs(agg_req, Default::default());
+            let agg_res: AggregationResults = searcher.search(&*query, &collector)?;
+
+            let mut facets = Vec::new();
+            if let Some(bucket) = agg_res.0.get("version_terms") {
+                if let tantivy::aggregation::agg_result::AggregationResult::BucketResult(
+                    tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
+                ) = bucket
+                {
+                    for entry in buckets {
+                        if let tantivy::aggregation::Key::Str(term) = &entry.key {
+                            facets.push((term.to_string(), entry.doc_count));
                         }
                     }
                 }
             }
-            version_facets = counts.into_iter().collect();
-        }
+            tracing::info!("🔍 [FACETS] Found {} version facets", facets.len());
+            facets
+        };
 
         // Calculate extension facets (with project & version filters)
-        {
-            tracing::info!("🔍 [FACETS] Calculating extension facets...");
+        let extension_facets = {
+            tracing::info!("🔍 [FACETS] Calculating extension facets using aggregations...");
             let query = build_query_with_filters(true, true, false)?;
-            let docs = searcher.search(&*query, &DocSetCollector)?;
-            tracing::info!("🔍 [FACETS] Found {} docs for extension facets", docs.len());
 
-            let mut counts: HashMap<String, u64> = HashMap::new();
-            for doc_address in docs {
-                let segment_reader = &searcher.segment_readers()[doc_address.segment_ord as usize];
-                if let Ok(Some(reader)) = segment_reader.fast_fields().str("extension") {
-                    let doc_id: u32 = doc_address.doc_id;
-                    let mut term_ords = reader.term_ords(doc_id);
-                    if let Some(term_ord) = term_ords.next() {
-                        let mut buffer = Vec::new();
-                        if reader.ord_to_bytes(term_ord, &mut buffer).is_ok() {
-                            if let Ok(value) = std::str::from_utf8(&buffer) {
-                                if !value.is_empty() {
-                                    *counts.entry(value.to_string()).or_insert(0) += 1;
-                                }
-                            }
+            let agg_req: Aggregations = serde_json::from_value(serde_json::json!({
+                "extension_terms": {
+                    "terms": {
+                        "field": "extension",
+                        "size": 100
+                    }
+                }
+            }))?;
+
+            let collector = AggregationCollector::from_aggs(agg_req, Default::default());
+            let agg_res: AggregationResults = searcher.search(&*query, &collector)?;
+
+            let mut facets = Vec::new();
+            if let Some(bucket) = agg_res.0.get("extension_terms") {
+                if let tantivy::aggregation::agg_result::AggregationResult::BucketResult(
+                    tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
+                ) = bucket
+                {
+                    for entry in buckets {
+                        if let tantivy::aggregation::Key::Str(term) = &entry.key {
+                            facets.push((term.to_string(), entry.doc_count));
                         }
                     }
                 }
             }
-            extension_facets = counts.into_iter().collect();
-        }
-
-        // Sort facets
-        let sort_start = std::time::Instant::now();
-        project_facets.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        version_facets.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        extension_facets.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        tracing::info!(
-            "🔍 [FACETS] Sorting completed in {:?}",
-            sort_start.elapsed()
-        );
-
-        // Limit to top N
-        project_facets.truncate(100);
-        version_facets.truncate(100);
-        extension_facets.truncate(100);
+            tracing::info!("🔍 [FACETS] Found {} extension facets", facets.len());
+            facets
+        };
 
         tracing::info!("🔍 [FACETS] ⏱️  TOTAL TIME: {:?}", total_start.elapsed());
         tracing::info!(
