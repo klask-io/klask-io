@@ -148,11 +148,11 @@ export const useMultiSelectSearch = (
       if (filters.extension && filters.extension.length > 0) {
         searchParams.set('extensions', filters.extension.join(','));
       }
-      
+
       searchParams.set('limit', pageSize.toString());
       searchParams.set('page', currentPage.toString());
       searchParams.set('include_facets', 'true');
-      
+
       const response = await fetch(`/api/search?${searchParams.toString()}`);
       if (!response.ok) {
         throw new Error(`Search failed: ${response.statusText}`);
