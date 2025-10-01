@@ -1104,7 +1104,6 @@ impl SearchService {
 
         // Calculate project facets (with version & extension filters)
         let project_facets = {
-            tracing::info!("🔍 [FACETS] Calculating project facets using aggregations...");
             let query = build_query_with_filters(false, true, true)?;
 
             // Build aggregation request using JSON
@@ -1134,13 +1133,11 @@ impl SearchService {
                     }
                 }
             }
-            tracing::info!("🔍 [FACETS] Found {} project facets", facets.len());
             facets
         };
 
         // Calculate version facets (with project & extension filters)
         let version_facets = {
-            tracing::info!("🔍 [FACETS] Calculating version facets using aggregations...");
             let query = build_query_with_filters(true, false, true)?;
 
             let agg_req: Aggregations = serde_json::from_value(serde_json::json!({
@@ -1168,13 +1165,11 @@ impl SearchService {
                     }
                 }
             }
-            tracing::info!("🔍 [FACETS] Found {} version facets", facets.len());
             facets
         };
 
         // Calculate extension facets (with project & version filters)
         let extension_facets = {
-            tracing::info!("🔍 [FACETS] Calculating extension facets using aggregations...");
             let query = build_query_with_filters(true, true, false)?;
 
             let agg_req: Aggregations = serde_json::from_value(serde_json::json!({
@@ -1202,17 +1197,8 @@ impl SearchService {
                     }
                 }
             }
-            tracing::info!("🔍 [FACETS] Found {} extension facets", facets.len());
             facets
         };
-
-        tracing::info!("🔍 [FACETS] ⏱️  TOTAL TIME: {:?}", total_start.elapsed());
-        tracing::info!(
-            "🔍 [FACETS] Final counts: {} projects, {} versions, {} extensions",
-            project_facets.len(),
-            version_facets.len(),
-            extension_facets.len()
-        );
 
         Ok(SearchFacets {
             projects: project_facets,
