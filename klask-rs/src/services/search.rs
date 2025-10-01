@@ -384,6 +384,9 @@ impl SearchService {
             .parse_query(&search_query.query)
             .map_err(|e| anyhow!("Failed to parse query '{}': {}", search_query.query, e))?;
 
+        tracing::info!("🔍 [SEARCH] Main search query: '{}', filters: project={:?}, version={:?}, extension={:?}",
+            search_query.query, search_query.project_filter, search_query.version_filter, search_query.extension_filter);
+
         // Create snippet generator once for the entire search
         let snippet_generator = if search_query.limit > 0 {
             Some(self.create_snippet_generator(&searcher, &*base_query)?)
@@ -488,6 +491,7 @@ impl SearchService {
 
         // For performance with large indices, use Count collector for total
         let total = searcher.search(&final_query, &Count)? as u64;
+        tracing::info!("🔍 [SEARCH] Main search found {} total documents", total);
 
         // Ensure limit is at least 1 to avoid Tantivy panic
         let effective_limit = if search_query.limit == 0 {
@@ -546,6 +550,12 @@ impl SearchService {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
+
+                // Log first few results for debugging
+                if results.len() < 5 {
+                    tracing::info!("🔍 [SEARCH] Result #{}: project='{}', version='{}', extension='{}', path='{}'",
+                        results.len() + 1, project, version, extension, file_path);
+                }
 
                 // No need for post-query filtering anymore since we're using query-time filters
 
@@ -960,268 +970,310 @@ impl SearchService {
     }
 
     /// Collect facets from search results instead of entire index
+    /// OPTIMIZED VERSION: Fast facet collection for <100ms performance
     async fn collect_facets_from_search_results(
         &self,
         searcher: &tantivy::Searcher,
         _query: &dyn tantivy::query::Query,
         search_query: &SearchQuery,
     ) -> Result<SearchFacets> {
-        // For facets to be useful in a multi-select interface, we need to show
-        // what would happen if you toggle each filter option.
-        // This means calculating facets with the text query but WITHOUT the filter for that category.
+        let total_start = std::time::Instant::now();
+        tracing::info!("🔍 [FACETS] Starting OPTIMIZED facet collection");
+        tracing::info!("🔍 [FACETS] Facet search query: '{}', filters: project={:?}, version={:?}, extension={:?}",
+            search_query.query, search_query.project_filter, search_query.version_filter, search_query.extension_filter);
 
         use std::collections::HashMap;
+        use tantivy::collector::DocSetCollector;
         use tantivy::query::{AllQuery, BooleanQuery, Occur, QueryParser, TermQuery};
-        use tantivy::TantivyDocument;
 
-        // Helper to build query with optional filter exclusion
-        let build_query_excluding = |exclude_type: &str| -> Result<Box<dyn tantivy::query::Query>> {
+        // Helper to build query with specific filters
+        let build_query_with_filters = |include_project: bool,
+                                        include_version: bool,
+                                        include_extension: bool|
+         -> Result<Box<dyn tantivy::query::Query>> {
             let mut clauses = vec![];
 
-            // Always include the text query
-            if !search_query.query.trim().is_empty() && search_query.query != "*" {
-                // Use the same fields as the main search query parser
-                let query_parser = QueryParser::for_index(
-                    searcher.index(),
-                    vec![
-                        self.fields.content,
-                        self.fields.file_name,
-                        self.fields.file_path,
-                    ],
-                );
-                match query_parser.parse_query(&search_query.query) {
-                    Ok(parsed_query) => {
-                        clauses.push((Occur::Must, parsed_query));
-                    }
-                    Err(_) => {
-                        let term = tantivy::Term::from_field_text(
+            // Always include text query
+            let text_query: Box<dyn tantivy::query::Query> =
+                if search_query.query.trim().is_empty() || search_query.query == "*" {
+                    Box::new(AllQuery)
+                } else {
+                    let query_parser = QueryParser::for_index(
+                        searcher.index(),
+                        vec![
                             self.fields.content,
-                            &search_query.query,
-                        );
-                        let term_query =
-                            TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic);
-                        clauses.push((
-                            Occur::Must,
-                            Box::new(term_query) as Box<dyn tantivy::query::Query>,
-                        ));
+                            self.fields.file_name,
+                            self.fields.file_path,
+                        ],
+                    );
+                    match query_parser.parse_query(&search_query.query) {
+                        Ok(parsed) => parsed,
+                        Err(_) => Box::new(AllQuery),
                     }
-                }
-            }
+                };
+            clauses.push((Occur::Must, text_query));
 
-            // Add project filter (unless we're calculating project facets)
-            if exclude_type != "project" {
+            // Add project filter if requested
+            if include_project {
                 if let Some(ref project_filter) = search_query.project_filter {
-                    let projects: Vec<String> = project_filter
+                    let projects: Vec<&str> = project_filter
                         .split(',')
-                        .map(|s| s.trim().to_string())
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
                         .collect();
                     if !projects.is_empty() {
                         let mut project_clauses = vec![];
                         for project in projects {
-                            let term =
-                                tantivy::Term::from_field_text(self.fields.project, &project);
-                            let term_query =
-                                TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic);
+                            let term = tantivy::Term::from_field_text(self.fields.project, project);
                             project_clauses.push((
                                 Occur::Should,
-                                Box::new(term_query) as Box<dyn tantivy::query::Query>,
+                                Box::new(TermQuery::new(
+                                    term,
+                                    tantivy::schema::IndexRecordOption::Basic,
+                                ))
+                                    as Box<dyn tantivy::query::Query>,
                             ));
                         }
-                        let project_query = BooleanQuery::from(project_clauses);
                         clauses.push((
                             Occur::Must,
-                            Box::new(project_query) as Box<dyn tantivy::query::Query>,
+                            Box::new(BooleanQuery::from(project_clauses))
+                                as Box<dyn tantivy::query::Query>,
                         ));
                     }
                 }
             }
 
-            // Add version filter (unless we're calculating version facets)
-            if exclude_type != "version" {
+            // Add version filter if requested
+            if include_version {
                 if let Some(ref version_filter) = search_query.version_filter {
-                    let versions: Vec<String> = version_filter
+                    let versions: Vec<&str> = version_filter
                         .split(',')
-                        .map(|s| s.trim().to_string())
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
                         .collect();
                     if !versions.is_empty() {
                         let mut version_clauses = vec![];
                         for version in versions {
-                            let term =
-                                tantivy::Term::from_field_text(self.fields.version, &version);
-                            let term_query =
-                                TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic);
+                            let term = tantivy::Term::from_field_text(self.fields.version, version);
                             version_clauses.push((
                                 Occur::Should,
-                                Box::new(term_query) as Box<dyn tantivy::query::Query>,
+                                Box::new(TermQuery::new(
+                                    term,
+                                    tantivy::schema::IndexRecordOption::Basic,
+                                ))
+                                    as Box<dyn tantivy::query::Query>,
                             ));
                         }
-                        let version_query = BooleanQuery::from(version_clauses);
                         clauses.push((
                             Occur::Must,
-                            Box::new(version_query) as Box<dyn tantivy::query::Query>,
+                            Box::new(BooleanQuery::from(version_clauses))
+                                as Box<dyn tantivy::query::Query>,
                         ));
                     }
                 }
             }
 
-            // Add extension filter (unless we're calculating extension facets)
-            if exclude_type != "extension" {
+            // Add extension filter if requested
+            if include_extension {
                 if let Some(ref extension_filter) = search_query.extension_filter {
-                    let extensions: Vec<String> = extension_filter
+                    let extensions: Vec<&str> = extension_filter
                         .split(',')
-                        .map(|s| s.trim().to_string())
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
                         .collect();
                     if !extensions.is_empty() {
                         let mut extension_clauses = vec![];
                         for extension in extensions {
                             let term =
-                                tantivy::Term::from_field_text(self.fields.extension, &extension);
-                            let term_query =
-                                TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic);
+                                tantivy::Term::from_field_text(self.fields.extension, extension);
                             extension_clauses.push((
                                 Occur::Should,
-                                Box::new(term_query) as Box<dyn tantivy::query::Query>,
+                                Box::new(TermQuery::new(
+                                    term,
+                                    tantivy::schema::IndexRecordOption::Basic,
+                                ))
+                                    as Box<dyn tantivy::query::Query>,
                             ));
                         }
-                        let extension_query = BooleanQuery::from(extension_clauses);
                         clauses.push((
                             Occur::Must,
-                            Box::new(extension_query) as Box<dyn tantivy::query::Query>,
+                            Box::new(BooleanQuery::from(extension_clauses))
+                                as Box<dyn tantivy::query::Query>,
                         ));
                     }
                 }
             }
 
-            if clauses.is_empty() {
-                Ok(Box::new(AllQuery))
+            if clauses.len() == 1 {
+                Ok(clauses.into_iter().next().unwrap().1)
             } else {
                 Ok(Box::new(BooleanQuery::from(clauses)))
             }
         };
 
-        // Calculate facets for each category with appropriate exclusions
-        let mut project_counts: HashMap<String, u64> = HashMap::new();
-        let mut version_counts: HashMap<String, u64> = HashMap::new();
-        let mut extension_counts: HashMap<String, u64> = HashMap::new();
+        // For faceted search, we need to calculate each facet with the appropriate filters:
+        // - Project facets: apply version & extension filters (but not project filter)
+        // - Version facets: apply project & extension filters (but not version filter)
+        // - Extension facets: apply project & version filters (but not extension filter)
 
-        // Use DocSetCollector to get ALL matching documents, not just the top-scored ones
-        use tantivy::collector::DocSetCollector;
+        let mut project_facets = Vec::new();
+        let mut version_facets = Vec::new();
+        let mut extension_facets = Vec::new();
 
-        // Project facets: query without project filter
-        let project_query = build_query_excluding("project")?;
-        let project_docs = searcher.search(&*project_query, &DocSetCollector)?;
-        for doc_address in project_docs {
-            let doc = searcher.doc::<TantivyDocument>(doc_address)?;
-            if let Some(project) = doc.get_first(self.fields.project).and_then(|v| v.as_str()) {
-                if !project.is_empty() {
-                    *project_counts.entry(project.to_string()).or_insert(0) += 1;
+        // Calculate project facets (with version & extension filters)
+        {
+            tracing::info!("🔍 [FACETS] Calculating project facets (excluding project filter)...");
+            let query = build_query_with_filters(false, true, true)?;
+            let docs = searcher.search(&*query, &DocSetCollector)?;
+            tracing::info!("🔍 [FACETS] Found {} docs for project facets", docs.len());
+
+            let mut counts: HashMap<String, u64> = HashMap::new();
+            let mut skipped = 0;
+            let mut debug_count = 0;
+            for doc_address in docs {
+                let segment_reader = &searcher.segment_readers()[doc_address.segment_ord as usize];
+
+                // Debug: for first 10 docs, compare fast field vs stored field
+                if debug_count < 10 {
+                    if let Ok(doc) = searcher.doc::<tantivy::TantivyDocument>(doc_address) {
+                        let stored_project = doc
+                            .get_first(self.fields.project)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("(empty)");
+
+                        if let Ok(Some(reader)) = segment_reader.fast_fields().str("project") {
+                            let mut buffer = Vec::new();
+                            let doc_id: u32 = doc_address.doc_id;
+                            // Get the term ordinals for this document (iterator, but we expect only one value for STRING fields)
+                            let mut term_ords = reader.term_ords(doc_id);
+                            // Take the first (and should be only) ordinal
+                            if let Some(term_ord) = term_ords.next() {
+                                // Then convert the ordinal to bytes
+                                if reader.ord_to_bytes(term_ord, &mut buffer).is_ok() {
+                                    if let Ok(fast_value) = std::str::from_utf8(&buffer) {
+                                        tracing::info!(
+                                            "🔍 [FACETS] Doc #{}: stored='{}' vs fast='{}'",
+                                            debug_count + 1,
+                                            stored_project,
+                                            fast_value
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    debug_count += 1;
                 }
-            }
-        }
 
-        // Version facets: query without version filter
-        let version_query = build_query_excluding("version")?;
-        let version_docs = searcher.search(&*version_query, &DocSetCollector)?;
-        tracing::debug!("Version facets: found {} documents", version_docs.len());
-        let mut empty_or_missing_versions = 0;
-        for doc_address in &version_docs {
-            let doc = searcher.doc::<TantivyDocument>(*doc_address)?;
-            if let Some(version) = doc.get_first(self.fields.version).and_then(|v| v.as_str()) {
-                if !version.is_empty() {
-                    *version_counts.entry(version.to_string()).or_insert(0) += 1;
+                if let Ok(Some(reader)) = segment_reader.fast_fields().str("project") {
+                    let doc_id: u32 = doc_address.doc_id;
+                    let mut term_ords = reader.term_ords(doc_id);
+                    if let Some(term_ord) = term_ords.next() {
+                        let mut buffer = Vec::new();
+                        if reader.ord_to_bytes(term_ord, &mut buffer).is_ok() {
+                            if let Ok(value) = std::str::from_utf8(&buffer) {
+                                if !value.is_empty() {
+                                    *counts.entry(value.to_string()).or_insert(0) += 1;
+                                } else {
+                                    skipped += 1;
+                                }
+                            }
+                        }
+                    } else {
+                        skipped += 1;
+                    }
                 } else {
-                    empty_or_missing_versions += 1;
+                    skipped += 1;
                 }
-            } else {
-                empty_or_missing_versions += 1;
             }
-        }
-        // Debug: Log specifically for bootstrap + master
-        if search_query.query.contains("bootstrap") {
-            tracing::info!(
-                "DEBUG: version facets - total docs: {}, empty/missing versions: {}",
-                version_docs.len(),
-                empty_or_missing_versions
-            );
-            tracing::info!(
-                "DEBUG: version_counts for master: {:?}",
-                version_counts.get("master")
-            );
-
-            // Now let's count how many docs with "master" version we get when we apply version filter
-            let test_query = if !search_query.query.trim().is_empty() && search_query.query != "*" {
-                // Use the same fields as the main search query parser
-                let query_parser = QueryParser::for_index(
-                    searcher.index(),
-                    vec![
-                        self.fields.content,
-                        self.fields.file_name,
-                        self.fields.file_path,
-                    ],
+            if skipped > 0 {
+                tracing::warn!(
+                    "🔍 [FACETS] Skipped {} documents without project field",
+                    skipped
                 );
-                let text_query = query_parser
-                    .parse_query(&search_query.query)
-                    .unwrap_or_else(|_| {
-                        Box::new(TermQuery::new(
-                            tantivy::Term::from_field_text(
-                                self.fields.content,
-                                &search_query.query,
-                            ),
-                            tantivy::schema::IndexRecordOption::Basic,
-                        ))
-                    });
-
-                let version_term = tantivy::Term::from_field_text(self.fields.version, "master");
-                let version_query =
-                    TermQuery::new(version_term, tantivy::schema::IndexRecordOption::Basic);
-
-                Box::new(BooleanQuery::from(vec![
-                    (Occur::Must, text_query),
-                    (
-                        Occur::Must,
-                        Box::new(version_query) as Box<dyn tantivy::query::Query>,
-                    ),
-                ])) as Box<dyn tantivy::query::Query>
-            } else {
-                Box::new(AllQuery) as Box<dyn tantivy::query::Query>
-            };
-
-            let test_docs = searcher.search(&*test_query, &DocSetCollector)?;
-            tracing::info!(
-                "DEBUG: bootstrap AND master -> {} documents",
-                test_docs.len()
-            );
+            }
+            tracing::info!("🔍 [FACETS] Project facet counts: {:?}", counts);
+            project_facets = counts.into_iter().collect();
         }
 
-        // Extension facets: query without extension filter
-        let extension_query = build_query_excluding("extension")?;
-        let extension_docs = searcher.search(&*extension_query, &DocSetCollector)?;
-        for doc_address in extension_docs {
-            let doc = searcher.doc::<TantivyDocument>(doc_address)?;
-            if let Some(extension) = doc
-                .get_first(self.fields.extension)
-                .and_then(|v| v.as_str())
-            {
-                if !extension.is_empty() {
-                    *extension_counts.entry(extension.to_string()).or_insert(0) += 1;
+        // Calculate version facets (with project & extension filters)
+        {
+            tracing::info!("🔍 [FACETS] Calculating version facets...");
+            let query = build_query_with_filters(true, false, true)?;
+            let docs = searcher.search(&*query, &DocSetCollector)?;
+            tracing::info!("🔍 [FACETS] Found {} docs for version facets", docs.len());
+
+            let mut counts: HashMap<String, u64> = HashMap::new();
+            for doc_address in docs {
+                let segment_reader = &searcher.segment_readers()[doc_address.segment_ord as usize];
+                if let Ok(Some(reader)) = segment_reader.fast_fields().str("version") {
+                    let doc_id: u32 = doc_address.doc_id;
+                    let mut term_ords = reader.term_ords(doc_id);
+                    if let Some(term_ord) = term_ords.next() {
+                        let mut buffer = Vec::new();
+                        if reader.ord_to_bytes(term_ord, &mut buffer).is_ok() {
+                            if let Ok(value) = std::str::from_utf8(&buffer) {
+                                if !value.is_empty() {
+                                    *counts.entry(value.to_string()).or_insert(0) += 1;
+                                }
+                            }
+                        }
+                    }
                 }
             }
+            version_facets = counts.into_iter().collect();
         }
 
-        // Convert to sorted vectors
-        let mut project_facets: Vec<(String, u64)> = project_counts.into_iter().collect();
-        let mut version_facets: Vec<(String, u64)> = version_counts.into_iter().collect();
-        let mut extension_facets: Vec<(String, u64)> = extension_counts.into_iter().collect();
+        // Calculate extension facets (with project & version filters)
+        {
+            tracing::info!("🔍 [FACETS] Calculating extension facets...");
+            let query = build_query_with_filters(true, true, false)?;
+            let docs = searcher.search(&*query, &DocSetCollector)?;
+            tracing::info!("🔍 [FACETS] Found {} docs for extension facets", docs.len());
 
-        // Sort by count (descending) then by value (ascending)
-        project_facets.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        version_facets.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-        extension_facets.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+            let mut counts: HashMap<String, u64> = HashMap::new();
+            for doc_address in docs {
+                let segment_reader = &searcher.segment_readers()[doc_address.segment_ord as usize];
+                if let Ok(Some(reader)) = segment_reader.fast_fields().str("extension") {
+                    let doc_id: u32 = doc_address.doc_id;
+                    let mut term_ords = reader.term_ords(doc_id);
+                    if let Some(term_ord) = term_ords.next() {
+                        let mut buffer = Vec::new();
+                        if reader.ord_to_bytes(term_ord, &mut buffer).is_ok() {
+                            if let Ok(value) = std::str::from_utf8(&buffer) {
+                                if !value.is_empty() {
+                                    *counts.entry(value.to_string()).or_insert(0) += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            extension_facets = counts.into_iter().collect();
+        }
 
-        // Limit to top N facets
+        // Sort facets
+        let sort_start = std::time::Instant::now();
+        project_facets.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        version_facets.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        extension_facets.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        tracing::info!(
+            "🔍 [FACETS] Sorting completed in {:?}",
+            sort_start.elapsed()
+        );
+
+        // Limit to top N
         project_facets.truncate(100);
         version_facets.truncate(100);
         extension_facets.truncate(100);
+
+        tracing::info!("🔍 [FACETS] ⏱️  TOTAL TIME: {:?}", total_start.elapsed());
+        tracing::info!(
+            "🔍 [FACETS] Final counts: {} projects, {} versions, {} extensions",
+            project_facets.len(),
+            version_facets.len(),
+            extension_facets.len()
+        );
 
         Ok(SearchFacets {
             projects: project_facets,

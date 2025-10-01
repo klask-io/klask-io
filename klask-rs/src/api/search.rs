@@ -9,7 +9,24 @@ use axum::{
     Router,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
 use tracing;
+
+// Cache for search filters to avoid expensive recalculations
+struct FilterCache {
+    data: Option<SearchFilters>,
+    timestamp: Instant,
+}
+
+lazy_static::lazy_static! {
+    static ref FILTER_CACHE: Arc<RwLock<FilterCache>> = Arc::new(RwLock::new(FilterCache {
+        data: None,
+        timestamp: Instant::now() - Duration::from_secs(600), // Start expired
+    }));
+}
+
+const CACHE_TTL: Duration = Duration::from_secs(5 * 60); // 5 minutes
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
@@ -41,7 +58,7 @@ pub struct SearchFacets {
     pub extensions: Vec<FacetValue>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FacetValue {
     pub value: String,
     pub count: u64,
@@ -151,7 +168,7 @@ async fn search_files(
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchFilters {
     pub projects: Vec<FacetValue>,
     pub versions: Vec<FacetValue>,
@@ -161,6 +178,25 @@ pub struct SearchFilters {
 async fn get_search_filters(
     State(app_state): State<AppState>,
 ) -> Result<Json<SearchFilters>, StatusCode> {
+    let start = std::time::Instant::now();
+    tracing::info!("🔍 [FILTERS] Starting get_search_filters request");
+
+    // Check cache first
+    {
+        let cache = FILTER_CACHE.read().unwrap();
+        if let Some(ref cached_data) = cache.data {
+            if cache.timestamp.elapsed() < CACHE_TTL {
+                tracing::info!(
+                    "🔍 [FILTERS] ⚡ Returning cached filters (age: {:?})",
+                    cache.timestamp.elapsed()
+                );
+                return Ok(Json(cached_data.clone()));
+            }
+        }
+    }
+
+    tracing::info!("🔍 [FILTERS] Cache miss or expired, computing filters...");
+
     // Get all facets by performing an empty search
     let search_query = SearchQuery {
         query: "*".to_string(), // Match all documents
@@ -172,9 +208,23 @@ async fn get_search_filters(
         include_facets: true, // Always include facets for the filters endpoint
     };
 
+    tracing::info!("🔍 [FILTERS] Calling search_service.search()...");
+    let search_start = std::time::Instant::now();
     match app_state.search_service.search(search_query).await {
         Ok(search_response) => {
+            tracing::info!(
+                "🔍 [FILTERS] search() completed in {:?}",
+                search_start.elapsed()
+            );
+
             if let Some(facets) = search_response.facets {
+                tracing::info!(
+                    "🔍 [FILTERS] Facets found - projects: {}, versions: {}, extensions: {}",
+                    facets.projects.len(),
+                    facets.versions.len(),
+                    facets.extensions.len()
+                );
+
                 let filters = SearchFilters {
                     projects: facets
                         .projects
@@ -192,6 +242,16 @@ async fn get_search_filters(
                         .map(|(value, count)| FacetValue { value, count })
                         .collect(),
                 };
+
+                // Update cache
+                {
+                    let mut cache = FILTER_CACHE.write().unwrap();
+                    cache.data = Some(filters.clone());
+                    cache.timestamp = Instant::now();
+                    tracing::info!("🔍 [FILTERS] ✅ Cache updated");
+                }
+
+                tracing::info!("🔍 [FILTERS] Total request time: {:?}", start.elapsed());
                 Ok(Json(filters))
             } else {
                 // No facets available, return empty filters

@@ -73,7 +73,7 @@ mod scheduler_tests {
         ];
 
         for expr in valid_expressions {
-            let result = expr.parse::<cron::Schedule>();
+            let result = croner::Cron::new(expr).with_seconds_required().parse();
             assert!(
                 result.is_ok(),
                 "Should parse valid cron expression: {}",
@@ -92,7 +92,7 @@ mod scheduler_tests {
         ];
 
         for expr in invalid_expressions {
-            let result = expr.parse::<cron::Schedule>();
+            let result = croner::Cron::new(expr).with_seconds_required().parse();
             assert!(
                 result.is_err(),
                 "Should reject invalid cron expression: {}",
@@ -116,7 +116,9 @@ mod scheduler_tests {
             assert_eq!(cron_expr, expected_cron);
 
             // Verify the generated expression is valid
-            let result = cron_expr.parse::<cron::Schedule>();
+            let result = croner::Cron::new(&cron_expr)
+                .with_seconds_required()
+                .parse();
             assert!(
                 result.is_ok(),
                 "Generated cron expression should be valid: {}",
@@ -128,29 +130,37 @@ mod scheduler_tests {
     #[tokio::test]
     async fn test_next_run_calculation() {
         use chrono::TimeZone;
-        use cron::Schedule;
 
         // Test calculating next run times for various cron expressions
         let now = Utc.with_ymd_and_hms(2024, 1, 1, 12, 0, 0).unwrap();
 
         // Test hourly schedule
-        let hourly: Schedule = "0 0 * * * *".parse().unwrap();
-        let next_hourly = hourly.after(&now).next().unwrap();
+        let hourly = croner::Cron::new("0 0 * * * *")
+            .with_seconds_required()
+            .parse()
+            .unwrap();
+        let next_hourly = hourly.find_next_occurrence(&now, false).unwrap();
         assert_eq!(next_hourly.minute(), 0);
         assert_eq!(next_hourly.second(), 0);
         assert!(next_hourly > now);
 
         // Test daily schedule
-        let daily: Schedule = "0 0 0 * * *".parse().unwrap();
-        let next_daily = daily.after(&now).next().unwrap();
+        let daily = croner::Cron::new("0 0 0 * * *")
+            .with_seconds_required()
+            .parse()
+            .unwrap();
+        let next_daily = daily.find_next_occurrence(&now, false).unwrap();
         assert_eq!(next_daily.hour(), 0);
         assert_eq!(next_daily.minute(), 0);
         assert_eq!(next_daily.second(), 0);
         assert!(next_daily > now);
 
         // Test weekly schedule (every Tuesday in this cron system)
-        let weekly: Schedule = "0 0 0 * * 2".parse().unwrap();
-        let next_weekly = weekly.after(&now).next().unwrap();
+        let weekly = croner::Cron::new("0 0 0 * * 2")
+            .with_seconds_required()
+            .parse()
+            .unwrap();
+        let next_weekly = weekly.find_next_occurrence(&now, false).unwrap();
 
         // Just verify it's a future date and the time is correct
         assert!(next_weekly > now);
@@ -221,19 +231,27 @@ mod scheduler_tests {
         // Test edge cases for schedule expressions
 
         // Test every minute (probably not practical but valid)
-        let every_minute = "0 * * * * *".parse::<cron::Schedule>();
+        let every_minute = croner::Cron::new("0 * * * * *")
+            .with_seconds_required()
+            .parse();
         assert!(every_minute.is_ok());
 
         // Test yearly (January 1st at midnight)
-        let yearly = "0 0 0 1 1 *".parse::<cron::Schedule>();
+        let yearly = croner::Cron::new("0 0 0 1 1 *")
+            .with_seconds_required()
+            .parse();
         assert!(yearly.is_ok());
 
         // Test specific day of month and week (should use OR logic)
-        let complex_schedule = "0 0 0 1,15 * 1".parse::<cron::Schedule>(); // 1st, 15th of month OR Monday
+        let complex_schedule = croner::Cron::new("0 0 0 1,15 * 1")
+            .with_seconds_required()
+            .parse(); // 1st, 15th of month OR Monday
         assert!(complex_schedule.is_ok());
 
         // Test multiple hours
-        let multiple_hours = "0 0 0,6,12,18 * * *".parse::<cron::Schedule>(); // 4 times a day
+        let multiple_hours = croner::Cron::new("0 0 0,6,12,18 * * *")
+            .with_seconds_required()
+            .parse(); // 4 times a day
         assert!(multiple_hours.is_ok());
     }
 
@@ -398,7 +416,7 @@ mod scheduler_tests {
         ];
 
         for expr in invalid_expressions {
-            let result = expr.parse::<cron::Schedule>();
+            let result = croner::Cron::new(expr).with_seconds_required().parse();
             assert!(
                 result.is_err(),
                 "Should reject invalid expression: '{}'",

@@ -70,6 +70,9 @@ cron = "0.12"
 # Cryptographic hashing for deterministic IDs
 sha2 = "0.10"
 
+# Lazy initialization
+lazy_static = "1.4"
+
 [features]
 test-utils = []
 

@@ -49,7 +49,7 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
   const {
     data: staticFilters,
     isLoading,
-  } = useSearchFilters();
+  } = useSearchFilters({ enabled: true }); // Only load filters in search context
 
   const clearFilters = useCallback(() => {
     setFilters({});
