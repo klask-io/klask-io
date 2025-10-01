@@ -568,14 +568,30 @@ async fn update_repository(
     if let Some(is_group) = request.is_group {
         repository.is_group = is_group;
     }
+    // Track if scheduling was changed
+    let scheduling_changed = request.auto_crawl_enabled.is_some()
+        || request.cron_schedule.is_some()
+        || request.crawl_frequency_hours.is_some();
+
     if let Some(auto_crawl_enabled) = request.auto_crawl_enabled {
         repository.auto_crawl_enabled = auto_crawl_enabled;
     }
-    if let Some(cron_schedule) = request.cron_schedule {
-        repository.cron_schedule = Some(cron_schedule);
-    }
-    if let Some(crawl_frequency_hours) = request.crawl_frequency_hours {
-        repository.crawl_frequency_hours = Some(crawl_frequency_hours);
+
+    // Handle scheduling: cron_schedule and crawl_frequency_hours are mutually exclusive
+    match (&request.cron_schedule, &request.crawl_frequency_hours) {
+        (Some(cron), _) => {
+            // Cron mode: set cron_schedule, clear crawl_frequency_hours
+            repository.cron_schedule = Some(cron.clone());
+            repository.crawl_frequency_hours = None;
+        }
+        (None, Some(freq)) => {
+            // Frequency mode: set crawl_frequency_hours, clear cron_schedule
+            repository.crawl_frequency_hours = Some(*freq);
+            repository.cron_schedule = None;
+        }
+        (None, None) => {
+            // Neither provided: don't change
+        }
     }
     if let Some(max_crawl_duration_minutes) = request.max_crawl_duration_minutes {
         repository.max_crawl_duration_minutes = Some(max_crawl_duration_minutes);
@@ -628,6 +644,21 @@ async fn update_repository(
                             "Failed to update search index for repository name change {} -> {}: {}. Search results may be inconsistent until re-crawling.", 
                             old_name, updated_repo.name, e
                         );
+                    }
+                }
+            }
+
+            // If scheduling was changed, reschedule the repository
+            if scheduling_changed {
+                if let Some(scheduler) = &app_state.scheduler_service {
+                    // Unschedule first (in case it was already scheduled)
+                    let _ = scheduler.unschedule_repository(id).await;
+
+                    // Reschedule if auto_crawl is enabled
+                    if updated_repo.auto_crawl_enabled {
+                        if let Err(e) = scheduler.schedule_repository(&updated_repo).await {
+                            warn!("Failed to reschedule repository {}: {}", id, e);
+                        }
                     }
                 }
             }

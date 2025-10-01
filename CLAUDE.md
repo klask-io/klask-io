@@ -1,3 +1,7 @@
+# Master Rules
+- Do NEVER add "Generated with Claude Code" on pull request
+- Do NEVER add co-author on the commit you create
+- Always use `gh cli` to get information about issues / pull request etc..
 - Always work in "klask-rs" directory for the new backend rewrite in Rust and "klask-react" for the new frontend in React
 - Always use the workflow describe in command /explore-plan-code-test
 - execute in background tasks the frontend and backend

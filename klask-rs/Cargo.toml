@@ -64,8 +64,7 @@ base64 = "0.22"
 rand = "0.8"
 
 # Scheduling and cron jobs
-tokio-cron-scheduler = "0.10"
-cron = "0.12"
+croner = "2.0"
 
 # Cryptographic hashing for deterministic IDs
 sha2 = "0.10"

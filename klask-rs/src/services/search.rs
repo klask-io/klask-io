@@ -613,20 +613,34 @@ impl SearchService {
         let highlighted_html = snippet.to_html();
 
         // For line number, use a simple approach to avoid scanning the entire content
-        let line_number =
-            if let Some(content) = doc.get_first(self.fields.content).and_then(|v| v.as_str()) {
-                // Only search for the first term to avoid performance issues
-                if let Some(first_term) = query.split_whitespace().next() {
-                    content
-                        .to_lowercase()
-                        .find(&first_term.to_lowercase())
-                        .map(|pos| content[..pos].chars().filter(|&c| c == '\n').count() as u32 + 1)
-                } else {
-                    None
-                }
+        let line_number = if let Some(content) =
+            doc.get_first(self.fields.content).and_then(|v| v.as_str())
+        {
+            // Only search for the first term to avoid performance issues
+            if let Some(first_term) = query.split_whitespace().next() {
+                content
+                    .to_lowercase()
+                    .find(&first_term.to_lowercase())
+                    .and_then(|pos| {
+                        // Ensure we don't slice in the middle of a UTF-8 character
+                        if content.is_char_boundary(pos) {
+                            Some(content[..pos].chars().filter(|&c| c == '\n').count() as u32 + 1)
+                        } else {
+                            // If pos is not a char boundary, find the nearest valid boundary
+                            let valid_pos =
+                                (0..=pos).rev().find(|&p| content.is_char_boundary(p))?;
+                            Some(
+                                content[..valid_pos].chars().filter(|&c| c == '\n').count() as u32
+                                    + 1,
+                            )
+                        }
+                    })
             } else {
                 None
-            };
+            }
+        } else {
+            None
+        };
 
         Ok((highlighted_html, line_number))
     }
