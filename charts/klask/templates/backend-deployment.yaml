@@ -45,9 +45,13 @@ spec:
               containerPort: {{ .Values.backend.service.targetPort }}
               protocol: TCP
           env:
-            {{- range .Values.backend.env }}
-            - name: {{ .name }}
-              value: {{ .value | quote }}
+            - name: DATABASE_URL
+              value: {{ if .Values.backend.env.database.url }}{{ .Values.backend.env.database.url | quote }}{{ else }}{{ include "klask.database.url" . | quote }}{{ end }}
+            - name: RUST_LOG
+              value: {{ .Values.backend.env.rustLog | quote }}
+            {{- range $key, $value := .Values.backend.env.customVars }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
             {{- end }}
           {{- with .Values.backend.livenessProbe }}
           livenessProbe:

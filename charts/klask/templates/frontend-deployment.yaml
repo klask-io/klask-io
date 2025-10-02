@@ -45,9 +45,11 @@ spec:
               containerPort: {{ .Values.frontend.service.targetPort }}
               protocol: TCP
           env:
-            {{- range .Values.frontend.env }}
-            - name: {{ .name }}
-              value: {{ .value | quote }}
+            - name: VITE_API_BASE_URL
+              value: {{ if .Values.frontend.env.api.baseUrl }}{{ .Values.frontend.env.api.baseUrl | quote }}{{ else }}"http://{{ index .Values.ingress.hosts 0 "host" }}/api"{{ end }}
+            {{- range $key, $value := .Values.frontend.env.customVars }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
             {{- end }}
           {{- with .Values.frontend.livenessProbe }}
           livenessProbe:

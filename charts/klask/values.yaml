@@ -79,10 +79,14 @@ backend:
     targetPort: 3000
   
   env:
-    - name: DATABASE_URL
-      value: "postgresql://klask:klask@klask-postgresql:5432/klask"
-    - name: RUST_LOG
-      value: "info"
+    database:
+      # Laisser vide pour utiliser PostgreSQL interne
+      url: ""
+      # Ou spécifier une DB externe :
+      # url: "postgresql://user:pass@external-db:5432/klask"
+    rustLog: "info"
+    # Autres variables
+    customVars: {}
   
   resources:
     limits:
@@ -120,8 +124,17 @@ frontend:
     targetPort: 8080
   
   env:
-    - name: VITE_API_URL
-      value: "http://klask-backend:3000"
+    api:
+      # Laisser vide pour utiliser l'ingress automatique
+      baseUrl: ""
+      # Ou spécifier une URL custom :
+      # baseUrl: "https://my-api.example.com"
+    
+    # Autres variables
+    customVars: {}
+    # exemple :
+    #customVars: {}
+    #  MAX_CONNECTIONS: "100"
   
   resources:
     limits:

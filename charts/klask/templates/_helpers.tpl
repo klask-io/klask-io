@@ -60,3 +60,25 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+PostgreSQL service name
+*/}}
+{{- define "klask.postgresql.servicename" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- printf "%s-postgresql" (include "klask.fullname" .) -}}
+{{- else -}}
+{{- .Values.postgresql.external.host -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Database URL
+*/}}
+{{- define "klask.database.url" -}}
+{{- if .Values.postgresql.enabled -}}
+postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ include "klask.postgresql.servicename" . }}:5432/{{ .Values.postgresql.auth.database }}
+{{- else -}}
+{{ .Values.postgresql.external.url }}
+{{- end -}}
+{{- end -}}
