@@ -1135,15 +1135,13 @@ impl SearchService {
 
             // Extract results
             let mut facets = Vec::new();
-            if let Some(bucket) = agg_res.0.get("project_terms") {
-                if let tantivy::aggregation::agg_result::AggregationResult::BucketResult(
-                    tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
-                ) = bucket
-                {
-                    for entry in buckets {
-                        if let tantivy::aggregation::Key::Str(term) = &entry.key {
-                            facets.push((term.to_string(), entry.doc_count));
-                        }
+            if let Some(tantivy::aggregation::agg_result::AggregationResult::BucketResult(
+                tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
+            )) = agg_res.0.get("project_terms")
+            {
+                for entry in buckets {
+                    if let tantivy::aggregation::Key::Str(term) = &entry.key {
+                        facets.push((term.to_string(), entry.doc_count));
                     }
                 }
             }
@@ -1167,15 +1165,13 @@ impl SearchService {
             let agg_res: AggregationResults = searcher.search(&*query, &collector)?;
 
             let mut facets = Vec::new();
-            if let Some(bucket) = agg_res.0.get("version_terms") {
-                if let tantivy::aggregation::agg_result::AggregationResult::BucketResult(
-                    tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
-                ) = bucket
-                {
-                    for entry in buckets {
-                        if let tantivy::aggregation::Key::Str(term) = &entry.key {
-                            facets.push((term.to_string(), entry.doc_count));
-                        }
+            if let Some(tantivy::aggregation::agg_result::AggregationResult::BucketResult(
+                tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
+            )) = agg_res.0.get("version_terms")
+            {
+                for entry in buckets {
+                    if let tantivy::aggregation::Key::Str(term) = &entry.key {
+                        facets.push((term.to_string(), entry.doc_count));
                     }
                 }
             }
@@ -1199,15 +1195,13 @@ impl SearchService {
             let agg_res: AggregationResults = searcher.search(&*query, &collector)?;
 
             let mut facets = Vec::new();
-            if let Some(bucket) = agg_res.0.get("extension_terms") {
-                if let tantivy::aggregation::agg_result::AggregationResult::BucketResult(
-                    tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
-                ) = bucket
-                {
-                    for entry in buckets {
-                        if let tantivy::aggregation::Key::Str(term) = &entry.key {
-                            facets.push((term.to_string(), entry.doc_count));
-                        }
+            if let Some(tantivy::aggregation::agg_result::AggregationResult::BucketResult(
+                tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
+            )) = agg_res.0.get("extension_terms")
+            {
+                for entry in buckets {
+                    if let tantivy::aggregation::Key::Str(term) = &entry.key {
+                        facets.push((term.to_string(), entry.doc_count));
                     }
                 }
             }

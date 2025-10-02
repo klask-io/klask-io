@@ -15,7 +15,6 @@ use crate::{
 
 /// Scheduled job handle for a repository
 struct ScheduledJob {
-    repository_id: Uuid,
     cron_expression: String,
     task_handle: JoinHandle<()>,
 }
@@ -53,6 +52,7 @@ impl SchedulerService {
     }
 
     /// Stop the scheduler service
+    #[allow(dead_code)]
     pub async fn stop(&self) -> Result<()> {
         info!("Stopping repository scheduler service");
 
@@ -91,7 +91,7 @@ impl SchedulerService {
         };
 
         // Parse and validate the cron expression (with 6-field format: seconds minutes hours day month weekday)
-        let cron = Cron::new(&cron_expr)
+        let _cron = Cron::new(&cron_expr)
             .with_seconds_required()
             .parse()
             .with_context(|| format!("Failed to parse cron expression: {}", cron_expr))?;
@@ -214,7 +214,6 @@ impl SchedulerService {
 
         // Store the job handle
         let job = ScheduledJob {
-            repository_id: repo_id,
             cron_expression: cron_expr.clone(),
             task_handle,
         };
@@ -249,6 +248,7 @@ impl SchedulerService {
     }
 
     /// Get the next scheduled run time for a repository
+    #[allow(dead_code)]
     pub async fn get_next_run_time(&self, repository_id: Uuid) -> Option<DateTime<Utc>> {
         let jobs = self.jobs.read().await;
 
@@ -336,6 +336,7 @@ impl SchedulerService {
     }
 
     /// Schedule a periodic task to reload repository schedules
+    #[allow(dead_code)]
     async fn schedule_periodic_reload(&self) -> Result<()> {
         let self_clone = Arc::new(self.clone_for_reload());
 
@@ -357,6 +358,7 @@ impl SchedulerService {
     }
 
     /// Helper to clone necessary fields for periodic reload
+    #[allow(dead_code)]
     fn clone_for_reload(&self) -> Self {
         Self {
             pool: self.pool.clone(),
