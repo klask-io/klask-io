@@ -69,7 +69,7 @@ affinity: {}
 backend:
   enabled: true
   image:
-    repository: ghcr.io/klask-io/klask-io/klask-backend
+    repository: ghcr.io/klask-io/klask-backend
     tag: latest
     pullPolicy: IfNotPresent
   
@@ -110,7 +110,7 @@ backend:
 frontend:
   enabled: true
   image:
-    repository: ghcr.io/klask-io/klask-io/klask-frontend
+    repository: ghcr.io/klask-io/klask-frontend
     tag: latest
     pullPolicy: IfNotPresent
   

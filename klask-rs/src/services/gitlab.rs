@@ -141,11 +141,6 @@ impl GitLabService {
 
             projects.extend(page_projects);
             page += 1;
-
-            // GitLab has a limit, stop at reasonable number
-            if page > 10 || projects.len() > 1000 {
-                break;
-            }
         }
 
         // Filter out archived projects
@@ -202,11 +197,6 @@ impl GitLabService {
 
             projects.extend(page_projects);
             page += 1;
-
-            // Stop at reasonable number
-            if page > 10 || projects.len() > 1000 {
-                break;
-            }
         }
 
         Ok(projects)
