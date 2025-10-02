@@ -16,6 +16,6 @@ keywords:
   - react
 dependencies:
   - name: postgresql
-    version: "~15.5.0"
-    repository: "https://charts.bitnami.com/bitnami"
+    version: "~16.7.27"
+    repository: "oci://registry-1.docker.io/bitnamicharts"
     condition: postgresql.enabled
