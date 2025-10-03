@@ -353,53 +353,124 @@ frontend:
 ## @section PostgreSQL parameters
 
 postgresql:
-  ## @param postgresql.enabled Enable PostgreSQL deployment
+  ## @param postgresql.enabled Enable embedded PostgreSQL deployment
+  ## When false, external database must be configured
   enabled: true
-
-  ## @param postgresql.auth PostgreSQL authentication configuration
-  auth:
-    ## @param postgresql.auth.existingSecret Name of existing secret containing PostgreSQL credentials
-    ## If specified, postgresPassword, username, password will be ignored
-    existingSecret: ""
-    ## @param postgresql.auth.postgresPassword PostgreSQL admin password
-    postgresPassword: "changeme-postgres-password"
-    ## @param postgresql.auth.username PostgreSQL username
-    username: "klask"
-    ## @param postgresql.auth.password PostgreSQL password
-    password: "changeme-klask-password"
-    ## @param postgresql.auth.database PostgreSQL database name
-    database: "klask"
-
-  ## @param postgresql.external External PostgreSQL configuration (when postgresql.enabled is false)
-  external:
-    ## @param postgresql.external.host External PostgreSQL host
-    host: ""
-    ## @param postgresql.external.url External PostgreSQL URL
-    ## Example: "postgresql://user:pass@external-db:5432/klask"
-    url: ""
 
   ## @param postgresql.image PostgreSQL image configuration
   image:
     ## @param postgresql.image.repository PostgreSQL image repository
-    repository: bitnami/postgresql
-    ## @param postgresql.image.tag PostgreSQL image tag
-    tag: "16.3.0"
+    repository: postgres
+    ## @param postgresql.image.tag PostgreSQL image tag (immutable tags recommended)
+    tag: "18-alpine"
+    ## @param postgresql.image.pullPolicy Image pull policy
+    pullPolicy: IfNotPresent
 
-  ## @param postgresql.primary PostgreSQL primary node configuration
-  primary:
-    ## @param postgresql.primary.persistence PostgreSQL persistence configuration
-    persistence:
-      enabled: true
-      size: 8Gi
+  ## @param postgresql.auth PostgreSQL authentication configuration
+  auth:
+    ## @param postgresql.auth.existingSecret Use existing secret for credentials
+    ## If specified, auth.password and auth.postgresPassword are ignored
+    ## Secret must contain keys: password, postgres-password
+    existingSecret: ""
 
-    ## @param postgresql.primary.resources PostgreSQL resource requests and limits
-    resources:
-      limits:
-        cpu: 1000m
-        memory: 1Gi
-      requests:
-        cpu: 500m
-        memory: 512Mi
+    ## @param postgresql.auth.postgresPassword PostgreSQL admin (postgres user) password
+    ## If empty, a random 32-character password is generated
+    ## WARNING: Auto-generated passwords are preserved across upgrades via lookup()
+    postgresPassword: ""
+
+    ## @param postgresql.auth.username PostgreSQL application username
+    username: "klask"
+
+    ## @param postgresql.auth.password PostgreSQL application user password
+    ## If empty, a random 32-character password is generated
+    ## WARNING: Auto-generated passwords are preserved across upgrades via lookup()
+    password: ""
+
+    ## @param postgresql.auth.database PostgreSQL database name
+    database: "klask"
+
+  ## @param postgresql.persistence Persistence configuration
+  persistence:
+    ## @param postgresql.persistence.enabled Enable persistent storage
+    enabled: true
+
+    ## @param postgresql.persistence.size Persistent Volume size
+    size: 8Gi
+
+    ## @param postgresql.persistence.storageClass Storage class name
+    ## If empty, uses cluster default storage class
+    storageClass: ""
+
+    ## @param postgresql.persistence.annotations PVC annotations
+    annotations: {}
+
+  ## @param postgresql.resources Resource requests and limits
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+  ## @param postgresql.livenessProbe Liveness probe configuration
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+  ## @param postgresql.readinessProbe Readiness probe configuration
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  ## @param postgresql.initdb Initialization configuration
+  initdb:
+    ## @param postgresql.initdb.scripts Custom initialization scripts
+    ## Scripts are executed in alphabetical order
+    ## Example:
+    ## scripts:
+    ##   01-extensions.sql: |
+    ##     CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    scripts: {}
+
+  ## @param postgresql.config PostgreSQL configuration
+  config:
+    ## @param postgresql.config.extraEnv Additional environment variables
+    extraEnv: []
+
+  ## @param postgresql.service Service configuration
+  service:
+    ## @param postgresql.service.annotations Service annotations
+    annotations: {}
+
+  ## @param postgresql.external External PostgreSQL configuration
+  ## Used when postgresql.enabled is false
+  external:
+    ## @param postgresql.external.host External PostgreSQL host
+    host: ""
+
+    ## @param postgresql.external.port External PostgreSQL port
+    port: 5432
+
+    ## @param postgresql.external.database External database name
+    database: ""
+
+    ## @param postgresql.external.username External database username
+    username: ""
+
+    ## @param postgresql.external.password External database password
+    password: ""
+
+    ## @param postgresql.external.url External database full URL
+    ## If provided, overrides host/port/database/username/password
+    ## Format: postgresql://user:password@host:port/database
+    url: ""
 
 ## @section Network Policy parameters
 

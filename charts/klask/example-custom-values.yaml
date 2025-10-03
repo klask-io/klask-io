@@ -64,22 +64,25 @@ frontend:
     api:
       baseUrl: "https://klask.company.com"
 
-## PostgreSQL - Credentials de test (NE PAS utiliser en production!)
+## PostgreSQL - Configuration production
 postgresql:
   enabled: true
-  image:
-    repository: bitnamisecure/postgresql
-    tag: latest
   auth:
-    postgresPassword: "test-postgres"
+    # DEV: Passwords explicites pour le test
+    # PRODUCTION: Utiliser existingSecret ou laisser vide pour auto-génération
+    postgresPassword: "dev-postgres-password"
+    password: "dev-klask-password"
     username: "klask"
-    password: "test-klask"
     database: "klask"
+    # Recommandé: Utiliser un secret externe
+    # existingSecret: "klask-postgresql-credentials"
 
-  primary:
-    persistence:
-      enabled: true
-      size: 2Gi  # Plus petit pour test
+  persistence:
+    enabled: true
+    # storageClass vide = utilise le StorageClass par défaut du cluster
+    # Pour forcer un SC spécifique: storageClass: "fast-ssd"
+    storageClass: ""
+    size: 2Gi  # Adapter selon vos besoins
 
 ## Sécurité - Désactiver temporairement pour test si problème
 # securityContext:
