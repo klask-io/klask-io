@@ -40,10 +40,10 @@ spec:
     - host: {{ .host | quote }}
       http:
         paths:
-          {{/* ⬅️ paths du backend AVANT les paths frontend */}}
-          {{- if $.Values.backend.ingress.enabled }}
+          {{/* Backend API paths */}}
+          {{- if $.Values.backend.enabled }}
           - path: /api
-            {{- if and $.Values.ingress.pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            {{- if semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion }}
             pathType: Prefix
             {{- end }}
             backend:

@@ -82,3 +82,25 @@ postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.p
 {{ .Values.postgresql.external.url }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+PostgreSQL secret name
+*/}}
+{{- define "klask.postgresql.secretName" -}}
+{{- if .Values.postgresql.auth.existingSecret -}}
+{{- .Values.postgresql.auth.existingSecret -}}
+{{- else -}}
+{{- printf "%s-postgresql" (include "klask.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Backend secret name
+*/}}
+{{- define "klask.backend.secretName" -}}
+{{- if .Values.backend.existingSecret -}}
+{{- .Values.backend.existingSecret -}}
+{{- else -}}
+{{- printf "%s-backend" (include "klask.fullname" .) -}}
+{{- end -}}
+{{- end -}}

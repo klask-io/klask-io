@@ -32,45 +32,96 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "klask.serviceAccountName" . }}
+      {{- if .Values.podSecurityContext }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
+      initContainers:
+        - name: init-permissions
+          image: busybox:1.36
+          command: ['sh', '-c', 'chown -R 1000:1000 /app/index && chmod -R 755 /app/index']
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+          volumeMounts:
+            - name: index
+              mountPath: /app/index
+      {{- end }}
       containers:
         - name: backend
+          {{- if .Values.securityContext }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          command: ["/scripts/entrypoint-wrapper.sh"]
           ports:
             - name: http
               containerPort: {{ .Values.backend.service.targetPort }}
               protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "klask.fullname" . }}-backend
           env:
             - name: DATABASE_URL
-              value: {{ if .Values.backend.env.database.url }}{{ .Values.backend.env.database.url | quote }}{{ else }}{{ include "klask.database.url" . | quote }}{{ end }}
-            - name: RUST_LOG
-              value: {{ .Values.backend.env.rustLog | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "klask.backend.secretName" . }}
+                  key: database-url
             {{- range $key, $value := .Values.backend.env.customVars }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-          {{- with .Values.backend.livenessProbe }}
+          {{- if .Values.backend.livenessProbe.enabled }}
           livenessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- omit .Values.backend.livenessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
-          {{- with .Values.backend.readinessProbe }}
+          {{- if .Values.backend.readinessProbe.enabled }}
           readinessProbe:
-            {{- toYaml . | nindent 12 }}
+            {{- omit .Values.backend.readinessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.backend.startupProbe.enabled }}
+          startupProbe:
+            {{- omit .Values.backend.startupProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
-          {{- with .Values.volumeMounts }}
           volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /.cache
+            - name: index
+              mountPath: /app/index
+            {{- end }}
+            {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.volumes }}
+            {{- end }}
       volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "klask.fullname" . }}-backend
+            defaultMode: 0755
+            items:
+              - key: entrypoint-wrapper.sh
+                path: entrypoint-wrapper.sh
+        {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        - name: index
+          emptyDir: {}
+        {{- end }}
+        {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
