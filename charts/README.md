@@ -58,7 +58,7 @@ Le chart déploie automatiquement :
 
 - **Backend Rust** (`klask-backend`) sur le port 3000
 - **Frontend React** (`klask-frontend`) sur le port 8080  
-- **PostgreSQL** (via chart Bitnami) sur le port 5432
+- **PostgreSQL** sur le port 5432
 - **Services Kubernetes** pour la communication interne
 - **Ingress** (optionnel) pour l'accès externe
 

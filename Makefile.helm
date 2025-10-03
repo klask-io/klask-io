@@ -14,12 +14,6 @@ lint: ## Valide la syntaxe du chart
 	@echo "🔍 Validation de la syntaxe..."
 	helm lint $(CHART_DIR)
 
-dependencies: ## Met à jour les dépendances
-	@echo "📦 Mise à jour des dépendances..."
-	helm repo add bitnami https://charts.bitnami.com/bitnami
-	helm repo update
-	cd $(CHART_DIR) && helm dependency update
-
 template: dependencies ## Génère les templates sans installation
 	@echo "📋 Génération des templates..."
 	helm template $(RELEASE_NAME) $(CHART_DIR) --debug
