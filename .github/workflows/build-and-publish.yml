@@ -41,13 +41,6 @@ jobs:
       with:
         version: '3.14.0'
 
-    - name: Update Helm dependencies
-      run: |
-        cd charts/klask
-        helm repo add bitnami https://charts.bitnami.com/bitnami
-        helm repo update
-        helm dependency update
-
     - name: Determine chart version
       id: chart-version
       run: |

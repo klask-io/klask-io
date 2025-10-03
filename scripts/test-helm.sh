@@ -20,20 +20,13 @@ echo "----------------------------------------"
 helm lint .
 
 echo ""
-echo "2️⃣ Installation des dépendances"
-echo "--------------------------------"
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm repo update
-helm dependency update
-
-echo ""
-echo "3️⃣ Génération des templates (dry-run)"
+echo "2️⃣ Génération des templates (dry-run)"
 echo "------------------------------------"
 helm template klask-test . --debug --dry-run > /tmp/klask-templates.yaml
 echo "✅ Templates générés dans /tmp/klask-templates.yaml"
 
 echo ""
-echo "4️⃣ Validation Kubernetes (kubeval si disponible)"
+echo "3️⃣ Validation Kubernetes (kubeval si disponible)"
 echo "-----------------------------------------------"
 if command -v kubeval &> /dev/null; then
     kubeval /tmp/klask-templates.yaml
@@ -44,7 +37,7 @@ else
 fi
 
 echo ""
-echo "5️⃣ Test avec différentes configurations"
+echo "4️⃣ Test avec différentes configurations"
 echo "--------------------------------------"
 
 # Test avec ingress activé
