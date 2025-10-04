@@ -72,16 +72,6 @@ PostgreSQL service name
 {{- end -}}
 {{- end -}}
 
-{{/*
-Database URL
-*/}}
-{{- define "klask.database.url" -}}
-{{- if .Values.postgresql.enabled -}}
-postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ include "klask.postgresql.servicename" . }}:5432/{{ .Values.postgresql.auth.database }}
-{{- else -}}
-{{ .Values.postgresql.external.url }}
-{{- end -}}
-{{- end -}}
 
 {{/*
 PostgreSQL secret name

@@ -22,6 +22,12 @@ data:
 
     echo "[wrapper] 🚀 Starting Klask backend wrapper..."
 
+    # Build DATABASE_URL from environment variables if not already set
+    if [ -z "$DATABASE_URL" ] && [ -n "$DB_PASSWORD" ]; then
+      export DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+      echo "[wrapper] ✅ DATABASE_URL constructed from environment variables"
+    fi
+
     # Si on est déjà l'utilisateur klask (UID 1000), on skip le switch
     if [ "$(id -u)" = "1000" ]; then
       echo "[wrapper] ✅ Already running as user klask (UID 1000)"

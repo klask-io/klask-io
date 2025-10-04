@@ -6,11 +6,6 @@
 ## Global Docker image parameters
 ## Please, note that this will override the image parameters, including dependencies, configured to use the global value
 ## Current available global Docker image parameters: imageRegistry, imagePullSecrets
-
-## @param replicaCount Number of Klask replicas to deploy
-## Note: For production, set to 2 or more for high availability
-replicaCount: 1
-
 ## @param imagePullSecrets Specify docker-registry secrets
 ## Example:
 ## imagePullSecrets:
@@ -183,13 +178,16 @@ volumeMounts: []
 backend:
   ## @param backend.enabled Enable backend deployment
   enabled: true
+  
+  ## @param replicaCount Number of backend replicas to deploy
+  replicaCount: 1
 
   ## @param backend.image Backend image configuration
   image:
     ## @param backend.image.repository Backend image repository
     repository: ghcr.io/klask-io/klask-backend
     ## @param backend.image.tag Backend image tag (immutable tags are recommended)
-    tag: "v2.1.0"
+    tag: "0.2.0"
     ## @param backend.image.pullPolicy Backend image pull policy
     pullPolicy: IfNotPresent
 
@@ -243,7 +241,6 @@ backend:
     limits:
       memory: 1Gi
     requests:
-      cpu: 50m
       memory: 512Mi
 
   ## @param backend.livenessProbe Backend liveness probe configuration
@@ -288,12 +285,15 @@ frontend:
   ## @param frontend.enabled Enable frontend deployment
   enabled: true
 
+  ## @param replicaCount Number of backend replicas to deploy
+  replicaCount: 1
+
   ## @param frontend.image Frontend image configuration
   image:
     ## @param frontend.image.repository Frontend image repository
     repository: ghcr.io/klask-io/klask-frontend
     ## @param frontend.image.tag Frontend image tag (immutable tags are recommended)
-    tag: "v2.1.0"
+    tag: "0.2.0"
     ## @param frontend.image.pullPolicy Frontend image pull policy
     pullPolicy: IfNotPresent
 
@@ -320,11 +320,10 @@ frontend:
   ## @param frontend.resources Frontend resource requests and limits
   resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
+      memory: 128Mi
     requests:
-      cpu: 250m
-      memory: 256Mi
+      cpu: 50m
+      memory: 32Mi
 
   ## @param frontend.livenessProbe Frontend liveness probe configuration
   livenessProbe:
@@ -395,7 +394,7 @@ postgresql:
     enabled: true
 
     ## @param postgresql.persistence.size Persistent Volume size
-    size: 8Gi
+    size: 2Gi
 
     ## @param postgresql.persistence.storageClass Storage class name
     ## If empty, uses cluster default storage class
