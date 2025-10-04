@@ -9,7 +9,24 @@ use axum::{
     Router,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
 use tracing;
+
+// Cache for search filters to avoid expensive recalculations
+struct FilterCache {
+    data: Option<SearchFilters>,
+    timestamp: Instant,
+}
+
+lazy_static::lazy_static! {
+    static ref FILTER_CACHE: Arc<RwLock<FilterCache>> = Arc::new(RwLock::new(FilterCache {
+        data: None,
+        timestamp: Instant::now() - Duration::from_secs(600), // Start expired
+    }));
+}
+
+const CACHE_TTL: Duration = Duration::from_secs(5 * 60); // 5 minutes
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
@@ -41,7 +58,7 @@ pub struct SearchFacets {
     pub extensions: Vec<FacetValue>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FacetValue {
     pub value: String,
     pub count: u64,
@@ -151,7 +168,7 @@ async fn search_files(
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchFilters {
     pub projects: Vec<FacetValue>,
     pub versions: Vec<FacetValue>,
@@ -161,6 +178,16 @@ pub struct SearchFilters {
 async fn get_search_filters(
     State(app_state): State<AppState>,
 ) -> Result<Json<SearchFilters>, StatusCode> {
+    // Check cache first
+    {
+        let cache = FILTER_CACHE.read().unwrap();
+        if let Some(ref cached_data) = cache.data {
+            if cache.timestamp.elapsed() < CACHE_TTL {
+                return Ok(Json(cached_data.clone()));
+            }
+        }
+    }
+
     // Get all facets by performing an empty search
     let search_query = SearchQuery {
         query: "*".to_string(), // Match all documents
@@ -192,6 +219,14 @@ async fn get_search_filters(
                         .map(|(value, count)| FacetValue { value, count })
                         .collect(),
                 };
+
+                // Update cache
+                {
+                    let mut cache = FILTER_CACHE.write().unwrap();
+                    cache.data = Some(filters.clone());
+                    cache.timestamp = Instant::now();
+                }
+
                 Ok(Json(filters))
             } else {
                 // No facets available, return empty filters

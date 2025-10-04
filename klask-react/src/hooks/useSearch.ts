@@ -80,7 +80,7 @@ export const useInfiniteSearch = (
   });
 };
 
-export const useSearchFilters = () => {
+export const useSearchFilters = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['search', 'filters'],
     queryFn: async () => {
@@ -107,6 +107,7 @@ export const useSearchFilters = () => {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 3,
+    enabled: options?.enabled ?? false, // Disabled by default to avoid slow queries on every page load
   });
 };
 
@@ -147,11 +148,11 @@ export const useMultiSelectSearch = (
       if (filters.extension && filters.extension.length > 0) {
         searchParams.set('extensions', filters.extension.join(','));
       }
-      
+
       searchParams.set('limit', pageSize.toString());
       searchParams.set('page', currentPage.toString());
       searchParams.set('include_facets', 'true');
-      
+
       const response = await fetch(`/api/search?${searchParams.toString()}`);
       if (!response.ok) {
         throw new Error(`Search failed: ${response.statusText}`);

@@ -98,7 +98,30 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
     selectedValues: string[];
     filterKey: keyof SearchFilters;
   }> = ({ title, icon: Icon, options, selectedValues, filterKey }) => {
+    const [searchTerm, setSearchTerm] = React.useState('');
+
     if (options.length === 0) return null;
+
+    // Filter options based on search term
+    const filteredOptions = searchTerm
+      ? options.filter(option =>
+          option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          option.value.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      : options;
+
+    // Sort: selected items first, then by count (descending)
+    const sortedOptions = [...filteredOptions].sort((a, b) => {
+      const aSelected = selectedValues.includes(a.value);
+      const bSelected = selectedValues.includes(b.value);
+
+      // Selected items come first
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+
+      // Then sort by count (descending)
+      return b.count - a.count;
+    });
 
     return (
       <div className="mb-4">
@@ -118,35 +141,55 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
           )}
         </div>
 
-        <div className="space-y-1 max-h-32 overflow-y-auto">
-          {options.slice(0, 8).map((option) => {
-            const isSelected = selectedValues.includes(option.value);
-            return (
-              <div
-                key={option.value}
-                onClick={() => handleFilterChange(filterKey, option.value, !isSelected)}
-                className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors text-sm ${
-                  isSelected
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
-              >
-                <span className="truncate text-xs min-w-0 flex-1" title={option.label}>
-                  {option.label}
-                </span>
-                <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded ml-2">
-                  {option.count}
-                </span>
-              </div>
-            );
-          })}
+        {/* Search input */}
+        {options.length > 5 && (
+          <div className="mb-2">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={`Search ${title.toLowerCase()}...`}
+              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        )}
+
+        {/* Options list */}
+        <div className="space-y-1 max-h-48 overflow-y-auto">
+          {sortedOptions.length === 0 ? (
+            <div className="text-xs text-gray-400 px-2 py-1">No matches</div>
+          ) : (
+            sortedOptions.map((option) => {
+              const isSelected = selectedValues.includes(option.value);
+              return (
+                <button
+                  type="button"
+                  key={option.value}
+                  onClick={() => handleFilterChange(filterKey, option.value, !isSelected)}
+                  className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors text-sm w-full text-left ${
+                    isSelected
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                  aria-pressed={isSelected}
+                >
+                  <span className="truncate text-xs min-w-0 flex-1" title={option.label}>
+                    {option.label}
+                  </span>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded ml-2">
+                    {option.count}
+                  </span>
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
     );
   };
 
   return (
-    <div className="border-t border-gray-200 pt-4 mt-4">
+    <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="text-xs font-semibold leading-6 text-gray-400 uppercase tracking-wide">
@@ -169,7 +212,7 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
             {Object.entries(filters).map(([key, values]) =>
               values && values.length > 0 ? (
                 <div key={key} className="space-y-1">
-                  {values.map((value, index) => (
+                  {values.map((value) => (
                     <div
                       key={`${key}-${value}`}
                       className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded mr-1 mb-1"
