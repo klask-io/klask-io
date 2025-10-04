@@ -83,7 +83,7 @@ pub struct RecentActivity {
 pub struct RecentUser {
     pub username: String,
     pub email: String,
-    pub created_at: DateTime<Utc>,
+    pub last_seen: DateTime<Utc>,
     pub role: String,
 }
 
@@ -360,12 +360,14 @@ async fn get_content_stats_impl(_pool: &PgPool) -> Result<ContentStats> {
 }
 
 async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
-    // Recent users (last 7 days)
+    // Recent users based on activity (last login or last activity)
     let recent_users_rows = sqlx::query(
-        "SELECT username, email, created_at, role::TEXT as role
+        "SELECT username, email,
+                COALESCE(last_activity, last_login, created_at) as last_seen,
+                role::TEXT as role
          FROM users
-         WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '7 days'
-         ORDER BY created_at DESC
+         WHERE last_login IS NOT NULL OR last_activity IS NOT NULL
+         ORDER BY COALESCE(last_activity, last_login, created_at) DESC
          LIMIT 5",
     )
     .fetch_all(pool)
@@ -376,7 +378,7 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
         .map(|row| RecentUser {
             username: row.get("username"),
             email: row.get("email"),
-            created_at: row.get("created_at"),
+            last_seen: row.get("last_seen"),
             role: row
                 .get::<Option<String>, _>("role")
                 .unwrap_or_else(|| "User".to_string()),

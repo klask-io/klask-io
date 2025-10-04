@@ -64,6 +64,8 @@ impl TestUserRepository {
                 active: row.get("active"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
+                last_login: row.get("last_login"),
+                last_activity: row.get("last_activity"),
             };
             Ok(Some(user))
         } else {

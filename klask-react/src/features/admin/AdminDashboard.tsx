@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { MetricCard } from '../../components/admin/MetricCard';
 import { useAdminDashboard } from '../../hooks/useAdmin';
+import { formatDateTime } from '../../lib/utils';
 
 const AdminDashboard: React.FC = () => {
   const { data: dashboardData, isLoading, error, refetch } = useAdminDashboard();
@@ -195,7 +196,9 @@ const AdminDashboard: React.FC = () => {
                           <p className="text-xs text-gray-500">{user.role}</p>
                         </div>
                         <div className="text-xs text-gray-400">
-                          {new Date(user.created_at).toLocaleDateString()}
+                          <time dateTime={user.last_seen}>
+                            {formatDateTime(user.last_seen)}
+                          </time>
                         </div>
                       </div>
                     ))
@@ -217,7 +220,9 @@ const AdminDashboard: React.FC = () => {
                           <p className="text-xs text-gray-500">{repo.repository_type}</p>
                         </div>
                         <div className="text-xs text-gray-400">
-                          {new Date(repo.created_at).toLocaleDateString()}
+                          <time dateTime={repo.created_at}>
+                            {formatDateTime(repo.created_at)}
+                          </time>
                         </div>
                       </div>
                     ))
@@ -239,7 +244,13 @@ const AdminDashboard: React.FC = () => {
                           <p className="text-xs text-gray-500">{crawl.status}</p>
                         </div>
                         <div className="text-xs text-gray-400">
-                          {crawl.last_crawled ? new Date(crawl.last_crawled).toLocaleDateString() : 'Never'}
+                          {crawl.last_crawled ? (
+                            <time dateTime={crawl.last_crawled}>
+                              {formatDateTime(crawl.last_crawled)}
+                            </time>
+                          ) : (
+                            'Never'
+                          )}
                         </div>
                       </div>
                     ))
