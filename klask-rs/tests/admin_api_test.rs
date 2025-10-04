@@ -193,13 +193,13 @@ mod admin_api_tests {
                 klask_rs::api::admin::RecentUser {
                     username: "alice".to_string(),
                     email: "alice@example.com".to_string(),
-                    created_at: now,
+                    last_seen: now,
                     role: "Admin".to_string(),
                 },
                 klask_rs::api::admin::RecentUser {
                     username: "bob".to_string(),
                     email: "bob@example.com".to_string(),
-                    created_at: now - chrono::Duration::hours(2),
+                    last_seen: now - chrono::Duration::hours(2),
                     role: "User".to_string(),
                 },
             ],
@@ -229,7 +229,7 @@ mod admin_api_tests {
 
         // Test that recent activities are ordered by time (most recent first)
         for i in 1..activity.recent_users.len() {
-            assert!(activity.recent_users[i - 1].created_at >= activity.recent_users[i].created_at);
+            assert!(activity.recent_users[i - 1].last_seen >= activity.recent_users[i].last_seen);
         }
 
         // Test serialization
