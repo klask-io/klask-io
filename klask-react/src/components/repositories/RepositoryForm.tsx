@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { XMarkIcon, FolderIcon, GlobeAltIcon, ServerIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, FolderIcon, GlobeAltIcon, ServerIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import type { Repository, RepositoryType } from '../../types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { CronScheduleForm } from './CronScheduleForm';
@@ -16,7 +16,7 @@ const createRepositorySchema = (isEditing: boolean, hasExistingToken: boolean) =
   url: z
     .string()
     .optional(),
-  repositoryType: z.enum(['Git', 'GitLab', 'FileSystem'] as const),
+  repositoryType: z.enum(['Git', 'GitLab', 'GitHub', 'FileSystem'] as const),
   branch: z
     .string()
     .optional()
@@ -25,7 +25,7 @@ const createRepositorySchema = (isEditing: boolean, hasExistingToken: boolean) =
     .string()
     .optional()
     .refine(() => {
-      // Only validate as required for new GitLab repositories in create mode
+      // Only validate as required for new GitLab/GitHub repositories in create mode
       return true; // Let the main refine handle the validation contextually
     }),
   gitlabNamespace: z
@@ -38,11 +38,40 @@ const createRepositorySchema = (isEditing: boolean, hasExistingToken: boolean) =
     .string()
     .optional(),
   isGroup: z.boolean().optional(),
+  githubNamespace: z
+    .string()
+    .optional(),
+  githubExcludedRepositories: z
+    .string()
+    .optional(),
+  githubExcludedPatterns: z
+    .string()
+    .optional(),
   enabled: z.boolean(),
 }).refine((data) => {
   // For GitLab, accessToken is required only for new repositories
   // For editing, we allow empty token if it was previously set
   if (data.repositoryType === 'GitLab') {
+    // For new repositories, accessToken is required
+    if (!isEditing && (!data.accessToken || data.accessToken.trim() === '')) {
+      return false;
+    }
+    // For editing, accessToken is optional if it was previously set
+    if (isEditing && !hasExistingToken && (!data.accessToken || data.accessToken.trim() === '')) {
+      return false;
+    }
+    // If URL is provided, validate it
+    if (data.url && data.url.trim() !== '') {
+      try {
+        new URL(data.url);
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  }
+  // For GitHub, same logic as GitLab
+  if (data.repositoryType === 'GitHub') {
     // For new repositories, accessToken is required
     if (!isEditing && (!data.accessToken || data.accessToken.trim() === '')) {
       return false;
@@ -81,13 +110,13 @@ const createRepositorySchema = (isEditing: boolean, hasExistingToken: boolean) =
   message: 'Please provide valid URL/path for the selected repository type',
   path: ['url'],
 }).refine((data) => {
-  // Additional validation for GitLab access token
-  if (data.repositoryType === 'GitLab' && (!data.accessToken || data.accessToken.trim() === '')) {
+  // Additional validation for GitLab/GitHub access token
+  if ((data.repositoryType === 'GitLab' || data.repositoryType === 'GitHub') && (!data.accessToken || data.accessToken.trim() === '')) {
     return false;
   }
   return true;
 }, {
-  message: 'Access token is required for GitLab repositories',
+  message: 'Access token is required for GitLab and GitHub repositories',
   path: ['accessToken'],
 });
 
@@ -137,6 +166,10 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
   const [showTokenField, setShowTokenField] = useState(!isEditing);
   const hasExistingToken = isEditing && !!repository?.accessToken;
 
+  // Password visibility state for tokens
+  const [showGitLabToken, setShowGitLabToken] = useState(false);
+  const [showGitHubToken, setShowGitHubToken] = useState(false);
+
   const repositorySchema = createRepositorySchema(isEditing, hasExistingToken);
   type RepositoryFormData = z.infer<typeof repositorySchema>;
 
@@ -159,6 +192,9 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
       gitlabExcludedProjects: repository.gitlabExcludedProjects || '',
       gitlabExcludedPatterns: repository.gitlabExcludedPatterns || '',
       isGroup: repository.isGroup || false,
+      githubNamespace: repository.githubNamespace || '',
+      githubExcludedRepositories: repository.githubExcludedRepositories || '',
+      githubExcludedPatterns: repository.githubExcludedPatterns || '',
     } : {
       name: '',
       url: '',
@@ -170,6 +206,9 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
       gitlabExcludedProjects: '',
       gitlabExcludedPatterns: '',
       isGroup: false,
+      githubNamespace: '',
+      githubExcludedRepositories: '',
+      githubExcludedPatterns: '',
     },
   });
 
@@ -253,6 +292,9 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
           gitlabExcludedProjects: repository.gitlabExcludedProjects || '',
           gitlabExcludedPatterns: repository.gitlabExcludedPatterns || '',
           isGroup: repository.isGroup || false,
+          githubNamespace: repository.githubNamespace || '',
+          githubExcludedRepositories: repository.githubExcludedRepositories || '',
+          githubExcludedPatterns: repository.githubExcludedPatterns || '',
         };
         reset(formData);
         setSchedulingData({
@@ -295,6 +337,8 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
       // For GitLab repositories, default to gitlab.com if URL is empty
       url: data.repositoryType === 'GitLab' && (!data.url || data.url.trim() === '')
         ? 'https://gitlab.com'
+        : data.repositoryType === 'GitHub' && (!data.url || data.url.trim() === '')
+        ? 'https://api.github.com'
         : data.url,
       // If we're editing and not showing the token field, preserve the existing token
       accessToken: hasExistingToken && !showTokenField
@@ -377,8 +421,8 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
               <label htmlFor="repositoryType" className="block text-sm font-medium text-gray-700 mb-1">
                 Repository Type
               </label>
-              <div className="grid grid-cols-3 gap-3">
-                {(['Git', 'GitLab', 'FileSystem'] as const).map((type) => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {(['Git', 'GitLab', 'GitHub', 'FileSystem'] as const).map((type) => (
                   <label
                     key={type}
                     className={`relative flex items-center justify-center p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -405,8 +449,8 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
               )}
             </div>
 
-            {/* Repository URL - Not for GitLab type */}
-            {watchedType !== 'GitLab' && (
+            {/* Repository URL - Not for GitLab/GitHub types */}
+            {watchedType !== 'GitLab' && watchedType !== 'GitHub' && (
               <div>
                 <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
                   Repository URL
@@ -421,7 +465,7 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
                   <p className="mt-1 text-sm text-red-600">{errors.url.message}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500">
-                  {watchedType === 'FileSystem' 
+                  {watchedType === 'FileSystem'
                     ? 'Enter the absolute path to the directory'
                     : 'Enter the full URL to the repository'
                   }
@@ -500,13 +544,28 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <input
-                        {...register('accessToken')}
-                        type="password"
-                        className={`input-field ${errors.accessToken ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
-                        placeholder="glpat-..."
-                        required={!isEditing || !hasExistingToken}
-                      />
+                      <div className="relative">
+                        <input
+                          {...register('accessToken')}
+                          type={showGitLabToken ? 'text' : 'password'}
+                          className={`input-field pr-10 ${errors.accessToken ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                          placeholder="glpat-..."
+                          required={!isEditing || !hasExistingToken}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowGitLabToken(!showGitLabToken)}
+                          className="absolute inset-y-0 right-0 flex items-center pr-3"
+                          aria-label={showGitLabToken ? 'Hide token' : 'Show token'}
+                          title={showGitLabToken ? 'Hide token' : 'Show token'}
+                        >
+                          {showGitLabToken ? (
+                            <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                          ) : (
+                            <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                          )}
+                        </button>
+                      </div>
                       {hasExistingToken && showTokenField && (
                         <button
                           type="button"
@@ -578,6 +637,154 @@ export const RepositoryForm: React.FC<RepositoryFormProps> = ({
                   )}
                   <p className="mt-1 text-xs text-gray-500">
                     Comma-separated patterns with wildcards (*) to exclude projects
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* GitHub-specific fields */}
+            {watchedType === 'GitHub' && (
+              <>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    GitHub repositories will be automatically discovered and imported using your Personal Access Token.
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
+                    GitHub API URL (Optional)
+                  </label>
+                  <input
+                    {...register('url')}
+                    type="url"
+                    className={`input-field ${errors.url ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                    placeholder="https://api.github.com"
+                  />
+                  {errors.url && (
+                    <p className="mt-1 text-sm text-red-600">{errors.url.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Leave empty to use github.com, or enter your GitHub Enterprise API URL
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="accessToken" className="block text-sm font-medium text-gray-700 mb-1">
+                    Personal Access Token {!isEditing || !hasExistingToken ? '*' : ''}
+                  </label>
+
+                  {hasExistingToken && !showTokenField ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                          <span className="text-sm text-green-700">Access token configured</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowTokenField(true)}
+                          className="text-sm text-blue-600 hover:text-blue-800 underline"
+                        >
+                          Change token
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <input
+                          {...register('accessToken')}
+                          type={showGitHubToken ? 'text' : 'password'}
+                          className={`input-field pr-10 ${errors.accessToken ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                          placeholder="ghp_..."
+                          required={!isEditing || !hasExistingToken}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowGitHubToken(!showGitHubToken)}
+                          className="absolute inset-y-0 right-0 flex items-center pr-3"
+                          aria-label={showGitHubToken ? 'Hide token' : 'Show token'}
+                          title={showGitHubToken ? 'Hide token' : 'Show token'}
+                        >
+                          {showGitHubToken ? (
+                            <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                          ) : (
+                            <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                          )}
+                        </button>
+                      </div>
+                      {hasExistingToken && showTokenField && (
+                        <button
+                          type="button"
+                          onClick={() => setShowTokenField(false)}
+                          className="text-sm text-gray-600 hover:text-gray-800 underline"
+                        >
+                          Keep existing token
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {errors.accessToken && (
+                    <p className="mt-1 text-sm text-red-600">{errors.accessToken.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Create a token with 'repo' scope in GitHub settings
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="githubNamespace" className="block text-sm font-medium text-gray-700 mb-1">
+                    Organization/User Filter (Optional)
+                  </label>
+                  <input
+                    {...register('githubNamespace')}
+                    type="text"
+                    className={`input-field ${errors.githubNamespace ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                    placeholder="organization-name or username"
+                  />
+                  {errors.githubNamespace && (
+                    <p className="mt-1 text-sm text-red-600">{errors.githubNamespace.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Filter to only import repositories from a specific organization or user
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="githubExcludedRepositories" className="block text-sm font-medium text-gray-700 mb-1">
+                    Excluded Repositories (Optional)
+                  </label>
+                  <input
+                    {...register('githubExcludedRepositories')}
+                    type="text"
+                    className={`input-field ${errors.githubExcludedRepositories ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                    placeholder="org/repo-archive, user/legacy-project"
+                  />
+                  {errors.githubExcludedRepositories && (
+                    <p className="mt-1 text-sm text-red-600">{errors.githubExcludedRepositories.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Comma-separated list of exact repository paths to exclude
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="githubExcludedPatterns" className="block text-sm font-medium text-gray-700 mb-1">
+                    Excluded Patterns (Optional)
+                  </label>
+                  <input
+                    {...register('githubExcludedPatterns')}
+                    type="text"
+                    className={`input-field ${errors.githubExcludedPatterns ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                    placeholder="*-archive, test-*, *-temp"
+                  />
+                  {errors.githubExcludedPatterns && (
+                    <p className="mt-1 text-sm text-red-600">{errors.githubExcludedPatterns.message}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Comma-separated patterns with wildcards (*) to exclude repositories
                   </p>
                 </div>
               </>
