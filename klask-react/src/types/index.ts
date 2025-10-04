@@ -6,8 +6,10 @@ export interface User {
   email: string;
   role: UserRole;
   active: boolean;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
+  last_login?: string;
+  last_activity?: string;
 }
 
 export const UserRole = {
@@ -40,6 +42,10 @@ export interface Repository {
   gitlabExcludedProjects?: string;
   gitlabExcludedPatterns?: string;
   isGroup?: boolean;
+  // GitHub specific fields
+  githubNamespace?: string;
+  githubExcludedRepositories?: string;
+  githubExcludedPatterns?: string;
   // Crash resumption fields
   crawlState?: string;
   lastProcessedProject?: string;
@@ -56,6 +62,7 @@ export interface RepositoryWithStats {
 export const RepositoryType = {
   GIT: 'Git',
   GITLAB: 'GitLab',
+  GITHUB: 'GitHub',
   FILESYSTEM: 'FileSystem',
 } as const;
 
@@ -184,6 +191,7 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   username?: string;
   email?: string;
+  password?: string;
   role?: UserRole;
   active?: boolean;
 }
@@ -211,6 +219,10 @@ export interface CreateRepositoryRequest {
   maxCrawlDurationMinutes?: number;
   gitlabExcludedProjects?: string;
   gitlabExcludedPatterns?: string;
+  // GitHub specific fields
+  githubNamespace?: string;
+  githubExcludedRepositories?: string;
+  githubExcludedPatterns?: string;
 }
 
 export interface CrawlStatus {
@@ -377,6 +389,7 @@ export interface RepositoryStats {
   disabled_repositories: number;
   git_repositories: number;
   gitlab_repositories: number;
+  github_repositories: number;
   filesystem_repositories: number;
   recently_crawled: number;
   never_crawled: number;
@@ -398,7 +411,7 @@ export interface QueryStat {
 export interface RecentUser {
   username: string;
   email: string;
-  created_at: string;
+  last_seen: string;
   role: string;
 }
 

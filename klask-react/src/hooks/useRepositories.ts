@@ -157,8 +157,9 @@ export const useRepositoryStats = () => {
     const crawled = validRepos.filter(repoWithStats => repoWithStats.repository.lastCrawled).length;
     const gitRepos = validRepos.filter(repoWithStats => repoWithStats.repository.repositoryType === 'Git').length;
     const gitlabRepos = validRepos.filter(repoWithStats => repoWithStats.repository.repositoryType === 'GitLab').length;
+    const githubRepos = validRepos.filter(repoWithStats => repoWithStats.repository.repositoryType === 'GitHub').length;
     const filesystemRepos = validRepos.filter(repoWithStats => repoWithStats.repository.repositoryType === 'FileSystem').length;
-    
+
     return {
       total,
       enabled,
@@ -168,6 +169,7 @@ export const useRepositoryStats = () => {
       byType: {
         git: gitRepos,
         gitlab: gitlabRepos,
+        github: githubRepos,
         filesystem: filesystemRepos,
       },
     };
