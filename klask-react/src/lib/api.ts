@@ -277,6 +277,31 @@ class ApiClient {
     });
   }
 
+  async discoverGitHubRepositories(data: {
+    githubUrl?: string;
+    accessToken: string;
+    namespace?: string;
+    autoCrawlEnabled?: boolean;
+    cronSchedule?: string;
+    crawlFrequencyHours?: number;
+    maxCrawlDurationMinutes?: number;
+  }): Promise<Repository[]> {
+    return this.request<Repository[]>('/api/repositories/github/discover', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async testGitHubToken(data: {
+    githubUrl?: string;
+    accessToken: string;
+  }): Promise<{ valid: boolean; message?: string }> {
+    return this.request<{ valid: boolean; message?: string }>('/api/repositories/github/test-token', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async getSchedulerStatus(): Promise<SchedulerStatus> {
     return this.request<SchedulerStatus>('/api/scheduler/status');
   }
