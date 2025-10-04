@@ -2,6 +2,7 @@ use crate::models::{Repository, RepositoryType};
 use crate::repositories::RepositoryRepository;
 use crate::services::{
     encryption::EncryptionService,
+    github::GitHubService,
     gitlab::GitLabService,
     progress::ProgressTracker,
     search::{FileData, SearchService},
@@ -135,8 +136,8 @@ impl CrawlerService {
                 // For FileSystem: hash of {repository.url}:{relative_path}
                 format!("{}:{}", repository.url, relative_path)
             }
-            RepositoryType::Git | RepositoryType::GitLab => {
-                // For Git/GitLab: hash of {repository.url}:{branch}:{relative_path}
+            RepositoryType::Git | RepositoryType::GitLab | RepositoryType::GitHub => {
+                // For Git/GitLab/GitHub: hash of {repository.url}:{branch}:{relative_path}
                 format!("{}:{}:{}", repository.url, branch_name, relative_path)
             }
         };
@@ -273,6 +274,12 @@ impl CrawlerService {
                 // For GitLab repositories, discover and clone all sub-projects
                 return self
                     .crawl_gitlab_repository(repository, cancellation_token)
+                    .await;
+            }
+            RepositoryType::GitHub => {
+                // For GitHub repositories, discover and clone all sub-repositories
+                return self
+                    .crawl_github_repository(repository, cancellation_token)
                     .await;
             }
         };
@@ -481,7 +488,9 @@ impl CrawlerService {
     ) -> Result<GitRepository> {
         debug!("Cloning repository to: {:?}", repo_path);
 
-        // Handle authentication for GitLab repositories
+        // Handle authentication for GitLab and GitHub repositories
+        // SECURITY: For GitHub, we NEVER put the token in the URL to prevent logging secrets
+        // Instead, we use git2 callbacks (see below) for secure authentication
         let clone_url =
             if repository.url.contains("gitlab.com") || repository.url.contains("gitlab") {
                 if let Some(encrypted_token) = &repository.access_token {
@@ -505,12 +514,16 @@ impl CrawlerService {
                     repository.url.clone()
                 }
             } else {
+                // For GitHub and other services, use the original URL
+                // Authentication will be handled via git2 callbacks
                 repository.url.clone()
             };
 
         let original_url = repository.url.clone();
         let repository_branch = repository.branch.clone();
         let repo_path_owned = repo_path.to_owned();
+        let encrypted_token = repository.access_token.clone();
+        let encryption_service = self.encryption_service.clone();
 
         debug!("Using clone URL: {}", clone_url);
 
@@ -524,12 +537,47 @@ impl CrawlerService {
 
                 // Set up fetch options to get all branches
                 let mut fetch_options = git2::FetchOptions::new();
-                let remote_callbacks = git2::RemoteCallbacks::new();
+                let mut remote_callbacks = git2::RemoteCallbacks::new();
 
-                // Add authentication for GitLab if needed
+                // Add authentication callback for GitLab/GitHub
                 if clone_url.contains("oauth2:") {
-                    // URL already has authentication embedded
-                    debug!("Using URL-embedded authentication for clone");
+                    // GitLab authentication (URL-embedded, but also set up callback as backup)
+                    if let Some(token_part) = clone_url.split("oauth2:").nth(1) {
+                        if let Some(token) = token_part.split("@").next() {
+                            let token_for_callback = token.to_string();
+                            remote_callbacks.credentials(
+                                move |_url, username_from_url, _allowed_types| {
+                                    if let Some(username) = username_from_url {
+                                        git2::Cred::userpass_plaintext(
+                                            username,
+                                            &token_for_callback,
+                                        )
+                                    } else {
+                                        git2::Cred::userpass_plaintext(
+                                            "oauth2",
+                                            &token_for_callback,
+                                        )
+                                    }
+                                },
+                            );
+                            debug!("Set up GitLab authentication callback for clone");
+                        }
+                    }
+                } else if clone_url.contains("github.com") && encrypted_token.is_some() {
+                    // GitHub authentication via callback (SECURE - no token in URL)
+                    if let Some(enc_token) = encrypted_token.clone() {
+                        if let Ok(token) = encryption_service.decrypt(&enc_token) {
+                            remote_callbacks.credentials(
+                                move |_url, _username_from_url, _allowed_types| {
+                                    // For GitHub, use the token as username with empty password
+                                    git2::Cred::userpass_plaintext(&token, "")
+                                },
+                            );
+                            debug!("Set up GitHub authentication callback for clone");
+                        } else {
+                            warn!("Failed to decrypt GitHub token for clone authentication");
+                        }
+                    }
                 }
 
                 fetch_options.remote_callbacks(remote_callbacks);
@@ -557,7 +605,7 @@ impl CrawlerService {
                     // Set up authentication if needed
                     if clone_url.contains("oauth2:") {
                         let mut callbacks = git2::RemoteCallbacks::new();
-                        // Extract token from URL for authentication callback
+                        // Extract token from URL for authentication callback (GitLab)
                         if let Some(token_part) = clone_url.split("oauth2:").nth(1) {
                             if let Some(token) = token_part.split("@").next() {
                                 let token_for_callback = token.to_string();
@@ -576,6 +624,23 @@ impl CrawlerService {
                                         }
                                     },
                                 );
+                            }
+                        }
+                        fetch_options.remote_callbacks(callbacks);
+                    } else if clone_url.contains("github.com") && encrypted_token.is_some() {
+                        // GitHub authentication via callback (SECURE - no token in URL)
+                        let mut callbacks = git2::RemoteCallbacks::new();
+                        if let Some(enc_token) = encrypted_token.clone() {
+                            if let Ok(token) = encryption_service.decrypt(&enc_token) {
+                                callbacks.credentials(
+                                    move |_url, _username_from_url, _allowed_types| {
+                                        // For GitHub, use the token as username with empty password
+                                        git2::Cred::userpass_plaintext(&token, "")
+                                    },
+                                );
+                                debug!("Set up GitHub authentication callback for fetch");
+                            } else {
+                                warn!("Failed to decrypt GitHub token for fetch authentication");
                             }
                         }
                         fetch_options.remote_callbacks(callbacks);
@@ -2014,6 +2079,9 @@ impl CrawlerService {
                 last_crawl_duration_seconds: repository.last_crawl_duration_seconds,
                 gitlab_excluded_projects: repository.gitlab_excluded_projects.clone(),
                 gitlab_excluded_patterns: repository.gitlab_excluded_patterns.clone(),
+                github_namespace: repository.github_namespace.clone(),
+                github_excluded_repositories: repository.github_excluded_repositories.clone(),
+                github_excluded_patterns: repository.github_excluded_patterns.clone(),
                 crawl_state: repository.crawl_state.clone(),
                 last_processed_project: repository.last_processed_project.clone(),
                 crawl_started_at: repository.crawl_started_at,
@@ -2193,6 +2261,316 @@ impl CrawlerService {
         }
     }
 
+    /// Crawl a GitHub repository by discovering all sub-repositories and cloning them
+    async fn crawl_github_repository(
+        &self,
+        repository: &Repository,
+        cancellation_token: CancellationToken,
+    ) -> Result<()> {
+        let github_crawl_start_time = std::time::Instant::now();
+        let repo_repo = RepositoryRepository::new(self.database.clone());
+
+        info!(
+            "Starting GitHub discovery for repository: {}",
+            repository.name
+        );
+
+        // Mark crawl as started in database
+        repo_repo.start_crawl(repository.id, None).await?;
+
+        // Extract and decrypt access token from repository
+        let encrypted_token = repository
+            .access_token
+            .as_ref()
+            .ok_or_else(|| anyhow!("GitHub repository missing access token"))?;
+
+        let access_token = self
+            .encryption_service
+            .decrypt(encrypted_token)
+            .map_err(|e| anyhow!("Failed to decrypt GitHub access token: {}", e))?;
+
+        self.progress_tracker
+            .update_status(
+                repository.id,
+                crate::services::progress::CrawlStatus::Cloning,
+            )
+            .await;
+
+        // Test GitHub token first
+        let github_service = GitHubService::new();
+        info!("Testing GitHub token for repository: {}", repository.name);
+        match github_service.test_token(&access_token).await {
+            Ok(true) => info!("GitHub token is valid"),
+            Ok(false) => {
+                let error_msg = "GitHub token is invalid or expired";
+                error!(
+                    "GitHub token validation failed for repository {}: {}",
+                    repository.name, error_msg
+                );
+                self.progress_tracker
+                    .set_error(repository.id, error_msg.to_string())
+                    .await;
+                // Mark crawl as failed in database
+                let _ = repo_repo.fail_crawl(repository.id).await;
+                self.cleanup_cancellation_token(repository.id).await;
+                return Err(anyhow!(error_msg));
+            }
+            Err(e) => {
+                let error_msg = format!("Failed to test GitHub token: {}", e);
+                error!(
+                    "GitHub token test error for repository {}: {}",
+                    repository.name, error_msg
+                );
+                self.progress_tracker
+                    .set_error(repository.id, error_msg.clone())
+                    .await;
+                // Mark crawl as failed in database
+                let _ = repo_repo.fail_crawl(repository.id).await;
+                self.cleanup_cancellation_token(repository.id).await;
+                return Err(anyhow!(error_msg));
+            }
+        }
+
+        // Discover GitHub repositories
+        info!(
+            "Discovering GitHub repositories for repository: {}",
+            repository.name
+        );
+        let repositories = match github_service
+            .discover_repositories(&access_token, repository.github_namespace.as_deref())
+            .await
+        {
+            Ok(repos) => repos,
+            Err(e) => {
+                let error_msg = format!("Failed to discover GitHub repositories: {}", e);
+                error!(
+                    "GitHub discovery error for repository {}: {}",
+                    repository.name, error_msg
+                );
+                self.progress_tracker
+                    .set_error(repository.id, error_msg.clone())
+                    .await;
+                // Mark crawl as failed in database
+                let _ = repo_repo.fail_crawl(repository.id).await;
+                self.cleanup_cancellation_token(repository.id).await;
+                return Err(anyhow!(error_msg));
+            }
+        };
+
+        // Filter out excluded repositories using repository-specific exclusions
+        let excluded_repositories: Vec<String> = repository
+            .github_excluded_repositories
+            .as_ref()
+            .map(|s| {
+                s.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let excluded_patterns: Vec<String> = repository
+            .github_excluded_patterns
+            .as_ref()
+            .map(|s| {
+                s.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let filtered_repositories = github_service.filter_excluded_repositories_with_config(
+            repositories,
+            &excluded_repositories,
+            &excluded_patterns,
+        );
+
+        if filtered_repositories.is_empty() {
+            let error_msg = "No accessible GitHub repositories found after exclusion filtering";
+            self.progress_tracker
+                .set_error(repository.id, error_msg.to_string())
+                .await;
+            // Mark crawl as failed in database
+            let _ = repo_repo.fail_crawl(repository.id).await;
+            self.cleanup_cancellation_token(repository.id).await;
+            return Err(anyhow!(error_msg));
+        }
+
+        info!(
+            "Discovered {} GitHub repositories for repository {} (after exclusion filtering)",
+            filtered_repositories.len(),
+            repository.name
+        );
+
+        // Initialize hierarchical progress tracking for GitHub
+        self.progress_tracker
+            .set_gitlab_projects_total(repository.id, filtered_repositories.len())
+            .await;
+
+        // Create base directory for this GitHub repository
+        let base_repo_path = self
+            .temp_dir
+            .join(format!("{}-{}", repository.name, repository.id));
+        std::fs::create_dir_all(&base_repo_path)?;
+
+        let mut total_files_processed = 0;
+        let mut total_files_indexed = 0;
+        let mut all_errors = Vec::new();
+
+        // Process each discovered repository
+        for (repo_index, github_repo) in filtered_repositories.iter().enumerate() {
+            // Update progress in database before processing each repository
+            repo_repo
+                .update_crawl_progress(repository.id, Some(github_repo.full_name.clone()))
+                .await?;
+
+            // Check for cancellation before each repository
+            if cancellation_token.is_cancelled() {
+                self.progress_tracker.cancel_crawl(repository.id).await;
+                self.cleanup_cancellation_token(repository.id).await;
+                return Ok(());
+            }
+
+            info!(
+                "Processing GitHub repository {}/{}: {}",
+                repo_index + 1,
+                filtered_repositories.len(),
+                github_repo.full_name
+            );
+
+            // Update current project in progress tracker
+            self.progress_tracker
+                .set_current_gitlab_project(repository.id, Some(github_repo.full_name.clone()))
+                .await;
+
+            // Create sub-directory for this repository
+            let repo_path = base_repo_path.join(&github_repo.full_name);
+
+            // Create a temporary repository object for this GitHub repo
+            let temp_repository = Repository {
+                id: repository.id, // Use same ID so it's grouped under the same repository
+                name: github_repo.full_name.clone(), // Use full repo name
+                url: github_repo.clone_url.clone(),
+                repository_type: RepositoryType::Git, // Treat as Git for cloning
+                branch: Some(github_repo.default_branch.clone()),
+                enabled: repository.enabled,
+                access_token: repository.access_token.clone(),
+                gitlab_namespace: None,
+                is_group: false,
+                created_at: repository.created_at,
+                updated_at: repository.updated_at,
+                last_crawled: repository.last_crawled,
+                auto_crawl_enabled: repository.auto_crawl_enabled,
+                cron_schedule: repository.cron_schedule.clone(),
+                next_crawl_at: repository.next_crawl_at,
+                crawl_frequency_hours: repository.crawl_frequency_hours,
+                max_crawl_duration_minutes: repository.max_crawl_duration_minutes,
+                last_crawl_duration_seconds: repository.last_crawl_duration_seconds,
+                gitlab_excluded_projects: None,
+                gitlab_excluded_patterns: None,
+                github_namespace: repository.github_namespace.clone(),
+                github_excluded_repositories: repository.github_excluded_repositories.clone(),
+                github_excluded_patterns: repository.github_excluded_patterns.clone(),
+                crawl_state: repository.crawl_state.clone(),
+                last_processed_project: repository.last_processed_project.clone(),
+                crawl_started_at: repository.crawl_started_at,
+            };
+
+            // Clone this specific repository
+            match self
+                .clone_or_update_repository(&temp_repository, &repo_path)
+                .await
+            {
+                Ok(_) => {
+                    // Create progress tracker for this repository
+                    let mut repo_progress = CrawlProgress {
+                        files_processed: 0,
+                        files_indexed: 0,
+                        errors: Vec::new(),
+                    };
+
+                    // Process files in this repository with hierarchical tracking
+                    match self
+                        .process_repository_files_with_gitlab_tracking(
+                            &temp_repository,
+                            &repo_path,
+                            &mut repo_progress,
+                            &cancellation_token,
+                            repository.id,
+                        )
+                        .await
+                    {
+                        Ok(()) => {
+                            info!(
+                                "Successfully processed GitHub repository: {}",
+                                github_repo.full_name
+                            );
+                            total_files_processed += repo_progress.files_processed;
+                            total_files_indexed += repo_progress.files_indexed;
+                            all_errors.extend(repo_progress.errors);
+                        }
+                        Err(e) => {
+                            let error_msg = format!(
+                                "Failed to process files for repository {}: {}",
+                                github_repo.full_name, e
+                            );
+                            warn!("{}", error_msg);
+                            all_errors.push(error_msg);
+                        }
+                    }
+
+                    // Complete this repository in the tracker
+                    self.progress_tracker
+                        .complete_current_gitlab_project(repository.id)
+                        .await;
+                }
+                Err(e) => {
+                    let error_msg = format!(
+                        "Failed to clone GitHub repository {}: {}",
+                        github_repo.full_name, e
+                    );
+                    warn!("{}", error_msg);
+                    all_errors.push(error_msg);
+                }
+            }
+        }
+
+        // Update final progress
+        self.progress_tracker
+            .update_progress(
+                repository.id,
+                total_files_processed,
+                None,
+                total_files_indexed,
+            )
+            .await;
+
+        if !all_errors.is_empty() {
+            let combined_errors = all_errors.join("; ");
+            self.progress_tracker
+                .set_error(
+                    repository.id,
+                    format!("Some repositories failed: {}", combined_errors),
+                )
+                .await;
+        }
+
+        // Update repository crawl time with duration
+        let github_crawl_duration_seconds = github_crawl_start_time.elapsed().as_secs() as i32;
+        self.update_repository_crawl_time(repository.id, Some(github_crawl_duration_seconds))
+            .await?;
+
+        // Mark crawl as completed in database
+        repo_repo.complete_crawl(repository.id).await?;
+
+        // Complete the crawl
+        self.progress_tracker.complete_crawl(repository.id).await;
+        self.cleanup_cancellation_token(repository.id).await;
+
+        info!("Completed GitHub repository crawl for: {}", repository.name);
+        Ok(())
+    }
+
     /// Collect all supported files in a directory (helper method)
     fn collect_supported_files(&self, repo_path: &Path) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
@@ -2283,11 +2661,11 @@ impl CrawlerService {
 
         match repository.repository_type {
             RepositoryType::GitLab => self.resume_gitlab_repository_crawl(repository).await,
-            RepositoryType::Git | RepositoryType::FileSystem => {
-                // For Git and FileSystem, just restart the entire crawl
-                // since tracking at project level doesn't apply
+            RepositoryType::Git | RepositoryType::FileSystem | RepositoryType::GitHub => {
+                // For Git, FileSystem, and GitHub, just restart the entire crawl
+                // since tracking at project level doesn't apply (or not yet implemented for GitHub)
                 info!(
-                    "Git/FileSystem repository, restarting entire crawl: {}",
+                    "Git/FileSystem/GitHub repository, restarting entire crawl: {}",
                     repository.name
                 );
                 self.crawl_repository(repository).await
@@ -2456,6 +2834,9 @@ impl CrawlerService {
                 last_crawl_duration_seconds: repository.last_crawl_duration_seconds,
                 gitlab_excluded_projects: repository.gitlab_excluded_projects.clone(),
                 gitlab_excluded_patterns: repository.gitlab_excluded_patterns.clone(),
+                github_namespace: repository.github_namespace.clone(),
+                github_excluded_repositories: repository.github_excluded_repositories.clone(),
+                github_excluded_patterns: repository.github_excluded_patterns.clone(),
                 crawl_state: repository.crawl_state.clone(),
                 last_processed_project: repository.last_processed_project.clone(),
                 crawl_started_at: repository.crawl_started_at,
@@ -2741,6 +3122,9 @@ mod tests {
             last_crawl_duration_seconds: None,
             gitlab_excluded_projects: None,
             gitlab_excluded_patterns: None,
+            github_namespace: None,
+            github_excluded_repositories: None,
+            github_excluded_patterns: None,
             crawl_state: None,
             last_processed_project: None,
             crawl_started_at: None,
@@ -2768,6 +3152,9 @@ mod tests {
             last_crawl_duration_seconds: None,
             gitlab_excluded_projects: None,
             gitlab_excluded_patterns: None,
+            github_namespace: None,
+            github_excluded_repositories: None,
+            github_excluded_patterns: None,
             crawl_state: None,
             last_processed_project: None,
             crawl_started_at: None,
@@ -2780,7 +3167,7 @@ mod tests {
                 RepositoryType::FileSystem => {
                     format!("{}:{}", repo.url, path)
                 }
-                RepositoryType::Git | RepositoryType::GitLab => {
+                RepositoryType::Git | RepositoryType::GitLab | RepositoryType::GitHub => {
                     let branch = repo.branch.as_deref().unwrap_or("main");
                     format!("{}:{}:{}", repo.url, branch, path)
                 }
