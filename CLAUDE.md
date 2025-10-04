@@ -7,6 +7,32 @@
 - Always use the workflow describe in command /explore-plan-code-test
 - execute in background tasks the frontend and backend
 
+## 🤖 AI Agents System
+Klask uses specialized AI agents for accelerated development. See `.claude/README.md` for full documentation.
+
+### Available Agents
+- **rust-backend-expert**: Tantivy search, Axum API, PostgreSQL - use for backend development
+- **react-frontend-expert**: React, TypeScript, React Query, TailwindCSS - use for frontend development
+- **test-specialist**: Test writing and debugging for Rust and React - use when tests fail
+- **deployment-expert**: Kubernetes, Docker, CI/CD - use for infrastructure and deployment
+- **code-reviewer**: Security, performance, best practices - use after significant code changes
+
+### Using Agents
+Simply mention the agent in your request:
+```
+Use the rust-backend-expert agent to add a language filter to the search service
+```
+
+For complex tasks, use multiple agents in parallel:
+```
+Add bookmark feature: rust-backend-expert for API, react-frontend-expert for UI, test-specialist for tests - run in parallel
+```
+
+### Automatic Quality Checks
+- Pre-commit hook runs tests and linting automatically
+- Post-code-change hook verifies modifications
+- Located in `.claude/hooks/`
+
 ## how to run backend
 ```
 cd klask-rs && cargo run --bin klask-rs
