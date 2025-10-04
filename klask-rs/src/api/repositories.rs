@@ -1,6 +1,8 @@
 use crate::auth::extractors::{AdminUser, AppState};
 use crate::models::{Repository, RepositoryType};
 use crate::repositories::RepositoryRepository;
+use crate::services::github::{GitHubRepository, GitHubService};
+use crate::services::gitlab::{GitLabProject, GitLabService};
 use anyhow::Result;
 use axum::{
     body::Bytes,
@@ -11,6 +13,7 @@ use axum::{
     Router,
 };
 use chrono::Utc;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -36,6 +39,10 @@ pub struct CreateRepositoryRequest {
     // GitLab exclusion fields
     pub gitlab_excluded_projects: Option<String>,
     pub gitlab_excluded_patterns: Option<String>,
+    // GitHub fields
+    pub github_namespace: Option<String>,
+    pub github_excluded_repositories: Option<String>,
+    pub github_excluded_patterns: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -57,6 +64,10 @@ pub struct UpdateRepositoryRequest {
     // GitLab exclusion fields
     pub gitlab_excluded_projects: Option<String>,
     pub gitlab_excluded_patterns: Option<String>,
+    // GitHub fields
+    pub github_namespace: Option<String>,
+    pub github_excluded_repositories: Option<String>,
+    pub github_excluded_patterns: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -72,6 +83,76 @@ pub struct RepositoryWithStats {
 pub struct RepositoriesResponse {
     pub repositories: Vec<RepositoryWithStats>,
     pub total: usize,
+}
+
+// GitHub API request/response structures
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoverGitHubRequest {
+    pub access_token: String,
+    pub namespace: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestGitHubTokenRequest {
+    pub access_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoverGitHubResponse {
+    pub repositories: Vec<GitHubRepository>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestTokenResponse {
+    pub valid: bool,
+    pub message: String,
+}
+
+// GitLab API request/response structures
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoverGitLabRequest {
+    pub gitlab_url: String,
+    pub access_token: String,
+    pub namespace: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestGitLabTokenRequest {
+    pub gitlab_url: String,
+    pub access_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoverGitLabResponse {
+    pub projects: Vec<GitLabProject>,
+}
+
+/// Validates GitHub namespace format
+/// GitHub namespaces (users/organizations) can only contain:
+/// - Alphanumeric characters (a-z, A-Z, 0-9)
+/// - Hyphens (-)
+/// - Underscores (_)
+fn validate_github_namespace(namespace: &str) -> Result<(), String> {
+    // Empty namespace is valid (optional field)
+    if namespace.is_empty() {
+        return Ok(());
+    }
+
+    // GitHub namespace validation: alphanumerics, hyphens, and underscores only
+    let re = Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap();
+    if !re.is_match(namespace) {
+        return Err(
+            "Invalid GitHub namespace format. Only alphanumeric characters, hyphens, and underscores are allowed.".to_string()
+        );
+    }
+    Ok(())
 }
 
 pub async fn create_router() -> Result<Router<AppState>> {
@@ -90,6 +171,10 @@ pub async fn create_router() -> Result<Router<AppState>> {
         .route("/:id/test", post(test_repository_connection))
         .route("/:id/stats", get(get_repository_stats))
         .route("/import/gitlab", post(import_gitlab_projects))
+        .route("/github/discover", post(discover_github_repositories))
+        .route("/github/test-token", post(test_github_token))
+        .route("/gitlab/discover", post(discover_gitlab_repositories))
+        .route("/gitlab/test-token", post(test_gitlab_token))
         .route("/bulk/enable", post(bulk_enable_repositories))
         .route("/bulk/disable", post(bulk_disable_repositories))
         .route("/bulk/crawl", post(bulk_crawl_repositories))
@@ -221,7 +306,7 @@ async fn calculate_repository_disk_size(repository: &Repository) -> Result<f64> 
                 Ok(0.0)
             }
         }
-        RepositoryType::Git | RepositoryType::GitLab => {
+        RepositoryType::Git | RepositoryType::GitLab | RepositoryType::GitHub => {
             // For Git repos, estimate based on .git directory if cloned locally
             // Or use a placeholder calculation
             // In practice, you might want to track this during crawling
@@ -276,7 +361,7 @@ async fn get_repository_file_count(repository: &Repository, _app_state: &AppStat
                 Ok(0)
             }
         }
-        RepositoryType::Git | RepositoryType::GitLab => {
+        RepositoryType::Git | RepositoryType::GitLab | RepositoryType::GitHub => {
             // Could query the search index for files from this project
             Ok(0) // Placeholder
         }
@@ -446,6 +531,14 @@ async fn create_repository(
     };
     let repo_repository = RepositoryRepository::new(app_state.database.pool().clone());
 
+    // Validate GitHub namespace if provided
+    if let Some(ref github_namespace) = request.github_namespace {
+        if let Err(e) = validate_github_namespace(github_namespace) {
+            error!("Invalid GitHub namespace '{}': {}", github_namespace, e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
     // Encrypt access token if provided
     let encrypted_token = if let Some(token) = &request.access_token {
         match app_state.encryption_service.encrypt(token) {
@@ -480,6 +573,9 @@ async fn create_repository(
         last_crawl_duration_seconds: None,
         gitlab_excluded_projects: request.gitlab_excluded_projects,
         gitlab_excluded_patterns: request.gitlab_excluded_patterns,
+        github_namespace: request.github_namespace,
+        github_excluded_repositories: request.github_excluded_repositories,
+        github_excluded_patterns: request.github_excluded_patterns,
         crawl_state: Some("idle".to_string()),
         last_processed_project: None,
         crawl_started_at: None,
@@ -601,6 +697,20 @@ async fn update_repository(
     }
     if let Some(gitlab_excluded_patterns) = request.gitlab_excluded_patterns {
         repository.gitlab_excluded_patterns = Some(gitlab_excluded_patterns);
+    }
+    if let Some(github_namespace) = request.github_namespace {
+        // Validate GitHub namespace before updating
+        if let Err(e) = validate_github_namespace(&github_namespace) {
+            error!("Invalid GitHub namespace '{}': {}", github_namespace, e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+        repository.github_namespace = Some(github_namespace);
+    }
+    if let Some(github_excluded_repositories) = request.github_excluded_repositories {
+        repository.github_excluded_repositories = Some(github_excluded_repositories);
+    }
+    if let Some(github_excluded_patterns) = request.github_excluded_patterns {
+        repository.github_excluded_patterns = Some(github_excluded_patterns);
     }
 
     // Handle access token update with encryption
@@ -851,6 +961,140 @@ async fn import_gitlab_projects(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     // Implementation would go here
     Err(StatusCode::NOT_IMPLEMENTED)
+}
+
+// GitHub discovery endpoint
+async fn discover_github_repositories(
+    _user: AdminUser,
+    State(_app_state): State<AppState>,
+    Json(request): Json<DiscoverGitHubRequest>,
+) -> Result<Json<DiscoverGitHubResponse>, StatusCode> {
+    info!(
+        "Discovering GitHub repositories with namespace: {:?}",
+        request.namespace
+    );
+
+    // Validate GitHub namespace if provided
+    if let Some(ref namespace) = request.namespace {
+        if let Err(e) = validate_github_namespace(namespace) {
+            error!("Invalid GitHub namespace '{}': {}", namespace, e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    let github_service = GitHubService::new();
+
+    match github_service
+        .discover_repositories(&request.access_token, request.namespace.as_deref())
+        .await
+    {
+        Ok(repositories) => {
+            info!(
+                "Successfully discovered {} GitHub repositories",
+                repositories.len()
+            );
+            Ok(Json(DiscoverGitHubResponse { repositories }))
+        }
+        Err(e) => {
+            error!("Failed to discover GitHub repositories: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// GitHub token test endpoint
+async fn test_github_token(
+    _user: AdminUser,
+    State(_app_state): State<AppState>,
+    Json(request): Json<TestGitHubTokenRequest>,
+) -> Result<Json<TestTokenResponse>, StatusCode> {
+    info!("Testing GitHub token");
+
+    let github_service = GitHubService::new();
+
+    match github_service.test_token(&request.access_token).await {
+        Ok(valid) => {
+            let message = if valid {
+                "GitHub token is valid".to_string()
+            } else {
+                "GitHub token is invalid".to_string()
+            };
+            info!("{}", message);
+            Ok(Json(TestTokenResponse { valid, message }))
+        }
+        Err(e) => {
+            error!("Failed to test GitHub token: {}", e);
+            Ok(Json(TestTokenResponse {
+                valid: false,
+                message: format!("Error testing token: {}", e),
+            }))
+        }
+    }
+}
+
+// GitLab discovery endpoint
+async fn discover_gitlab_repositories(
+    _user: AdminUser,
+    State(_app_state): State<AppState>,
+    Json(request): Json<DiscoverGitLabRequest>,
+) -> Result<Json<DiscoverGitLabResponse>, StatusCode> {
+    info!(
+        "Discovering GitLab projects from {} with namespace: {:?}",
+        request.gitlab_url, request.namespace
+    );
+
+    let gitlab_service = GitLabService::new();
+
+    match gitlab_service
+        .discover_projects(
+            &request.gitlab_url,
+            &request.access_token,
+            request.namespace.as_deref(),
+        )
+        .await
+    {
+        Ok(projects) => {
+            info!("Successfully discovered {} GitLab projects", projects.len());
+            Ok(Json(DiscoverGitLabResponse { projects }))
+        }
+        Err(e) => {
+            error!("Failed to discover GitLab projects: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// GitLab token test endpoint
+async fn test_gitlab_token(
+    _user: AdminUser,
+    State(_app_state): State<AppState>,
+    Json(request): Json<TestGitLabTokenRequest>,
+) -> Result<Json<TestTokenResponse>, StatusCode> {
+    info!("Testing GitLab token for URL: {}", request.gitlab_url);
+
+    let gitlab_service = GitLabService::new();
+
+    match gitlab_service
+        .test_token(&request.gitlab_url, &request.access_token)
+        .await
+    {
+        Ok(valid) => {
+            let message = if valid {
+                "GitLab token is valid".to_string()
+            } else {
+                "GitLab token is invalid".to_string()
+            };
+            info!("{}", message);
+            Ok(Json(TestTokenResponse { valid, message }))
+        }
+        Err(e) => {
+            error!("Failed to test GitLab token: {}", e);
+            Ok(Json(TestTokenResponse {
+                valid: false,
+                message: format!("Error testing token: {}", e),
+            }))
+        }
+    }
 }
 
 async fn bulk_enable_repositories(
