@@ -1,4 +1,4 @@
-# [![klask.dev](https://raw.githubusercontent.com/klask-dev/klask-dev/master/src/main/webapp/content/images/logo-klask.png)](https://github.com/klask-dev/klask-dev)
+# [![klask.dev](https://raw.githubusercontent.com/klask-dev/klask-dev/refs/heads/upgrade-v2.1/resources/images/klask-dev-clean-v2.svg)](https://github.com/klask-dev/klask-dev)
 
 | Branch  | Build  | Coverage  |
 |---|---|---|
