@@ -185,7 +185,7 @@ backend:
   ## @param backend.image Backend image configuration
   image:
     ## @param backend.image.repository Backend image repository
-    repository: ghcr.io/klask-io/klask-backend
+    repository: ghcr.io/klask-dev/klask-backend
     ## @param backend.image.tag Backend image tag (immutable tags are recommended)
     tag: "0.2.0"
     ## @param backend.image.pullPolicy Backend image pull policy
@@ -291,7 +291,7 @@ frontend:
   ## @param frontend.image Frontend image configuration
   image:
     ## @param frontend.image.repository Frontend image repository
-    repository: ghcr.io/klask-io/klask-frontend
+    repository: ghcr.io/klask-dev/klask-frontend
     ## @param frontend.image.tag Frontend image tag (immutable tags are recommended)
     tag: "0.2.0"
     ## @param frontend.image.pullPolicy Frontend image pull policy

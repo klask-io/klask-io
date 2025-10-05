@@ -16,7 +16,7 @@ You are an expert in deploying and managing the Klask application infrastructure
 
 ## Project Context
 - **Kubernetes config**: For testing, use `--kubeconfig ~/.kube/test`
-- **Helm charts**: `klask-io/helm/klask/`
+- **Helm charts**: `klask-dev/helm/klask/`
 - **Docker**: Backend and frontend Dockerfiles
 - **CI/CD**: `.github/workflows/`
 

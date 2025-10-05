@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
     let repository = Repository {
         id: Uuid::new_v4(),
         name: "klask-rs".to_string(),
-        url: "/home/jeremie/git/github/klask-io/klask-rs".to_string(),
+        url: "/home/jeremie/git/github/klask-dev/klask-rs".to_string(),
         repository_type: RepositoryType::FileSystem,
         branch: None,
         enabled: true,

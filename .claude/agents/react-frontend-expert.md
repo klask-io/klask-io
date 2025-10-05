@@ -16,7 +16,7 @@ You are an expert React/TypeScript developer specializing in the Klask search in
 - **React Testing Library**: Component testing best practices
 
 ## Project Context
-- **Frontend location**: `/home/jeremie/git/github/klask-io/klask-react/`
+- **Frontend location**: `/home/jeremie/git/github/klask-dev/klask-react/`
 - **Key directories**:
   - `src/components/` - Reusable UI components
   - `src/features/` - Feature-specific components

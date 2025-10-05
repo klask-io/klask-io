@@ -4,9 +4,9 @@ description: A Helm chart for Klask - Modern code search engine with native Post
 type: application
 version: 0.2.0
 appVersion: "0.1.0"
-home: https://github.com/klask-io/klask-io
+home: https://github.com/klask-dev/klask-dev
 sources:
-  - https://github.com/klask-io/klask-io
+  - https://github.com/klask-dev/klask-dev
 maintainers:
   - name: Klask Team
 keywords:

@@ -5,8 +5,8 @@ echo "============================"
 
 echo ""
 echo "📋 Problème résolu :"
-echo "  Avant: ghcr.io/klask-io/klask-frontend:68/merge ❌"
-echo "  Après: ghcr.io/klask-io/klask-frontend:pr-68    ✅"
+echo "  Avant: ghcr.io/klask-dev/klask-frontend:68/merge ❌"
+echo "  Après: ghcr.io/klask-dev/klask-frontend:pr-68    ✅"
 echo ""
 
 echo "🏷️ Logique de tags pour security scan :"

@@ -47,7 +47,7 @@ ingress:
 backend:
   enabled: true
   image:
-    repository: ghcr.io/klask-io/klask-backend
+    repository: ghcr.io/klask-dev/klask-backend
     tag: "pr-69"
 
   config:
@@ -58,7 +58,7 @@ backend:
 frontend:
   enabled: true
   image:
-    repository: ghcr.io/klask-io/klask-frontend
+    repository: ghcr.io/klask-dev/klask-frontend
     tag: "pr-69"
   env:
     api:

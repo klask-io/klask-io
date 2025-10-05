@@ -31,7 +31,7 @@ A high-performance code search engine built with Rust, featuring real-time index
 4. **Access the services**:
    - API Server: http://localhost:3000
    - Health Check: http://localhost:3000/health
-   - pgAdmin: http://localhost:8080 (admin@klask.io / admin)
+   - pgAdmin: http://localhost:8080 (admin@klask.dev / admin)
 
 ## 🏗️ Architecture
 

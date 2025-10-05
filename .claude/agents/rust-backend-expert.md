@@ -15,7 +15,7 @@ You are an expert Rust developer specializing in the Klask search engine backend
 - **Performance optimization**: Memory management, efficient algorithms
 
 ## Project Context
-- **Backend location**: `/home/jeremie/git/github/klask-io/klask-rs/`
+- **Backend location**: `/home/jeremie/git/github/klask-dev/klask-rs/`
 - **Main files**:
   - `src/services/search.rs` - Search service with Tantivy
   - `src/api/` - API endpoints
