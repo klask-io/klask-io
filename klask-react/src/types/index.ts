@@ -103,6 +103,7 @@ export interface SearchResult {
   extension: string;
   score: number;
   line_number?: number;
+  repository_name?: string; // Repository name from backend
 }
 
 export interface FacetValue {
@@ -114,6 +115,7 @@ export interface SearchFacets {
   projects: FacetValue[];
   versions: FacetValue[];
   extensions: FacetValue[];
+  repositories?: FacetValue[]; // Repository facets for filtering
 }
 
 export interface SearchResponse {
@@ -130,6 +132,7 @@ export interface SearchFilters {
   projects: string[];
   versions: string[];
   extensions: string[];
+  repositories?: string[]; // Repository filter
 }
 
 export interface FilterOption {
@@ -401,6 +404,13 @@ export interface SearchStats {
   index_size_mb: number;
   avg_search_time_ms?: number;
   popular_queries: QueryStat[];
+  documents_by_repository?: RepositoryDocumentCount[];
+}
+
+export interface RepositoryDocumentCount {
+  repository_name: string;
+  document_count: number;
+  repository_type?: string;
 }
 
 export interface QueryStat {

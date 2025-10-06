@@ -271,6 +271,7 @@ const SearchPageV3: React.FC = () => {
           filters={filters}
           onFiltersChange={handleFiltersChange}
           availableFilters={{
+            repositories: availableFilters?.repositories || [],
             projects: availableFilters?.projects || [],
             versions: availableFilters?.versions || [],
             extensions: availableFilters?.extensions || [],

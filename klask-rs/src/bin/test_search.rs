@@ -96,6 +96,7 @@ async fn main() -> Result<()> {
 
     let search_query = SearchQuery {
         query: "server".to_string(),
+        repository_filter: None,
         project_filter: None,
         version_filter: None,
         extension_filter: None,

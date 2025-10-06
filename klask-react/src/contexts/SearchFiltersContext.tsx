@@ -6,6 +6,7 @@ export interface SearchFilters {
   version?: string[];
   extension?: string[];
   language?: string[];
+  repository?: string[];
   [key: string]: string[] | undefined;
 }
 
@@ -26,6 +27,7 @@ interface SearchFiltersContextType {
     versions: FilterOption[];
     extensions: FilterOption[];
     languages: FilterOption[];
+    repositories: FilterOption[];
   };
   isLoading: boolean;
   updateDynamicFilters: (facets: any) => void;
@@ -98,7 +100,12 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
   // Smart hybrid strategy:
   // - If no filter selected in a category → show only items with results (dynamic)
   // - If filters selected in a category → show all items (static) with current counts (dynamic)
-  const hybridFilters = {
+  const hybridFilters: {
+    projects: any[],
+    versions: any[],
+    extensions: any[],
+    repositories: any[]
+  } = {
     projects: (filters.project && filters.project.length > 0)
       ? mergeFiltersWithDynamicCounts(staticFilters?.projects || [], dynamicFilters?.projects || [], filters.project)
       : dynamicFilters?.projects || staticFilters?.projects || [],
@@ -108,9 +115,18 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
     extensions: (filters.extension && filters.extension.length > 0)
       ? mergeFiltersWithDynamicCounts(staticFilters?.extensions || [], dynamicFilters?.extensions || [], filters.extension)
       : dynamicFilters?.extensions || staticFilters?.extensions || [],
+    repositories: (filters.repository && filters.repository.length > 0)
+      ? mergeFiltersWithDynamicCounts(staticFilters?.repositories || [], dynamicFilters?.repositories || [], filters.repository)
+      : dynamicFilters?.repositories || staticFilters?.repositories || [],
   };
 
-  const availableFiltersList = {
+  const availableFiltersList: {
+    projects: any[],
+    versions: any[],
+    extensions: any[],
+    repositories: any[],
+    languages: any[]
+  } = {
     projects: (hybridFilters.projects || []).map((p: any) => ({
       value: p.value || p.toString(),
       label: p.value || p.toString(),
@@ -125,6 +141,11 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
       value: e.value || e.toString(),
       label: `.${e.value || e.toString()}`,
       count: e.count || 0,
+    })),
+    repositories: (hybridFilters.repositories || []).map((r: any) => ({
+      value: r.value || r.toString(),
+      label: r.value || r.toString(),
+      count: r.count || 0,
     })),
     languages: [], // Will be derived from extensions in the future
   };

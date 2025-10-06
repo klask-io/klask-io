@@ -40,12 +40,20 @@ pub struct SearchStats {
     pub index_size_mb: f64,
     pub avg_search_time_ms: Option<f64>,
     pub popular_queries: Vec<QueryStat>,
+    pub documents_by_repository: Vec<RepositoryDocumentCount>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QueryStat {
     pub query: String,
     pub count: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RepositoryDocumentCount {
+    pub repository_name: String,
+    pub document_count: i64,
+    pub repository_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -335,6 +343,41 @@ async fn get_search_stats_impl(app_state: &AppState) -> Result<SearchStats> {
     // Get actual index size in MB
     let index_size_mb = app_state.search_service.get_index_size_mb();
 
+    // Get documents by repository from advanced metrics
+    let documents_by_repository = match app_state.search_service.get_advanced_metrics() {
+        Ok(metrics) => {
+            let pool = app_state.database.pool().clone();
+            let repo_names: Vec<String> = metrics.documents_by_repository.keys().cloned().collect();
+
+            // Single query to get all repository types (avoid N+1 problem)
+            let repo_types: std::collections::HashMap<String, String> = if !repo_names.is_empty() {
+                sqlx::query_as::<_, (String, String)>(
+                    "SELECT name, repository_type::TEXT FROM repositories WHERE name = ANY($1)",
+                )
+                .bind(&repo_names)
+                .fetch_all(&pool)
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .collect()
+            } else {
+                std::collections::HashMap::new()
+            };
+
+            // Build the result
+            metrics
+                .documents_by_repository
+                .into_iter()
+                .map(|(repo_name, doc_count)| RepositoryDocumentCount {
+                    repository_name: repo_name.clone(),
+                    document_count: doc_count as i64,
+                    repository_type: repo_types.get(&repo_name).cloned(),
+                })
+                .collect()
+        }
+        Err(_) => vec![],
+    };
+
     // TODO: Implement actual search metrics tracking
     // For now, return basic stats with real index size
     Ok(SearchStats {
@@ -342,6 +385,7 @@ async fn get_search_stats_impl(app_state: &AppState) -> Result<SearchStats> {
         index_size_mb,
         avg_search_time_ms: None, // TODO: Track search performance
         popular_queries: vec![],  // TODO: Track popular queries
+        documents_by_repository,
     })
 }
 

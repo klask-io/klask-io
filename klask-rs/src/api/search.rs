@@ -36,6 +36,7 @@ pub struct SearchRequest {
     pub limit: Option<u32>,
     pub page: Option<u32>,
     // Multi-select filters as comma-separated strings
+    pub repositories: Option<String>,
     pub projects: Option<String>,
     pub versions: Option<String>,
     pub extensions: Option<String>,
@@ -103,6 +104,7 @@ async fn search_files(
     // Build search query - filters are already comma-separated strings
     let search_query = SearchQuery {
         query: query_string,
+        repository_filter: params.repositories,
         project_filter: params.projects,
         version_filter: params.versions,
         extension_filter: params.extensions,
@@ -170,6 +172,7 @@ async fn search_files(
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchFilters {
+    pub repositories: Vec<FacetValue>,
     pub projects: Vec<FacetValue>,
     pub versions: Vec<FacetValue>,
     pub extensions: Vec<FacetValue>,
@@ -191,6 +194,7 @@ async fn get_search_filters(
     // Get all facets by performing an empty search
     let search_query = SearchQuery {
         query: "*".to_string(), // Match all documents
+        repository_filter: None,
         project_filter: None,
         version_filter: None,
         extension_filter: None,
@@ -203,6 +207,11 @@ async fn get_search_filters(
         Ok(search_response) => {
             if let Some(facets) = search_response.facets {
                 let filters = SearchFilters {
+                    repositories: facets
+                        .repositories
+                        .into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
                     projects: facets
                         .projects
                         .into_iter()
@@ -231,6 +240,7 @@ async fn get_search_filters(
             } else {
                 // No facets available, return empty filters
                 Ok(Json(SearchFilters {
+                    repositories: vec![],
                     projects: vec![],
                     versions: vec![],
                     extensions: vec![],

@@ -118,6 +118,7 @@ async fn main() -> Result<()> {
                             file_name: &file_name,
                             file_path: &relative_path_str,
                             content: &content,
+                            repository_name: &repository.name,
                             project: &repository.name,
                             version: "HEAD",
                             extension: &extension,

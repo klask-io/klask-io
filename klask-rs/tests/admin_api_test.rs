@@ -163,6 +163,7 @@ mod admin_api_tests {
                     count: 100,
                 },
             ],
+            documents_by_repository: vec![],
         };
 
         assert_eq!(stats.total_documents, 1000);
@@ -279,6 +280,7 @@ mod admin_api_tests {
                 index_size_mb: 100.5,
                 avg_search_time_ms: Some(15.2),
                 popular_queries: vec![],
+                documents_by_repository: vec![],
             },
             recent_activity: RecentActivity {
                 recent_users: vec![],
@@ -500,6 +502,7 @@ mod admin_api_tests {
             index_size_mb: 0.0,
             avg_search_time_ms: None,
             popular_queries: vec![],
+            documents_by_repository: vec![],
         };
 
         assert_eq!(zero_stats.total_documents, 0);

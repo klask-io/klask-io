@@ -86,6 +86,7 @@ export const useSearchFilters = (options?: { enabled?: boolean }) => {
     queryFn: async () => {
       const filters = await apiClient.getSearchFilters();
       // Transform the response to include both value and count for facets
+      // @ts-ignore - repositories field will be added by backend
       return {
         projects: filters.projects?.map((p: any) => ({
           value: p.value || p,
@@ -101,6 +102,12 @@ export const useSearchFilters = (options?: { enabled?: boolean }) => {
           value: e.value || e,
           label: e.value || e,
           count: e.count || 0,
+        })) || [],
+        // @ts-expect-error - repositories field will be added by backend
+        repositories: filters.repositories?.map((r: any) => ({
+          value: r.value || r,
+          label: r.value || r,
+          count: r.count || 0,
         })) || [],
         languages: [], // TODO: Derive from extensions or add separate field
       };

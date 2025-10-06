@@ -20,6 +20,7 @@ pub struct FileData<'a> {
     pub file_name: &'a str,
     pub file_path: &'a str,
     pub content: &'a str,
+    pub repository_name: &'a str,
     pub project: &'a str,
     pub version: &'a str,
     pub extension: &'a str,
@@ -32,6 +33,7 @@ pub struct SearchResult {
     pub file_name: String,
     pub file_path: String,
     pub content_snippet: String,
+    pub repository_name: String,
     pub project: String,
     pub version: String,
     pub extension: String,
@@ -48,6 +50,7 @@ pub struct SearchResultsWithTotal {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchFacets {
+    pub repositories: Vec<(String, u64)>,
     pub projects: Vec<(String, u64)>,
     pub versions: Vec<(String, u64)>,
     pub extensions: Vec<(String, u64)>,
@@ -56,6 +59,7 @@ pub struct SearchFacets {
 #[derive(Debug, Clone)]
 pub struct SearchQuery {
     pub query: String,
+    pub repository_filter: Option<String>,
     pub project_filter: Option<String>,
     pub version_filter: Option<String>,
     pub extension_filter: Option<String>,
@@ -80,6 +84,7 @@ struct SearchFields {
     file_name: Field,
     file_path: Field,
     content: Field,
+    repository_name: Field,
     project: Field,
     version: Field,
     extension: Field,
@@ -159,6 +164,7 @@ impl SearchService {
         schema_builder.add_text_field("content", TEXT | STORED);
 
         // Filter fields - use STRING for exact matching, not TEXT which tokenizes
+        schema_builder.add_text_field("repository_name", STRING | STORED | FAST);
         schema_builder.add_text_field("project", STRING | STORED | FAST);
         schema_builder.add_text_field("version", STRING | STORED | FAST);
         schema_builder.add_text_field("extension", STRING | STORED | FAST);
@@ -180,6 +186,9 @@ impl SearchService {
             content: schema
                 .get_field("content")
                 .expect("content field should exist"),
+            repository_name: schema
+                .get_field("repository_name")
+                .expect("repository_name field should exist"),
             project: schema
                 .get_field("project")
                 .expect("project field should exist"),
@@ -201,6 +210,7 @@ impl SearchService {
             self.fields.file_name => file_data.file_name,
             self.fields.file_path => file_data.file_path,
             self.fields.content => file_data.content,
+            self.fields.repository_name => file_data.repository_name,
             self.fields.project => file_data.project,
             self.fields.version => file_data.version,
             self.fields.extension => file_data.extension,
@@ -228,6 +238,7 @@ impl SearchService {
             self.fields.file_name => file_data.file_name,
             self.fields.file_path => file_data.file_path,
             self.fields.content => file_data.content,
+            self.fields.repository_name => file_data.repository_name,
             self.fields.project => file_data.project,
             self.fields.version => file_data.version,
             self.fields.extension => file_data.extension,
@@ -317,12 +328,19 @@ impl SearchService {
                     .and_then(|v| v.as_str())
                     .unwrap_or_default();
 
+                // Extract repository_name or use new_project as default
+                let repository_name = doc
+                    .get_first(self.fields.repository_name)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(new_project);
+
                 // Create new document with updated project name
                 let new_doc = doc!(
                     self.fields.file_id => file_id,
                     self.fields.file_name => file_name,
                     self.fields.file_path => file_path,
                     self.fields.content => content,
+                    self.fields.repository_name => repository_name,
                     self.fields.project => new_project,
                     self.fields.version => version,
                     self.fields.extension => extension,
@@ -393,6 +411,33 @@ impl SearchService {
 
         // Build filter queries if filters are provided
         let mut filter_queries = Vec::new();
+
+        // Handle repository filters (supports comma-separated multi-select)
+        if let Some(repository_filter) = &search_query.repository_filter {
+            let repository_values: Vec<&str> =
+                repository_filter.split(',').map(|s| s.trim()).collect();
+            if repository_values.len() == 1 {
+                // Single filter - use TermQuery
+                let term = Term::from_field_text(self.fields.repository_name, repository_values[0]);
+                filter_queries.push(Box::new(TermQuery::new(
+                    term,
+                    tantivy::schema::IndexRecordOption::Basic,
+                )) as Box<dyn tantivy::query::Query>);
+            } else {
+                // Multiple filters - use OR BooleanQuery
+                let mut repository_clauses = Vec::new();
+                for repository_value in repository_values {
+                    let term = Term::from_field_text(self.fields.repository_name, repository_value);
+                    let term_query = Box::new(TermQuery::new(
+                        term,
+                        tantivy::schema::IndexRecordOption::Basic,
+                    )) as Box<dyn tantivy::query::Query>;
+                    repository_clauses.push((tantivy::query::Occur::Should, term_query));
+                }
+                filter_queries.push(Box::new(BooleanQuery::new(repository_clauses))
+                    as Box<dyn tantivy::query::Query>);
+            }
+        }
 
         // Handle project filters (supports comma-separated multi-select)
         if let Some(project_filter) = &search_query.project_filter {
@@ -529,6 +574,12 @@ impl SearchService {
                     .unwrap_or("")
                     .to_string();
 
+                let repository_name = retrieved_doc
+                    .get_first(self.fields.repository_name)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
                 let project = retrieved_doc
                     .get_first(self.fields.project)
                     .and_then(|v| v.as_str())
@@ -566,6 +617,7 @@ impl SearchService {
                     file_name,
                     file_path,
                     content_snippet,
+                    repository_name,
                     project,
                     version,
                     extension,
@@ -723,6 +775,12 @@ impl SearchService {
                     .unwrap_or("")
                     .to_string();
 
+                let repository_name = retrieved_doc
+                    .get_first(self.fields.repository_name)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+
                 let project = retrieved_doc
                     .get_first(self.fields.project)
                     .and_then(|v| v.as_str())
@@ -747,6 +805,7 @@ impl SearchService {
                     file_name,
                     file_path,
                     content_snippet: content,
+                    repository_name,
                     project,
                     version,
                     extension,
@@ -796,6 +855,12 @@ impl SearchService {
                 .unwrap_or("")
                 .to_string();
 
+            let repository_name = retrieved_doc
+                .get_first(self.fields.repository_name)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
             let project = retrieved_doc
                 .get_first(self.fields.project)
                 .and_then(|v| v.as_str())
@@ -823,6 +888,7 @@ impl SearchService {
                 file_name,
                 file_path,
                 content_snippet: content, // Return full content instead of snippet
+                repository_name,
                 project,
                 version,
                 extension,
@@ -918,6 +984,7 @@ impl SearchService {
             &TopDocs::with_limit(FACET_CALCULATION_LIMIT),
         )?;
 
+        let mut repository_counts: HashMap<String, u64> = HashMap::new();
         let mut project_counts: HashMap<String, u64> = HashMap::new();
         let mut version_counts: HashMap<String, u64> = HashMap::new();
         let mut extension_counts: HashMap<String, u64> = HashMap::new();
@@ -925,6 +992,16 @@ impl SearchService {
         // Count facets from all documents in the index
         for (_score, doc_address) in top_docs {
             let doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
+
+            // Count repository facets
+            if let Some(repository) = doc
+                .get_first(self.fields.repository_name)
+                .and_then(|v| v.as_str())
+            {
+                if !repository.is_empty() {
+                    *repository_counts.entry(repository.to_string()).or_insert(0) += 1;
+                }
+            }
 
             // Count project facets
             if let Some(project) = doc.get_first(self.fields.project).and_then(|v| v.as_str()) {
@@ -954,6 +1031,10 @@ impl SearchService {
         }
 
         // Sort and limit to top 50 each for UI performance
+        let mut repositories: Vec<(String, u64)> = repository_counts.into_iter().collect();
+        repositories.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        repositories.truncate(50);
+
         let mut projects: Vec<(String, u64)> = project_counts.into_iter().collect();
         projects.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
         projects.truncate(50);
@@ -967,6 +1048,7 @@ impl SearchService {
         extensions.truncate(50);
 
         Ok(SearchFacets {
+            repositories,
             projects,
             versions,
             extensions,
@@ -987,7 +1069,8 @@ impl SearchService {
         use tantivy::query::{AllQuery, BooleanQuery, Occur, QueryParser, TermQuery};
 
         // Helper to build query with specific filters
-        let build_query_with_filters = |include_project: bool,
+        let build_query_with_filters = |include_repository: bool,
+                                        include_project: bool,
                                         include_version: bool,
                                         include_extension: bool|
          -> Result<Box<dyn tantivy::query::Query>> {
@@ -1012,6 +1095,39 @@ impl SearchService {
                     }
                 };
             clauses.push((Occur::Must, text_query));
+
+            // Add repository filter if requested
+            if include_repository {
+                if let Some(ref repository_filter) = search_query.repository_filter {
+                    let repositories: Vec<&str> = repository_filter
+                        .split(',')
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    if !repositories.is_empty() {
+                        let mut repository_clauses = vec![];
+                        for repository in repositories {
+                            let term = tantivy::Term::from_field_text(
+                                self.fields.repository_name,
+                                repository,
+                            );
+                            repository_clauses.push((
+                                Occur::Should,
+                                Box::new(TermQuery::new(
+                                    term,
+                                    tantivy::schema::IndexRecordOption::Basic,
+                                ))
+                                    as Box<dyn tantivy::query::Query>,
+                            ));
+                        }
+                        clauses.push((
+                            Occur::Must,
+                            Box::new(BooleanQuery::from(repository_clauses))
+                                as Box<dyn tantivy::query::Query>,
+                        ));
+                    }
+                }
+            }
 
             // Add project filter if requested
             if include_project {
@@ -1112,13 +1228,46 @@ impl SearchService {
         };
 
         // For faceted search, we need to calculate each facet with the appropriate filters:
-        // - Project facets: apply version & extension filters (but not project filter)
-        // - Version facets: apply project & extension filters (but not version filter)
-        // - Extension facets: apply project & version filters (but not extension filter)
+        // - Repository facets: apply project, version & extension filters (but not repository filter)
+        // - Project facets: apply repository, version & extension filters (but not project filter)
+        // - Version facets: apply repository, project & extension filters (but not version filter)
+        // - Extension facets: apply repository, project & version filters (but not extension filter)
 
-        // Calculate project facets (with version & extension filters)
+        // Calculate repository facets (with project, version & extension filters)
+        let repository_facets = {
+            let query = build_query_with_filters(false, true, true, true)?;
+
+            // Build aggregation request using JSON
+            let agg_req: Aggregations = serde_json::from_value(serde_json::json!({
+                "repository_terms": {
+                    "terms": {
+                        "field": "repository_name",
+                        "size": 100
+                    }
+                }
+            }))?;
+
+            let collector = AggregationCollector::from_aggs(agg_req, Default::default());
+            let agg_res: AggregationResults = searcher.search(&*query, &collector)?;
+
+            // Extract results
+            let mut facets = Vec::new();
+            if let Some(tantivy::aggregation::agg_result::AggregationResult::BucketResult(
+                tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
+            )) = agg_res.0.get("repository_terms")
+            {
+                for entry in buckets {
+                    if let tantivy::aggregation::Key::Str(term) = &entry.key {
+                        facets.push((term.to_string(), entry.doc_count));
+                    }
+                }
+            }
+            facets
+        };
+
+        // Calculate project facets (with repository, version & extension filters)
         let project_facets = {
-            let query = build_query_with_filters(false, true, true)?;
+            let query = build_query_with_filters(true, false, true, true)?;
 
             // Build aggregation request using JSON
             let agg_req: Aggregations = serde_json::from_value(serde_json::json!({
@@ -1148,9 +1297,9 @@ impl SearchService {
             facets
         };
 
-        // Calculate version facets (with project & extension filters)
+        // Calculate version facets (with repository, project & extension filters)
         let version_facets = {
-            let query = build_query_with_filters(true, false, true)?;
+            let query = build_query_with_filters(true, true, false, true)?;
 
             let agg_req: Aggregations = serde_json::from_value(serde_json::json!({
                 "version_terms": {
@@ -1178,9 +1327,9 @@ impl SearchService {
             facets
         };
 
-        // Calculate extension facets (with project & version filters)
+        // Calculate extension facets (with repository, project & version filters)
         let extension_facets = {
-            let query = build_query_with_filters(true, true, false)?;
+            let query = build_query_with_filters(true, true, true, false)?;
 
             let agg_req: Aggregations = serde_json::from_value(serde_json::json!({
                 "extension_terms": {
@@ -1209,6 +1358,7 @@ impl SearchService {
         };
 
         Ok(SearchFacets {
+            repositories: repository_facets,
             projects: project_facets,
             versions: version_facets,
             extensions: extension_facets,
@@ -1253,6 +1403,7 @@ impl SearchService {
             file_name,
             file_path: file_name, // Use file_name as path if not provided separately
             content,
+            repository_name: project, // Use project as repository_name for backward compatibility
             project,
             version,
             extension,
@@ -1271,6 +1422,68 @@ impl SearchService {
             tokio::runtime::Handle::current().block_on(async { self.commit().await })
         })
     }
+
+    /// Get advanced index metrics with repository-level statistics
+    #[allow(dead_code)]
+    pub fn get_advanced_metrics(&self) -> Result<AdvancedIndexMetrics> {
+        let searcher = self.reader.searcher();
+        let total_documents = searcher.num_docs();
+        let total_size_mb = self.get_index_size_mb();
+
+        // Use a match-all query to get all documents
+        let match_all_query = tantivy::query::AllQuery;
+        const METRICS_LIMIT: usize = 100000; // Limit for performance
+
+        let top_docs = searcher.search(&match_all_query, &TopDocs::with_limit(METRICS_LIMIT))?;
+
+        let mut documents_by_repository: HashMap<String, u64> = HashMap::new();
+        let mut file_types_distribution: HashMap<String, u64> = HashMap::new();
+
+        // Count documents by repository and file type
+        for (_score, doc_address) in top_docs {
+            let doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
+
+            // Count by repository
+            if let Some(repository) = doc
+                .get_first(self.fields.repository_name)
+                .and_then(|v| v.as_str())
+            {
+                if !repository.is_empty() {
+                    *documents_by_repository
+                        .entry(repository.to_string())
+                        .or_insert(0) += 1;
+                }
+            }
+
+            // Count by file type (extension)
+            if let Some(extension) = doc
+                .get_first(self.fields.extension)
+                .and_then(|v| v.as_str())
+            {
+                if !extension.is_empty() {
+                    *file_types_distribution
+                        .entry(extension.to_string())
+                        .or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Create top repositories list (sorted by document count)
+        let mut top_repositories: Vec<(String, u64)> = documents_by_repository
+            .iter()
+            .map(|(k, v)| (k.clone(), *v))
+            .collect();
+        top_repositories.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        top_repositories.truncate(20); // Top 20 repositories
+
+        Ok(AdvancedIndexMetrics {
+            total_documents,
+            total_size_mb,
+            documents_by_repository,
+            top_repositories,
+            file_types_distribution,
+        })
+    }
 }
 
 #[allow(dead_code)]
@@ -1278,4 +1491,14 @@ impl SearchService {
 pub struct SearchStats {
     pub total_documents: u64,
     pub index_size_bytes: u64,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AdvancedIndexMetrics {
+    pub total_documents: u64,
+    pub total_size_mb: f64,
+    pub documents_by_repository: HashMap<String, u64>,
+    pub top_repositories: Vec<(String, u64)>,
+    pub file_types_distribution: HashMap<String, u64>,
 }
