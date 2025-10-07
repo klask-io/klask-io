@@ -84,8 +84,6 @@ spec:
               mountPath: /usr/share/nginx/html
             - name: tmp
               mountPath: /tmp
-            - name: cache
-              mountPath: /.cache
             - name: nginx-cache
               mountPath: /var/cache/nginx
             - name: nginx-run

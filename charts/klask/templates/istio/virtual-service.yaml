@@ -19,18 +19,19 @@ spec:
   http:
     - match:
         - uri:
-            prefix: /
-      route:
-        - destination:
-            host: {{ include "klask.fullname" . }}-frontend.{{ .Values.istio.virtualService.namespace }}.svc.cluster.local
-            port:
-              number: {{ $frontendSvcPort }}
-    - match:
-        - uri:
             prefix: /api
       route:
         - destination:
             host: {{ include "klask.fullname" . }}-backend.{{ .Values.istio.virtualService.namespace }}.svc.cluster.local
             port:
               number: {{ $backendSvcPort }}
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: {{ include "klask.fullname" . }}-frontend.{{ .Values.istio.virtualService.namespace }}.svc.cluster.local
+            port:
+              number: {{ $frontendSvcPort }}
+
 {{- end }}

@@ -111,8 +111,6 @@ spec:
             {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
             - name: tmp
               mountPath: /tmp
-            - name: cache
-              mountPath: /.cache
             - name: index
               mountPath: /app/index
             {{- end }}
@@ -129,11 +127,21 @@ spec:
                 path: entrypoint-wrapper.sh
         {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
         - name: tmp
+          {{- if .Values.backend.tmpPersistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "klask.fullname" . }}-backend-tmp
+          {{- else }}
           emptyDir: {}
+          {{- end }}
         - name: cache
           emptyDir: {}
         - name: index
+          {{- if .Values.backend.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "klask.fullname" . }}-backend-index
+          {{- else }}
           emptyDir: {}
+          {{- end }}
         {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}

@@ -178,7 +178,7 @@ volumeMounts: []
 backend:
   ## @param backend.enabled Enable backend deployment
   enabled: true
-  
+
   ## @param replicaCount Number of backend replicas to deploy
   replicaCount: 1
 
@@ -278,12 +278,45 @@ backend:
     timeoutSeconds: 3
     successThreshold: 1
     failureThreshold: 30
-  
+
+  ## @param backend.persistence Persistence configuration for search index
+  persistence:
+    ## @param backend.persistence.enabled Enable persistent storage for search index
+    enabled: true
+
+    ## @param backend.persistence.size Persistent Volume size
+    size: 50Gi
+
+    ## @param backend.persistence.storageClass Storage class name
+    ## If empty, uses cluster default storage class
+    ## If "-", no storage class is specified (uses cluster default)
+    storageClass: ""
+
+    ## @param backend.persistence.annotations PVC annotations
+    annotations: {}
+
+  ## @param backend.tmpPersistence Persistence configuration for /tmp directory
+  tmpPersistence:
+    ## @param backend.tmpPersistence.enabled Enable persistent storage for /tmp directory
+    ## Set to false to use emptyDir instead
+    enabled: false
+
+    ## @param backend.tmpPersistence.size Persistent Volume size for /tmp
+    size: 50Gi
+
+    ## @param backend.tmpPersistence.storageClass Storage class name
+    ## If empty, uses cluster default storage class
+    ## If "-", no storage class is specified (uses cluster default)
+    storageClass: ""
+
+    ## @param backend.tmpPersistence.annotations PVC annotations
+    annotations: {}
+
   busybox:
     image:
       repository: busybox
       tag: latest
-  
+
 
 ## @section Frontend parameters
 
