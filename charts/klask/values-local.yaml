@@ -21,10 +21,6 @@ postgresql:
     username: "klask"
     password: "test123"
     database: "klask"
-  
-  primary:
-    persistence:
-      enabled: false  # Pas de persistance pour les tests
     
     resources:
       requests:

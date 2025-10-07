@@ -278,6 +278,12 @@ backend:
     timeoutSeconds: 3
     successThreshold: 1
     failureThreshold: 30
+  
+  busybox:
+    image:
+      repository: busybox
+      tag: latest
+  
 
 ## @section Frontend parameters
 

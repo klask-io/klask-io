@@ -131,8 +131,8 @@ helm template test3 charts/klask \
 # Test 4: Configuration production
 helm template test4 charts/klask \
   --set ingress.enabled=true \
-  --set postgresql.primary.persistence.enabled=true \
-  --set postgresql.primary.persistence.size=20Gi
+  --set postgresql.persistence.enabled=true \
+  --set postgresql.persistence.size=20Gi
 ```
 
 ### Validation avec kubeval (optionnel)
