@@ -93,6 +93,8 @@ async fn create_admin_token(app_state: &AppState) -> Result<String> {
         active: true,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+        last_login: None,
+        last_activity: None,
     };
 
     // Insert admin user
@@ -138,6 +140,8 @@ async fn create_regular_user_token(app_state: &AppState) -> Result<String> {
         active: true,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+        last_login: None,
+        last_activity: None,
     };
 
     // Insert regular user

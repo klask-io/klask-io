@@ -117,6 +117,12 @@ async fn login(
         return Err(AuthError::InvalidCredentials);
     }
 
+    // Update last_login and last_activity timestamps
+    let user = user_repo
+        .update_last_login(user.id)
+        .await
+        .map_err(|e| AuthError::DatabaseError(e.to_string()))?;
+
     // Generate JWT token
     let token = app_state
         .jwt_service
@@ -171,6 +177,8 @@ async fn register(
         active: true,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+        last_login: None,
+        last_activity: None,
     };
 
     let user = user_repo
@@ -241,6 +249,8 @@ async fn initial_setup(
         active: true,
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+        last_login: None,
+        last_activity: None,
     };
 
     let user = user_repo

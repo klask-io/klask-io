@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  DocumentTextIcon, 
+import {
+  DocumentTextIcon,
   FolderIcon,
-  ChevronRightIcon,
   EyeIcon,
-  ArrowTopRightOnSquareIcon 
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
+import { RepositoryBadge } from '../ui/RepositoryBadge';
 import type { SearchResult as SearchResultType } from '../../types';
 
 interface SearchResultProps {
@@ -98,7 +98,14 @@ export const SearchResult: React.FC<SearchResultProps> = ({
         </div>
         
         {/* Metadata row */}
-        <div className="mt-2.5 flex items-center space-x-3 text-xs text-gray-500">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-500">
+          {result.repository_name && (
+            <RepositoryBadge
+              name={result.repository_name}
+              size="sm"
+              clickable={false}
+            />
+          )}
           <span className="inline-flex items-center">
             <span className="font-medium text-gray-600">Project:</span>
             <span className="ml-1">{result.project || 'Unknown'}</span>

@@ -70,6 +70,9 @@ async fn main() -> Result<()> {
         last_crawl_duration_seconds: None,
         gitlab_excluded_projects: None,
         gitlab_excluded_patterns: None,
+        github_namespace: None,
+        github_excluded_repositories: None,
+        github_excluded_patterns: None,
         crawl_state: None,
         last_processed_project: None,
         crawl_started_at: None,
@@ -93,6 +96,7 @@ async fn main() -> Result<()> {
 
     let search_query = SearchQuery {
         query: "server".to_string(),
+        repository_filter: None,
         project_filter: None,
         version_filter: None,
         extension_filter: None,

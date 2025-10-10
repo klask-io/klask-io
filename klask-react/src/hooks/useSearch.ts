@@ -80,12 +80,13 @@ export const useInfiniteSearch = (
   });
 };
 
-export const useSearchFilters = () => {
+export const useSearchFilters = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['search', 'filters'],
     queryFn: async () => {
       const filters = await apiClient.getSearchFilters();
       // Transform the response to include both value and count for facets
+      // @ts-ignore - repositories field will be added by backend
       return {
         projects: filters.projects?.map((p: any) => ({
           value: p.value || p,
@@ -102,11 +103,18 @@ export const useSearchFilters = () => {
           label: e.value || e,
           count: e.count || 0,
         })) || [],
+        // @ts-expect-error - repositories field will be added by backend
+        repositories: filters.repositories?.map((r: any) => ({
+          value: r.value || r,
+          label: r.value || r,
+          count: r.count || 0,
+        })) || [],
         languages: [], // TODO: Derive from extensions or add separate field
       };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 3,
+    enabled: options?.enabled ?? false, // Disabled by default to avoid slow queries on every page load
   });
 };
 
@@ -147,11 +155,11 @@ export const useMultiSelectSearch = (
       if (filters.extension && filters.extension.length > 0) {
         searchParams.set('extensions', filters.extension.join(','));
       }
-      
+
       searchParams.set('limit', pageSize.toString());
       searchParams.set('page', currentPage.toString());
       searchParams.set('include_facets', 'true');
-      
+
       const response = await fetch(`/api/search?${searchParams.toString()}`);
       if (!response.ok) {
         throw new Error(`Search failed: ${response.statusText}`);

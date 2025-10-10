@@ -21,6 +21,8 @@ async fn test_sqlite_user_repository() -> Result<()> {
         active: true,
         created_at: Utc::now(),
         updated_at: Utc::now(),
+        last_login: None,
+        last_activity: None,
     };
 
     // Test create
@@ -61,6 +63,8 @@ async fn test_sqlite_isolation() -> Result<()> {
         active: true,
         created_at: Utc::now(),
         updated_at: Utc::now(),
+        last_login: None,
+        last_activity: None,
     };
     user_repo1.create_user(&user1).await?;
 
@@ -74,6 +78,8 @@ async fn test_sqlite_isolation() -> Result<()> {
         active: true,
         created_at: Utc::now(),
         updated_at: Utc::now(),
+        last_login: None,
+        last_activity: None,
     };
     user_repo2.create_user(&user2).await?;
 
@@ -115,6 +121,8 @@ async fn test_sqlite_concurrent_access() -> Result<()> {
                 active: true,
                 created_at: Utc::now(),
                 updated_at: Utc::now(),
+                last_login: None,
+                last_activity: None,
             };
 
             user_repo.create_user(&user).await?;

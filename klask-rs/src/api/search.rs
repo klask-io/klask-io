@@ -9,7 +9,24 @@ use axum::{
     Router,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
 use tracing;
+
+// Cache for search filters to avoid expensive recalculations
+struct FilterCache {
+    data: Option<SearchFilters>,
+    timestamp: Instant,
+}
+
+lazy_static::lazy_static! {
+    static ref FILTER_CACHE: Arc<RwLock<FilterCache>> = Arc::new(RwLock::new(FilterCache {
+        data: None,
+        timestamp: Instant::now() - Duration::from_secs(600), // Start expired
+    }));
+}
+
+const CACHE_TTL: Duration = Duration::from_secs(5 * 60); // 5 minutes
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
@@ -19,6 +36,7 @@ pub struct SearchRequest {
     pub limit: Option<u32>,
     pub page: Option<u32>,
     // Multi-select filters as comma-separated strings
+    pub repositories: Option<String>,
     pub projects: Option<String>,
     pub versions: Option<String>,
     pub extensions: Option<String>,
@@ -41,7 +59,7 @@ pub struct SearchFacets {
     pub extensions: Vec<FacetValue>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FacetValue {
     pub value: String,
     pub count: u64,
@@ -86,6 +104,7 @@ async fn search_files(
     // Build search query - filters are already comma-separated strings
     let search_query = SearchQuery {
         query: query_string,
+        repository_filter: params.repositories,
         project_filter: params.projects,
         version_filter: params.versions,
         extension_filter: params.extensions,
@@ -151,8 +170,9 @@ async fn search_files(
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchFilters {
+    pub repositories: Vec<FacetValue>,
     pub projects: Vec<FacetValue>,
     pub versions: Vec<FacetValue>,
     pub extensions: Vec<FacetValue>,
@@ -161,9 +181,20 @@ pub struct SearchFilters {
 async fn get_search_filters(
     State(app_state): State<AppState>,
 ) -> Result<Json<SearchFilters>, StatusCode> {
+    // Check cache first
+    {
+        let cache = FILTER_CACHE.read().unwrap();
+        if let Some(ref cached_data) = cache.data {
+            if cache.timestamp.elapsed() < CACHE_TTL {
+                return Ok(Json(cached_data.clone()));
+            }
+        }
+    }
+
     // Get all facets by performing an empty search
     let search_query = SearchQuery {
         query: "*".to_string(), // Match all documents
+        repository_filter: None,
         project_filter: None,
         version_filter: None,
         extension_filter: None,
@@ -176,6 +207,11 @@ async fn get_search_filters(
         Ok(search_response) => {
             if let Some(facets) = search_response.facets {
                 let filters = SearchFilters {
+                    repositories: facets
+                        .repositories
+                        .into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
                     projects: facets
                         .projects
                         .into_iter()
@@ -192,10 +228,19 @@ async fn get_search_filters(
                         .map(|(value, count)| FacetValue { value, count })
                         .collect(),
                 };
+
+                // Update cache
+                {
+                    let mut cache = FILTER_CACHE.write().unwrap();
+                    cache.data = Some(filters.clone());
+                    cache.timestamp = Instant::now();
+                }
+
                 Ok(Json(filters))
             } else {
                 // No facets available, return empty filters
                 Ok(Json(SearchFilters {
+                    repositories: vec![],
                     projects: vec![],
                     versions: vec![],
                     extensions: vec![],
