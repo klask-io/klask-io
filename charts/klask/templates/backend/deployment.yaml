@@ -10,6 +10,10 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.backend.replicaCount }}
   {{- end }}
+  {{- if .Values.backend.persistence.enabled }}
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       {{- include "klask.selectorLabels" . | nindent 6 }}

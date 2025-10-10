@@ -207,6 +207,8 @@ backend:
     rustLog: "error,klask=info"
     ## @param backend.config.logFormat Log format (json or text)
     logFormat: "json"
+    ## @param backend.config.gitlabAcceptInvalidCerts Accept invalid SSL certificates for GitLab (useful for self-signed certificates)
+    gitlabAcceptInvalidCerts: "false"
     ## @param backend.config.extra Additional configuration variables
     extra: {}
 
@@ -282,6 +284,8 @@ backend:
   ## @param backend.persistence Persistence configuration for search index
   persistence:
     ## @param backend.persistence.enabled Enable persistent storage for search index
+    ## NOTE: When enabled, deployment strategy is automatically set to "Recreate" 
+    ## to avoid Multi-Attach errors with ReadWriteOnce volumes during rolling updates
     enabled: true
 
     ## @param backend.persistence.size Persistent Volume size
@@ -553,3 +557,56 @@ metrics:
     relabelings: []
     ## @param metrics.serviceMonitor.metricRelabelings Metric relabeling rules for ServiceMonitor
     metricRelabelings: []
+
+## @section Istio parameters
+
+istio:
+  ## @param istio.enabled Enable Istio integration
+  enabled: false
+
+  ## @param istio.gateway Istio Gateway configuration for ingress
+  gateway:
+    ## @param istio.gateway.name Gateway name
+    name: klask-gateway
+    ## @param istio.gateway.namespace Gateway namespace
+    namespace: default
+    ## @param istio.gateway.hosts Hosts for the gateway
+    hosts:
+      - klask.local
+
+  ## @param istio.virtualService Istio VirtualService configuration for ingress
+  virtualService:
+    ## @param istio.virtualService.name VirtualService name
+    name: klask-vs
+    ## @param istio.virtualService.namespace VirtualService namespace
+    namespace: default
+    ## @param istio.virtualService.hosts Hosts for the virtual service
+    hosts:
+      - klask.local
+    ## @param istio.virtualService.gateways Gateways to attach
+    gateways:
+      - klask-gateway
+
+  ## @param istio.egress Istio egress configuration for external services (e.g., GitLab)
+  egress:
+    ## @param istio.egress.enabled Enable egress configuration
+    enabled: false
+    
+    ## @param istio.egress.gitlab GitLab egress configuration
+    gitlab:
+      ## @param istio.egress.gitlab.enabled Enable GitLab egress
+      enabled: false
+      
+      ## @param istio.egress.gitlab.host GitLab host (e.g., gitlab.example.com)
+      host: ""
+      
+      ## @param istio.egress.gitlab.port GitLab HTTPS port
+      port: 443
+      
+      ## @param istio.egress.gitlab.tls TLS configuration for GitLab
+      tls:
+        ## @param istio.egress.gitlab.tls.mode TLS mode (SIMPLE, MUTUAL, ISTIO_MUTUAL)
+        mode: SIMPLE
+        
+        ## @param istio.egress.gitlab.tls.sni SNI host for TLS connection
+        sni: ""

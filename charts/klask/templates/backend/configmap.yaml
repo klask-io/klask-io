@@ -12,6 +12,9 @@ data:
   {{- if .Values.backend.config.logFormat }}
   LOG_FORMAT: {{ .Values.backend.config.logFormat | quote }}
   {{- end }}
+  {{- if .Values.backend.config.gitlabAcceptInvalidCerts }}
+  KLASK_GITLAB_ACCEPT_INVALID_CERTS: {{ .Values.backend.config.gitlabAcceptInvalidCerts | quote }}
+  {{- end }}
   {{- range $key, $value := .Values.backend.config.extra }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}
