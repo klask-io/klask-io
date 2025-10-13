@@ -20,8 +20,8 @@ pub struct FileData<'a> {
     pub file_name: &'a str,
     pub file_path: &'a str,
     pub content: &'a str,
-    pub repository_name: &'a str,
-    pub project: &'a str,
+    pub repository: &'a str, // Parent repository (for mass deletion and facets)
+    pub project: &'a str,    // Individual project name (for GitLab/GitHub, same as repository for simple Git repos)
     pub version: &'a str,
     pub extension: &'a str,
 }
@@ -33,7 +33,7 @@ pub struct SearchResult {
     pub file_name: String,
     pub file_path: String,
     pub content_snippet: String,
-    pub repository_name: String,
+    pub repository: String,
     pub project: String,
     pub version: String,
     pub extension: String,
@@ -84,8 +84,8 @@ struct SearchFields {
     file_name: Field,
     file_path: Field,
     content: Field,
-    repository_name: Field,
-    project: Field,
+    repository: Field, // Parent repository name
+    project: Field,    // Individual project name
     version: Field,
     extension: Field,
 }
@@ -164,7 +164,7 @@ impl SearchService {
         schema_builder.add_text_field("content", TEXT | STORED);
 
         // Filter fields - use STRING for exact matching, not TEXT which tokenizes
-        schema_builder.add_text_field("repository_name", STRING | STORED | FAST);
+        schema_builder.add_text_field("repository", STRING | STORED | FAST);
         schema_builder.add_text_field("project", STRING | STORED | FAST);
         schema_builder.add_text_field("version", STRING | STORED | FAST);
         schema_builder.add_text_field("extension", STRING | STORED | FAST);
@@ -186,9 +186,9 @@ impl SearchService {
             content: schema
                 .get_field("content")
                 .expect("content field should exist"),
-            repository_name: schema
-                .get_field("repository_name")
-                .expect("repository_name field should exist"),
+            repository: schema
+                .get_field("repository")
+                .expect("repository field should exist"),
             project: schema
                 .get_field("project")
                 .expect("project field should exist"),
@@ -210,7 +210,7 @@ impl SearchService {
             self.fields.file_name => file_data.file_name,
             self.fields.file_path => file_data.file_path,
             self.fields.content => file_data.content,
-            self.fields.repository_name => file_data.repository_name,
+            self.fields.repository => file_data.repository,
             self.fields.project => file_data.project,
             self.fields.version => file_data.version,
             self.fields.extension => file_data.extension,
@@ -232,13 +232,18 @@ impl SearchService {
         let query = TermQuery::new(term.clone(), tantivy::schema::IndexRecordOption::Basic);
         let _ = writer.delete_query(Box::new(query));
 
+        debug!(
+            "Indexing file '{}' with file_id='{}', repository='{}', project='{}'",
+            file_data.file_path, file_id_str, file_data.repository, file_data.project
+        );
+
         // Add the new document
         let doc = doc!(
             self.fields.file_id => file_id_str,
             self.fields.file_name => file_data.file_name,
             self.fields.file_path => file_data.file_path,
             self.fields.content => file_data.content,
-            self.fields.repository_name => file_data.repository_name,
+            self.fields.repository => file_data.repository,
             self.fields.project => file_data.project,
             self.fields.version => file_data.version,
             self.fields.extension => file_data.extension,
@@ -264,24 +269,38 @@ impl SearchService {
         Ok(())
     }
 
-    /// Delete all documents for a specific project (repository)
-    pub async fn delete_project_documents(&self, project: &str) -> Result<u64> {
+    /// Delete all documents for a specific repository (parent repository)
+    pub async fn delete_project_documents(&self, repository: &str) -> Result<u64> {
+        debug!("delete_project_documents called with repository='{}'", repository);
         let mut writer = self.writer.write().await;
 
-        // Create a query to match all documents with this project
-        let term = tantivy::Term::from_field_text(self.fields.project, project);
+        // Create a query to match all documents with this repository
+        let term = tantivy::Term::from_field_text(self.fields.repository, repository);
         let query = TermQuery::new(term, tantivy::schema::IndexRecordOption::Basic);
 
         // Get count before deletion for logging
         let searcher = self.reader.searcher();
         let count_before = searcher.search(&query, &Count)? as u64;
+        debug!("Found {} documents to delete for repository='{}'", count_before, repository);
 
         // Delete all matching documents
         let _ = writer.delete_query(Box::new(query));
         writer.commit()?;
+        debug!("Committed deletion of {} documents for repository='{}'", count_before, repository);
 
         // Reload reader to see changes
         self.reader.reload()?;
+
+        // Verify deletion worked by checking count after
+        let term_verify = tantivy::Term::from_field_text(self.fields.repository, repository);
+        let query_verify = TermQuery::new(term_verify, tantivy::schema::IndexRecordOption::Basic);
+        let searcher_after = self.reader.searcher();
+        let count_after = searcher_after.search(&query_verify, &Count)? as u64;
+        if count_after > 0 {
+            warn!("After deletion and reload, still found {} documents for repository='{}' - this suggests Tantivy deletion might not be working as expected", count_after, repository);
+        } else {
+            debug!("Verified: 0 documents remain for repository='{}' after deletion", repository);
+        }
 
         Ok(count_before)
     }
@@ -328,9 +347,9 @@ impl SearchService {
                     .and_then(|v| v.as_str())
                     .unwrap_or_default();
 
-                // Extract repository_name or use new_project as default
-                let repository_name = doc
-                    .get_first(self.fields.repository_name)
+                // Extract repository or use new_project as default
+                let repository = doc
+                    .get_first(self.fields.repository)
                     .and_then(|v| v.as_str())
                     .unwrap_or(new_project);
 
@@ -340,7 +359,7 @@ impl SearchService {
                     self.fields.file_name => file_name,
                     self.fields.file_path => file_path,
                     self.fields.content => content,
-                    self.fields.repository_name => repository_name,
+                    self.fields.repository => repository,
                     self.fields.project => new_project,
                     self.fields.version => version,
                     self.fields.extension => extension,
@@ -418,7 +437,7 @@ impl SearchService {
                 repository_filter.split(',').map(|s| s.trim()).collect();
             if repository_values.len() == 1 {
                 // Single filter - use TermQuery
-                let term = Term::from_field_text(self.fields.repository_name, repository_values[0]);
+                let term = Term::from_field_text(self.fields.repository, repository_values[0]);
                 filter_queries.push(Box::new(TermQuery::new(
                     term,
                     tantivy::schema::IndexRecordOption::Basic,
@@ -427,7 +446,7 @@ impl SearchService {
                 // Multiple filters - use OR BooleanQuery
                 let mut repository_clauses = Vec::new();
                 for repository_value in repository_values {
-                    let term = Term::from_field_text(self.fields.repository_name, repository_value);
+                    let term = Term::from_field_text(self.fields.repository, repository_value);
                     let term_query = Box::new(TermQuery::new(
                         term,
                         tantivy::schema::IndexRecordOption::Basic,
@@ -574,8 +593,8 @@ impl SearchService {
                     .unwrap_or("")
                     .to_string();
 
-                let repository_name = retrieved_doc
-                    .get_first(self.fields.repository_name)
+                let repository = retrieved_doc
+                    .get_first(self.fields.repository)
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
@@ -617,7 +636,7 @@ impl SearchService {
                     file_name,
                     file_path,
                     content_snippet,
-                    repository_name,
+                    repository,
                     project,
                     version,
                     extension,
@@ -775,8 +794,8 @@ impl SearchService {
                     .unwrap_or("")
                     .to_string();
 
-                let repository_name = retrieved_doc
-                    .get_first(self.fields.repository_name)
+                let repository = retrieved_doc
+                    .get_first(self.fields.repository)
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
@@ -805,7 +824,7 @@ impl SearchService {
                     file_name,
                     file_path,
                     content_snippet: content,
-                    repository_name,
+                    repository,
                     project,
                     version,
                     extension,
@@ -855,8 +874,8 @@ impl SearchService {
                 .unwrap_or("")
                 .to_string();
 
-            let repository_name = retrieved_doc
-                .get_first(self.fields.repository_name)
+            let repository = retrieved_doc
+                .get_first(self.fields.repository)
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
@@ -888,7 +907,7 @@ impl SearchService {
                 file_name,
                 file_path,
                 content_snippet: content, // Return full content instead of snippet
-                repository_name,
+                repository,
                 project,
                 version,
                 extension,
@@ -995,7 +1014,7 @@ impl SearchService {
 
             // Count repository facets
             if let Some(repository) = doc
-                .get_first(self.fields.repository_name)
+                .get_first(self.fields.repository)
                 .and_then(|v| v.as_str())
             {
                 if !repository.is_empty() {
@@ -1108,7 +1127,7 @@ impl SearchService {
                         let mut repository_clauses = vec![];
                         for repository in repositories {
                             let term = tantivy::Term::from_field_text(
-                                self.fields.repository_name,
+                                self.fields.repository,
                                 repository,
                             );
                             repository_clauses.push((
@@ -1241,7 +1260,7 @@ impl SearchService {
             let agg_req: Aggregations = serde_json::from_value(serde_json::json!({
                 "repository_terms": {
                     "terms": {
-                        "field": "repository_name",
+                        "field": "repository",
                         "size": 100
                     }
                 }
@@ -1403,7 +1422,7 @@ impl SearchService {
             file_name,
             file_path: file_name, // Use file_name as path if not provided separately
             content,
-            repository_name: project, // Use project as repository_name for backward compatibility
+            repository: project, // Use project as repository for backward compatibility
             project,
             version,
             extension,
@@ -1445,7 +1464,7 @@ impl SearchService {
 
             // Count by repository
             if let Some(repository) = doc
-                .get_first(self.fields.repository_name)
+                .get_first(self.fields.repository)
                 .and_then(|v| v.as_str())
             {
                 if !repository.is_empty() {
