@@ -50,7 +50,7 @@ chrono-tz = "0.8"
 
 # Repository crawling - using pure Rust gitoxide instead of git2
 # Using reqwest for HTTP transport to avoid OpenSSL dependency
-gix = { version = "0.68", default-features = false, features = ["blocking-http-transport-reqwest", "max-performance"] }
+gix = { version = "0.73", default-features = false, features = ["blocking-http-transport-reqwest", "max-performance"] }
 
 # File processing
 walkdir = "2.5"
