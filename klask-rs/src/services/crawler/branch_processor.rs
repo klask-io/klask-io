@@ -35,10 +35,7 @@ pub struct BranchProcessor {
 }
 
 impl BranchProcessor {
-    pub fn new(
-        search_service: Arc<SearchService>,
-        progress_tracker: Arc<ProgressTracker>,
-    ) -> Self {
+    pub fn new(search_service: Arc<SearchService>, progress_tracker: Arc<ProgressTracker>) -> Self {
         let file_processor = FileProcessor::new(search_service.clone());
         Self {
             search_service,
@@ -322,10 +319,7 @@ impl BranchProcessor {
 
                 // Check file size first
                 if !GitTreeWalker::check_blob_size(&git_repo, &oid)? {
-                    debug!(
-                        "Skipping large file: {} (> {} bytes)",
-                        path, MAX_FILE_SIZE
-                    );
+                    debug!("Skipping large file: {} (> {} bytes)", path, MAX_FILE_SIZE);
                     return Ok(None);
                 }
 

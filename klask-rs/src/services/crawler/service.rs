@@ -48,7 +48,8 @@ impl CrawlerService {
 
         // Create specialized crawlers
         let git_operations = GitOperations::new(encryption_service.clone());
-        let branch_processor = BranchProcessor::new(search_service.clone(), progress_tracker.clone());
+        let branch_processor =
+            BranchProcessor::new(search_service.clone(), progress_tracker.clone());
         let gitlab_crawler = GitLabCrawler::new(
             database.clone(),
             search_service.clone(),
@@ -239,11 +240,11 @@ impl CrawlerService {
                 };
 
                 let process_files_fn = |repo: &Repository,
-                                         path: &Path,
-                                         progress: &mut CrawlProgress,
-                                         token: &CancellationToken,
-                                         parent_id: Uuid,
-                                         parent_name: &str| {
+                                        path: &Path,
+                                        progress: &mut CrawlProgress,
+                                        token: &CancellationToken,
+                                        parent_id: Uuid,
+                                        parent_name: &str| {
                     let repo = repo.clone();
                     let path = path.to_owned();
                     let mut progress_clone = CrawlProgress {
@@ -268,12 +269,17 @@ impl CrawlerService {
                                 &parent_name,
                             )
                             .await
-                    }) as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
+                    })
+                        as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
                 let update_crawl_time_fn = |repo_id: Uuid, duration: Option<i32>| {
                     let service = self.clone();
-                    Box::pin(async move { service.update_repository_crawl_time(repo_id, duration).await })
+                    Box::pin(async move {
+                        service
+                            .update_repository_crawl_time(repo_id, duration)
+                            .await
+                    })
                         as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
@@ -309,11 +315,11 @@ impl CrawlerService {
                 };
 
                 let process_files_fn = |repo: &Repository,
-                                         path: &Path,
-                                         progress: &mut CrawlProgress,
-                                         token: &CancellationToken,
-                                         parent_id: Uuid,
-                                         parent_name: &str| {
+                                        path: &Path,
+                                        progress: &mut CrawlProgress,
+                                        token: &CancellationToken,
+                                        parent_id: Uuid,
+                                        parent_name: &str| {
                     let repo = repo.clone();
                     let path = path.to_owned();
                     let mut progress_clone = CrawlProgress {
@@ -338,12 +344,17 @@ impl CrawlerService {
                                 &parent_name,
                             )
                             .await
-                    }) as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
+                    })
+                        as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
                 let update_crawl_time_fn = |repo_id: Uuid, duration: Option<i32>| {
                     let service = self.clone();
-                    Box::pin(async move { service.update_repository_crawl_time(repo_id, duration).await })
+                    Box::pin(async move {
+                        service
+                            .update_repository_crawl_time(repo_id, duration)
+                            .await
+                    })
                         as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
@@ -677,11 +688,11 @@ impl CrawlerService {
                 };
 
                 let process_files_fn = |repo: &Repository,
-                                         path: &Path,
-                                         progress: &mut CrawlProgress,
-                                         token: &CancellationToken,
-                                         parent_id: Uuid,
-                                         parent_name: &str| {
+                                        path: &Path,
+                                        progress: &mut CrawlProgress,
+                                        token: &CancellationToken,
+                                        parent_id: Uuid,
+                                        parent_name: &str| {
                     let repo = repo.clone();
                     let path = path.to_owned();
                     let mut progress_clone = CrawlProgress {
@@ -706,12 +717,17 @@ impl CrawlerService {
                                 &parent_name,
                             )
                             .await
-                    }) as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
+                    })
+                        as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
                 let update_crawl_time_fn = |repo_id: Uuid, duration: Option<i32>| {
                     let service = self.clone();
-                    Box::pin(async move { service.update_repository_crawl_time(repo_id, duration).await })
+                    Box::pin(async move {
+                        service
+                            .update_repository_crawl_time(repo_id, duration)
+                            .await
+                    })
                         as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 

@@ -21,7 +21,7 @@ pub struct FileData<'a> {
     pub file_path: &'a str,
     pub content: &'a str,
     pub repository: &'a str, // Parent repository (for mass deletion and facets)
-    pub project: &'a str,    // Individual project name (for GitLab/GitHub, same as repository for simple Git repos)
+    pub project: &'a str, // Individual project name (for GitLab/GitHub, same as repository for simple Git repos)
     pub version: &'a str,
     pub extension: &'a str,
 }
@@ -271,7 +271,10 @@ impl SearchService {
 
     /// Delete all documents for a specific repository (parent repository)
     pub async fn delete_project_documents(&self, repository: &str) -> Result<u64> {
-        debug!("delete_project_documents called with repository='{}'", repository);
+        debug!(
+            "delete_project_documents called with repository='{}'",
+            repository
+        );
         let mut writer = self.writer.write().await;
 
         // Create a query to match all documents with this repository
@@ -281,12 +284,18 @@ impl SearchService {
         // Get count before deletion for logging
         let searcher = self.reader.searcher();
         let count_before = searcher.search(&query, &Count)? as u64;
-        debug!("Found {} documents to delete for repository='{}'", count_before, repository);
+        debug!(
+            "Found {} documents to delete for repository='{}'",
+            count_before, repository
+        );
 
         // Delete all matching documents
         let _ = writer.delete_query(Box::new(query));
         writer.commit()?;
-        debug!("Committed deletion of {} documents for repository='{}'", count_before, repository);
+        debug!(
+            "Committed deletion of {} documents for repository='{}'",
+            count_before, repository
+        );
 
         // Reload reader to see changes
         self.reader.reload()?;
@@ -299,7 +308,10 @@ impl SearchService {
         if count_after > 0 {
             warn!("After deletion and reload, still found {} documents for repository='{}' - this suggests Tantivy deletion might not be working as expected", count_after, repository);
         } else {
-            debug!("Verified: 0 documents remain for repository='{}' after deletion", repository);
+            debug!(
+                "Verified: 0 documents remain for repository='{}' after deletion",
+                repository
+            );
         }
 
         Ok(count_before)
@@ -1126,10 +1138,8 @@ impl SearchService {
                     if !repositories.is_empty() {
                         let mut repository_clauses = vec![];
                         for repository in repositories {
-                            let term = tantivy::Term::from_field_text(
-                                self.fields.repository,
-                                repository,
-                            );
+                            let term =
+                                tantivy::Term::from_field_text(self.fields.repository, repository);
                             repository_clauses.push((
                                 Occur::Should,
                                 Box::new(TermQuery::new(

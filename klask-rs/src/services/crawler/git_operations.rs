@@ -13,9 +13,7 @@ pub struct GitOperations {
 
 impl GitOperations {
     pub fn new(encryption_service: Arc<EncryptionService>) -> Self {
-        Self {
-            encryption_service,
-        }
+        Self { encryption_service }
     }
 
     /// Clone or update a Git repository using gix
@@ -41,37 +39,40 @@ impl GitOperations {
                     // Fetch from remote using gix
                     // We attempt to fetch but continue with existing data if it fails
                     match git_repo.find_remote("origin") {
-                        Ok(remote) => {
-                            match remote.connect(gix::remote::Direction::Fetch) {
-                                Ok(connection) => {
-                                    match connection.prepare_fetch(gix::progress::Discard, Default::default()) {
-                                        Ok(prepare) => {
-                                            match prepare.receive(gix::progress::Discard, &gix::interrupt::IS_INTERRUPTED) {
-                                                Ok(_outcome) => {
-                                                    info!("Successfully fetched latest changes");
-                                                }
-                                                Err(e) => {
-                                                    warn!("Failed to receive fetch: {}", e);
-                                                }
+                        Ok(remote) => match remote.connect(gix::remote::Direction::Fetch) {
+                            Ok(connection) => {
+                                match connection
+                                    .prepare_fetch(gix::progress::Discard, Default::default())
+                                {
+                                    Ok(prepare) => {
+                                        match prepare.receive(
+                                            gix::progress::Discard,
+                                            &gix::interrupt::IS_INTERRUPTED,
+                                        ) {
+                                            Ok(_outcome) => {
+                                                info!("Successfully fetched latest changes");
+                                            }
+                                            Err(e) => {
+                                                warn!("Failed to receive fetch: {}", e);
                                             }
                                         }
-                                        Err(e) => {
-                                            warn!("Failed to prepare fetch: {}", e);
-                                        }
+                                    }
+                                    Err(e) => {
+                                        warn!("Failed to prepare fetch: {}", e);
                                     }
                                 }
-                                Err(e) => {
-                                    warn!("Failed to connect to remote: {}", e);
-                                }
                             }
-                        }
+                            Err(e) => {
+                                warn!("Failed to connect to remote: {}", e);
+                            }
+                        },
                         Err(e) => {
                             warn!("Failed to find remote 'origin': {}", e);
                         }
                     }
 
                     Ok(git_repo)
-                })
+                }),
             )
             .await
             {
@@ -126,7 +127,9 @@ impl GitOperations {
         let (clone_url, auth_config) = if let Some(encrypted_token) = &repository.access_token {
             match self.encryption_service.decrypt(encrypted_token) {
                 Ok(token) => {
-                    let auth_header = if repository.url.contains("gitlab.com") || repository.url.contains("gitlab") {
+                    let auth_header = if repository.url.contains("gitlab.com")
+                        || repository.url.contains("gitlab")
+                    {
                         // GitLab: Authorization: Bearer TOKEN
                         format!("Authorization: Bearer {}", token)
                     } else if repository.url.contains("github.com") {
@@ -163,9 +166,11 @@ impl GitOperations {
                 // Configure authentication using http.extraHeader if we have a token
                 // This is more secure than embedding the token in the URL
                 let mut prepare_clone = if let Some(header) = auth_config {
-                    prepare_clone.with_in_memory_config_overrides([
-                        format!("http.extraHeader={}", header).as_str()
-                    ])
+                    prepare_clone.with_in_memory_config_overrides([format!(
+                        "http.extraHeader={}",
+                        header
+                    )
+                    .as_str()])
                 } else {
                     prepare_clone
                 };
