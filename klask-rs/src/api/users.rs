@@ -89,8 +89,7 @@ async fn list_users(
 
     match user_repository.list_users(query.limit, query.offset).await {
         Ok(users) => {
-            let user_responses: Vec<UserResponse> =
-                users.into_iter().map(UserResponse::from).collect();
+            let user_responses: Vec<UserResponse> = users.into_iter().map(UserResponse::from).collect();
             Ok(Json(user_responses))
         }
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -186,10 +185,7 @@ async fn update_user(
 
     // Update basic user info if provided
     let mut updated_user = if payload.username.is_some() || payload.email.is_some() {
-        match user_repository
-            .update_user(id, payload.username.as_deref(), payload.email.as_deref())
-            .await
-        {
+        match user_repository.update_user(id, payload.username.as_deref(), payload.email.as_deref()).await {
             Ok(user) => user,
             Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
         }
@@ -207,10 +203,7 @@ async fn update_user(
             Ok(hash) => hash,
             Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
         };
-        updated_user = match user_repository
-            .update_user_password(id, &password_hash)
-            .await
-        {
+        updated_user = match user_repository.update_user_password(id, &password_hash).await {
             Ok(user) => user,
             Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
         };

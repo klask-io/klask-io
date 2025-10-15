@@ -67,12 +67,10 @@ impl RepositoryRepository {
 
     #[allow(dead_code)]
     pub async fn update_last_crawled(&self, id: Uuid) -> Result<()> {
-        sqlx::query(
-            "UPDATE repositories SET last_crawled = NOW(), updated_at = NOW() WHERE id = $1",
-        )
-        .bind(id)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE repositories SET last_crawled = NOW(), updated_at = NOW() WHERE id = $1")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
 
         Ok(())
     }
@@ -110,10 +108,7 @@ impl RepositoryRepository {
     }
 
     pub async fn delete_repository(&self, id: Uuid) -> Result<()> {
-        sqlx::query("DELETE FROM repositories WHERE id = $1")
-            .bind(id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query("DELETE FROM repositories WHERE id = $1").bind(id).execute(&self.pool).await?;
 
         Ok(())
     }
@@ -161,11 +156,7 @@ impl RepositoryRepository {
     }
 
     // Crawl resumption methods
-    pub async fn start_crawl(
-        &self,
-        repository_id: Uuid,
-        last_processed_project: Option<String>,
-    ) -> Result<()> {
+    pub async fn start_crawl(&self, repository_id: Uuid, last_processed_project: Option<String>) -> Result<()> {
         sqlx::query(
             "UPDATE repositories SET crawl_state = 'in_progress', last_processed_project = $2, crawl_started_at = NOW(), updated_at = NOW() WHERE id = $1"
         )
@@ -189,12 +180,10 @@ impl RepositoryRepository {
     }
 
     pub async fn fail_crawl(&self, repository_id: Uuid) -> Result<()> {
-        sqlx::query(
-            "UPDATE repositories SET crawl_state = 'failed', updated_at = NOW() WHERE id = $1",
-        )
-        .bind(repository_id)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE repositories SET crawl_state = 'failed', updated_at = NOW() WHERE id = $1")
+            .bind(repository_id)
+            .execute(&self.pool)
+            .await?;
 
         Ok(())
     }
@@ -204,13 +193,11 @@ impl RepositoryRepository {
         repository_id: Uuid,
         last_processed_project: Option<String>,
     ) -> Result<()> {
-        sqlx::query(
-            "UPDATE repositories SET last_processed_project = $2, updated_at = NOW() WHERE id = $1",
-        )
-        .bind(repository_id)
-        .bind(last_processed_project)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query("UPDATE repositories SET last_processed_project = $2, updated_at = NOW() WHERE id = $1")
+            .bind(repository_id)
+            .bind(last_processed_project)
+            .execute(&self.pool)
+            .await?;
 
         Ok(())
     }

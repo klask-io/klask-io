@@ -64,13 +64,10 @@ impl EncryptionService {
         let nonce = Nonce::from_slice(nonce_bytes);
 
         // Decrypt
-        let plaintext = self
-            .cipher
-            .decrypt(nonce, ciphertext)
-            .map_err(|e| anyhow::anyhow!("Decryption failed: {:?}", e))?;
+        let plaintext =
+            self.cipher.decrypt(nonce, ciphertext).map_err(|e| anyhow::anyhow!("Decryption failed: {:?}", e))?;
 
-        String::from_utf8(plaintext)
-            .map_err(|e| anyhow::anyhow!("Failed to convert decrypted data to string: {:?}", e))
+        String::from_utf8(plaintext).map_err(|e| anyhow::anyhow!("Failed to convert decrypted data to string: {:?}", e))
     }
 }
 

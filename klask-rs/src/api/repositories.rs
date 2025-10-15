@@ -149,7 +149,8 @@ fn validate_github_namespace(namespace: &str) -> Result<(), String> {
     let re = Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap();
     if !re.is_match(namespace) {
         return Err(
-            "Invalid GitHub namespace format. Only alphanumeric characters, hyphens, and underscores are allowed.".to_string()
+            "Invalid GitHub namespace format. Only alphanumeric characters, hyphens, and underscores are allowed."
+                .to_string(),
         );
     }
     Ok(())
@@ -160,14 +161,9 @@ pub async fn create_router() -> Result<Router<AppState>> {
         .route("/", get(list_repositories).post(create_repository))
         .route(
             "/:id",
-            get(get_repository)
-                .put(update_repository)
-                .delete(delete_repository),
+            get(get_repository).put(update_repository).delete(delete_repository),
         )
-        .route(
-            "/:id/crawl",
-            post(crawl_repository).delete(stop_crawl_repository),
-        )
+        .route("/:id/crawl", post(crawl_repository).delete(stop_crawl_repository))
         .route("/:id/test", post(test_repository_connection))
         .route("/:id/stats", get(get_repository_stats))
         .route("/import/gitlab", post(import_gitlab_projects))
@@ -195,10 +191,7 @@ async fn list_repositories(
     match repo_repository.list_repositories().await {
         Ok(repositories) => {
             // Check if stats are requested
-            let include_stats = params
-                .get("include_stats")
-                .map(|v| v == "true")
-                .unwrap_or(false);
+            let include_stats = params.get("include_stats").map(|v| v == "true").unwrap_or(false);
 
             let mut repositories_with_stats = Vec::new();
 
@@ -211,14 +204,10 @@ async fn list_repositories(
                     .map(|repo| {
                         let app_state = app_state.clone();
                         async move {
-                            let disk_size_mb =
-                                calculate_repository_disk_size(&repo).await.unwrap_or(0.0);
-                            let file_count = get_repository_file_count(&repo, &app_state)
-                                .await
-                                .unwrap_or(0);
-                            let last_crawl_duration_minutes = repo
-                                .last_crawl_duration_seconds
-                                .map(|seconds| seconds as f64 / 60.0);
+                            let disk_size_mb = calculate_repository_disk_size(&repo).await.unwrap_or(0.0);
+                            let file_count = get_repository_file_count(&repo, &app_state).await.unwrap_or(0);
+                            let last_crawl_duration_minutes =
+                                repo.last_crawl_duration_seconds.map(|seconds| seconds as f64 / 60.0);
 
                             RepositoryWithStats {
                                 repository: repo,
@@ -234,9 +223,8 @@ async fn list_repositories(
             } else {
                 // Fast path: return repositories without expensive stats
                 for repo in repositories {
-                    let last_crawl_duration_minutes = repo
-                        .last_crawl_duration_seconds
-                        .map(|seconds| seconds as f64 / 60.0);
+                    let last_crawl_duration_minutes =
+                        repo.last_crawl_duration_seconds.map(|seconds| seconds as f64 / 60.0);
 
                     repositories_with_stats.push(RepositoryWithStats {
                         repository: repo,
@@ -271,12 +259,8 @@ async fn get_repository_stats(
     match repo_repository.get_repository(id).await {
         Ok(Some(repo)) => {
             let disk_size_mb = calculate_repository_disk_size(&repo).await.unwrap_or(0.0);
-            let file_count = get_repository_file_count(&repo, &app_state)
-                .await
-                .unwrap_or(0);
-            let last_crawl_duration_minutes = repo
-                .last_crawl_duration_seconds
-                .map(|seconds| seconds as f64 / 60.0);
+            let file_count = get_repository_file_count(&repo, &app_state).await.unwrap_or(0);
+            let last_crawl_duration_minutes = repo.last_crawl_duration_seconds.map(|seconds| seconds as f64 / 60.0);
 
             Ok(Json(RepositoryWithStats {
                 repository: repo,
@@ -333,10 +317,7 @@ async fn calculate_directory_size(dir: &PathBuf) -> Result<u64> {
             let dir_name_str = dir_name.to_string_lossy();
 
             if !dir_name_str.starts_with('.')
-                && !matches!(
-                    dir_name_str.as_ref(),
-                    "node_modules" | "target" | "build" | "dist"
-                )
+                && !matches!(dir_name_str.as_ref(), "node_modules" | "target" | "build" | "dist")
             {
                 if let Ok(subdir_size) = Box::pin(calculate_directory_size(&entry.path())).await {
                     total_size += subdir_size;
@@ -390,10 +371,7 @@ async fn count_files_in_directory(dir: &PathBuf) -> Result<i64> {
             let dir_name_str = dir_name.to_string_lossy();
 
             if !dir_name_str.starts_with('.')
-                && !matches!(
-                    dir_name_str.as_ref(),
-                    "node_modules" | "target" | "build" | "dist"
-                )
+                && !matches!(dir_name_str.as_ref(), "node_modules" | "target" | "build" | "dist")
             {
                 if let Ok(subdir_count) = Box::pin(count_files_in_directory(&entry.path())).await {
                     file_count += subdir_count;
@@ -513,10 +491,7 @@ async fn create_repository(
     State(app_state): State<AppState>,
     body: Bytes,
 ) -> Result<Json<Repository>, StatusCode> {
-    debug!(
-        "Received raw JSON body: {:?}",
-        String::from_utf8_lossy(&body)
-    );
+    debug!("Received raw JSON body: {:?}", String::from_utf8_lossy(&body));
 
     let request: CreateRepositoryRequest = match serde_json::from_slice(&body) {
         Ok(req) => {
@@ -583,10 +558,7 @@ async fn create_repository(
 
     match repo_repository.create_repository(&repository).await {
         Ok(created_repo) => {
-            info!(
-                "Created repository: {} ({})",
-                created_repo.name, created_repo.id
-            );
+            info!("Created repository: {} ({})", created_repo.name, created_repo.id);
             Ok(Json(created_repo))
         }
         Err(e) => {
@@ -738,14 +710,10 @@ async fn update_repository(
         Ok(updated_repo) => {
             // If repository name was changed, update search index
             if name_changed {
-                match app_state
-                    .search_service
-                    .update_project_name(&old_name, &updated_repo.name)
-                    .await
-                {
+                match app_state.search_service.update_project_name(&old_name, &updated_repo.name).await {
                     Ok(updated_count) => {
                         info!(
-                            "Updated {} documents in search index for repository name change: {} -> {} ({})", 
+                            "Updated {} documents in search index for repository name change: {} -> {} ({})",
                             updated_count, old_name, updated_repo.name, updated_repo.id
                         );
                     }
@@ -773,10 +741,7 @@ async fn update_repository(
                 }
             }
 
-            info!(
-                "Updated repository: {} ({})",
-                updated_repo.name, updated_repo.id
-            );
+            info!("Updated repository: {} ({})", updated_repo.name, updated_repo.id);
             info!("Returning updated repository: {:?}", updated_repo);
             Ok(Json(updated_repo))
         }
@@ -798,11 +763,7 @@ async fn delete_repository(
     match repo_repository.get_repository(id).await {
         Ok(Some(repository)) => {
             // First, clean up the search index for this repository
-            match app_state
-                .search_service
-                .delete_project_documents(&repository.name)
-                .await
-            {
+            match app_state.search_service.delete_project_documents(&repository.name).await {
                 Ok(deleted_count) => {
                     info!(
                         "Deleted {} documents from search index for repository: {} ({})",
@@ -821,10 +782,7 @@ async fn delete_repository(
             // Delete the repository from database
             match repo_repository.delete_repository(id).await {
                 Ok(_) => {
-                    info!(
-                        "Deleted repository: {} ({})",
-                        repository.name, repository.id
-                    );
+                    info!("Deleted repository: {} ({})", repository.name, repository.id);
                     Ok(StatusCode::NO_CONTENT)
                 }
                 Err(e) => {
@@ -872,10 +830,7 @@ async fn crawl_repository(
     // Spawn crawl task in background
     tokio::spawn(async move {
         if let Err(e) = crawler_service.crawl_repository(&repository_clone).await {
-            error!(
-                "Crawl failed for repository {}: {}",
-                repository_clone.name, e
-            );
+            error!("Crawl failed for repository {}: {}", repository_clone.name, e);
         }
     });
 
@@ -918,10 +873,7 @@ async fn stop_crawl_repository(
     // Cancel the crawl
     match crawler_service.cancel_crawl(repository.id).await {
         Ok(true) => {
-            info!(
-                "Crawl stopped for repository: {} ({})",
-                repository.name, repository.id
-            );
+            info!("Crawl stopped for repository: {} ({})", repository.name, repository.id);
             Ok(Json(serde_json::json!({
                 "message": "Crawl stopped successfully",
                 "repository_id": repository.id,
@@ -936,10 +888,7 @@ async fn stop_crawl_repository(
             Err(StatusCode::NOT_FOUND)
         }
         Err(e) => {
-            error!(
-                "Error stopping crawl for repository {}: {}",
-                repository.id, e
-            );
+            error!("Error stopping crawl for repository {}: {}", repository.id, e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
@@ -984,15 +933,9 @@ async fn discover_github_repositories(
 
     let github_service = GitHubService::new();
 
-    match github_service
-        .discover_repositories(&request.access_token, request.namespace.as_deref())
-        .await
-    {
+    match github_service.discover_repositories(&request.access_token, request.namespace.as_deref()).await {
         Ok(repositories) => {
-            info!(
-                "Successfully discovered {} GitHub repositories",
-                repositories.len()
-            );
+            info!("Successfully discovered {} GitHub repositories", repositories.len());
             Ok(Json(DiscoverGitHubResponse { repositories }))
         }
         Err(e) => {
@@ -1046,11 +989,7 @@ async fn discover_gitlab_repositories(
     let gitlab_service = GitLabService::new();
 
     match gitlab_service
-        .discover_projects(
-            &request.gitlab_url,
-            &request.access_token,
-            request.namespace.as_deref(),
-        )
+        .discover_projects(&request.gitlab_url, &request.access_token, request.namespace.as_deref())
         .await
     {
         Ok(projects) => {
@@ -1074,10 +1013,7 @@ async fn test_gitlab_token(
 
     let gitlab_service = GitLabService::new();
 
-    match gitlab_service
-        .test_token(&request.gitlab_url, &request.access_token)
-        .await
-    {
+    match gitlab_service.test_token(&request.gitlab_url, &request.access_token).await {
         Ok(valid) => {
             let message = if valid {
                 "GitLab token is valid".to_string()
@@ -1134,10 +1070,7 @@ async fn bulk_delete_repositories(
     // Extract repository IDs from request
     let repository_ids: Vec<String> = match request.get("repository_ids") {
         Some(ids) => match ids.as_array() {
-            Some(arr) => arr
-                .iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect(),
+            Some(arr) => arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect(),
             None => return Err(StatusCode::BAD_REQUEST),
         },
         None => return Err(StatusCode::BAD_REQUEST),
@@ -1164,11 +1097,7 @@ async fn bulk_delete_repositories(
         match repo_repository.get_repository(repo_id).await {
             Ok(Some(repository)) => {
                 // Clean up search index first
-                match app_state
-                    .search_service
-                    .delete_project_documents(&repository.name)
-                    .await
-                {
+                match app_state.search_service.delete_project_documents(&repository.name).await {
                     Ok(deleted_count) => {
                         debug!(
                             "Deleted {} documents from search index for repository: {} ({})",
@@ -1187,10 +1116,7 @@ async fn bulk_delete_repositories(
                 // Delete repository from database
                 match repo_repository.delete_repository(repo_id).await {
                     Ok(_) => {
-                        info!(
-                            "Deleted repository: {} ({})",
-                            repository.name, repository.id
-                        );
+                        info!("Deleted repository: {} ({})", repository.name, repository.id);
                         successful_deletions += 1;
                     }
                     Err(e) => {

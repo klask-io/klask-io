@@ -59,10 +59,7 @@ impl TestUserRepository {
                 username: row.get("username"),
                 email: row.get("email"),
                 password_hash: row.get("password_hash"),
-                role: row
-                    .get::<String, _>("role")
-                    .parse::<UserRole>()
-                    .unwrap_or(UserRole::User),
+                role: row.get::<String, _>("role").parse::<UserRole>().unwrap_or(UserRole::User),
                 active: row.get("active"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
@@ -77,25 +74,18 @@ impl TestUserRepository {
 
     #[allow(dead_code)]
     pub async fn get_user_stats(&self) -> Result<crate::repositories::user_repository::UserStats> {
-        let total_users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
-            .fetch_one(&self.pool)
-            .await?;
+        let total_users: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users").fetch_one(&self.pool).await?;
 
         let active_users: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE active = true")
-                .fetch_one(&self.pool)
-                .await?;
+            sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE active = true").fetch_one(&self.pool).await?;
 
         let admin_users: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE role = 'Admin'")
+            sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE role = 'Admin'").fetch_one(&self.pool).await?;
+
+        let recent_registrations: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE created_at > datetime('now', '-7 days')")
                 .fetch_one(&self.pool)
                 .await?;
-
-        let recent_registrations: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM users WHERE created_at > datetime('now', '-7 days')",
-        )
-        .fetch_one(&self.pool)
-        .await?;
 
         Ok(crate::repositories::user_repository::UserStats {
             total_users,

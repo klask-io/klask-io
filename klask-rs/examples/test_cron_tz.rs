@@ -20,10 +20,7 @@ fn main() {
     println!("\n--- Testing cron: {} (every day at 1am) ---", cron_expr);
 
     // Parse cron
-    let cron = Cron::new(cron_expr)
-        .with_seconds_required()
-        .parse()
-        .expect("Failed to parse cron");
+    let cron = Cron::new(cron_expr).with_seconds_required().parse().expect("Failed to parse cron");
 
     // Find next occurrence using UTC
     println!("\n1. Using UTC timezone:");

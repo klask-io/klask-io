@@ -65,14 +65,14 @@ export const Navbar: React.FC = () => {
             <IconButton
               variant="ghost"
               size="md"
-              icon={sidebarOpen ? <XMarkIcon className="w-5 h-5" /> : <Bars3Icon className="w-5 h-5" />}
+              icon={<Bars3Icon className="w-5 h-5" />}
               onClick={toggleSidebar}
               aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
               className="hidden md:block mr-2"
             />
-            
+
             {/* Logo and brand */}
-            <Link to="/search" className="flex items-center ml-2 md:mr-24">
+            <Link to="/home" className="flex items-center ml-2 md:mr-24">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
                 <MagnifyingGlassIcon className="w-5 h-5 text-white" />
               </div>
@@ -84,7 +84,7 @@ export const Navbar: React.FC = () => {
               </span>
             </Link>
           </div>
-          
+
           {/* Navigation */}
           <div className="hidden md:flex items-center space-x-4">
             {navigation.map((item) => (
@@ -129,7 +129,7 @@ export const Navbar: React.FC = () => {
             <div className="flex items-center ml-3">
               <div className="hidden md:block">
                 <div className="flex items-center">
-                  
+
                   {/* User dropdown */}
                   <Menu as="div" className="relative ml-3">
                     <div>
@@ -158,7 +158,7 @@ export const Navbar: React.FC = () => {
                           <div className="font-medium">{user?.username}</div>
                           <div className="text-gray-500">{user?.email}</div>
                         </div>
-                        
+
                         <Menu.Item>
                           {({ active }) => (
                             <Link
@@ -172,7 +172,7 @@ export const Navbar: React.FC = () => {
                             </Link>
                           )}
                         </Menu.Item>
-                        
+
                         <Menu.Item>
                           {({ active }) => (
                             <button
@@ -192,7 +192,7 @@ export const Navbar: React.FC = () => {
                   </Menu>
                 </div>
               </div>
-              
+
               {/* Mobile user menu */}
               <div className="md:hidden">
                 <IconButton
@@ -206,11 +206,12 @@ export const Navbar: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Mobile Navigation Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 mt-3 pt-3">
-            <div className="space-y-1">
+      {/* Mobile Navigation Menu - Outside main container */}
+      {mobileMenuOpen && (
+        <div className="absolute top-full left-0 right-0 md:hidden bg-white shadow-lg border-t border-gray-200">
+          <div className="px-3 py-3 space-y-1">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
@@ -231,12 +232,12 @@ export const Navbar: React.FC = () => {
 
             {isAdmin && (
               <>
-                <div className="border-t border-gray-200 my-3 pt-3">
+                <div className="border-t border-gray-200 px-3 py-3">
                   <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Administration
                   </div>
                 </div>
-                <div className="space-y-1">
+                <div className="px-3 pb-3 space-y-1">
                   {adminNavigation.map((item) => {
                     const isActive = location.pathname === item.href;
                     return (
@@ -259,9 +260,8 @@ export const Navbar: React.FC = () => {
                 </div>
               </>
             )}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </nav>
   );
 };

@@ -145,9 +145,7 @@ pub async fn create_router() -> Result<Router<AppState>> {
     Ok(router)
 }
 
-async fn get_dashboard_data(
-    State(app_state): State<AppState>,
-) -> Result<Json<AdminDashboardData>, StatusCode> {
+async fn get_dashboard_data(State(app_state): State<AppState>) -> Result<Json<AdminDashboardData>, StatusCode> {
     debug!("Getting dashboard data for admin user");
     let pool = app_state.database.pool().clone();
 
@@ -186,22 +184,13 @@ async fn get_dashboard_data(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let dashboard_data = AdminDashboardData {
-        system,
-        users,
-        repositories,
-        content,
-        search,
-        recent_activity,
-    };
+    let dashboard_data = AdminDashboardData { system, users, repositories, content, search, recent_activity };
 
     info!("Successfully generated dashboard data");
     Ok(Json(dashboard_data))
 }
 
-async fn get_system_stats(
-    State(app_state): State<AppState>,
-) -> Result<Json<SystemStats>, StatusCode> {
+async fn get_system_stats(State(app_state): State<AppState>) -> Result<Json<SystemStats>, StatusCode> {
     match get_system_stats_impl(&app_state).await {
         Ok(stats) => Ok(Json(stats)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -216,9 +205,7 @@ async fn get_user_stats(State(app_state): State<AppState>) -> Result<Json<UserSt
     }
 }
 
-async fn get_repository_stats(
-    State(app_state): State<AppState>,
-) -> Result<Json<RepositoryStats>, StatusCode> {
+async fn get_repository_stats(State(app_state): State<AppState>) -> Result<Json<RepositoryStats>, StatusCode> {
     let pool = app_state.database.pool().clone();
     match get_repository_stats_impl(&pool).await {
         Ok(stats) => Ok(Json(stats)),
@@ -226,18 +213,14 @@ async fn get_repository_stats(
     }
 }
 
-async fn get_search_stats(
-    State(app_state): State<AppState>,
-) -> Result<Json<SearchStats>, StatusCode> {
+async fn get_search_stats(State(app_state): State<AppState>) -> Result<Json<SearchStats>, StatusCode> {
     match get_search_stats_impl(&app_state).await {
         Ok(stats) => Ok(Json(stats)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
-async fn get_content_stats(
-    State(app_state): State<AppState>,
-) -> Result<Json<ContentStats>, StatusCode> {
+async fn get_content_stats(State(app_state): State<AppState>) -> Result<Json<ContentStats>, StatusCode> {
     let pool = app_state.database.pool().clone();
     match get_content_stats_impl(&pool).await {
         Ok(stats) => Ok(Json(stats)),
@@ -245,9 +228,7 @@ async fn get_content_stats(
     }
 }
 
-async fn get_recent_activity(
-    State(app_state): State<AppState>,
-) -> Result<Json<RecentActivity>, StatusCode> {
+async fn get_recent_activity(State(app_state): State<AppState>) -> Result<Json<RecentActivity>, StatusCode> {
     let pool = app_state.database.pool().clone();
     match get_recent_activity_impl(&pool).await {
         Ok(activity) => Ok(Json(activity)),
@@ -280,46 +261,37 @@ async fn get_user_stats_impl(pool: &PgPool) -> Result<UserStats> {
 }
 
 async fn get_repository_stats_impl(pool: &PgPool) -> Result<RepositoryStats> {
-    let total_repositories = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories")
-        .fetch_one(pool)
-        .await?;
+    let total_repositories = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories").fetch_one(pool).await?;
 
     let enabled_repositories =
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories WHERE enabled = true")
-            .fetch_one(pool)
-            .await?;
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories WHERE enabled = true").fetch_one(pool).await?;
 
     let disabled_repositories = total_repositories - enabled_repositories;
 
-    let git_repositories = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories WHERE repository_type = 'Git'",
-    )
-    .fetch_one(pool)
-    .await?;
+    let git_repositories =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories WHERE repository_type = 'Git'")
+            .fetch_one(pool)
+            .await?;
 
-    let gitlab_repositories = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories WHERE repository_type = 'GitLab'",
-    )
-    .fetch_one(pool)
-    .await?;
+    let gitlab_repositories =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories WHERE repository_type = 'GitLab'")
+            .fetch_one(pool)
+            .await?;
 
-    let filesystem_repositories = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories WHERE repository_type = 'FileSystem'",
-    )
-    .fetch_one(pool)
-    .await?;
+    let filesystem_repositories =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories WHERE repository_type = 'FileSystem'")
+            .fetch_one(pool)
+            .await?;
 
     let recently_crawled = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories WHERE last_crawled > CURRENT_TIMESTAMP - INTERVAL '24 hours'"
+        "SELECT COUNT(*) FROM repositories WHERE last_crawled > CURRENT_TIMESTAMP - INTERVAL '24 hours'",
     )
     .fetch_one(pool)
     .await?;
 
-    let never_crawled = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM repositories WHERE last_crawled IS NULL",
-    )
-    .fetch_one(pool)
-    .await?;
+    let never_crawled = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories WHERE last_crawled IS NULL")
+        .fetch_one(pool)
+        .await?;
 
     Ok(RepositoryStats {
         total_repositories,
@@ -423,9 +395,7 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
             username: row.get("username"),
             email: row.get("email"),
             last_seen: row.get("last_seen"),
-            role: row
-                .get::<Option<String>, _>("role")
-                .unwrap_or_else(|| "User".to_string()),
+            role: row.get::<Option<String>, _>("role").unwrap_or_else(|| "User".to_string()),
         })
         .collect();
 
@@ -445,9 +415,7 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
         .map(|row| RecentRepository {
             name: row.get("name"),
             url: row.get("url"),
-            repository_type: row
-                .get::<Option<String>, _>("repository_type")
-                .unwrap_or_else(|| "Unknown".to_string()),
+            repository_type: row.get::<Option<String>, _>("repository_type").unwrap_or_else(|| "Unknown".to_string()),
             created_at: row.get("created_at"),
         })
         .collect();
@@ -472,18 +440,12 @@ async fn get_recent_activity_impl(pool: &PgPool) -> Result<RecentActivity> {
         })
         .collect();
 
-    Ok(RecentActivity {
-        recent_users,
-        recent_repositories,
-        recent_crawls,
-    })
+    Ok(RecentActivity { recent_users, recent_repositories, recent_crawls })
 }
 
 // Seeding endpoints
 
-async fn seed_database(
-    State(app_state): State<AppState>,
-) -> Result<Json<SeedingStats>, StatusCode> {
+async fn seed_database(State(app_state): State<AppState>) -> Result<Json<SeedingStats>, StatusCode> {
     info!("Admin user requested database seeding");
     let pool = app_state.database.pool().clone();
     let seeding_service = SeedingService::new(pool);
@@ -502,9 +464,7 @@ async fn seed_database(
     Ok(Json(stats))
 }
 
-async fn clear_seed_data(
-    State(app_state): State<AppState>,
-) -> Result<Json<SeedingStats>, StatusCode> {
+async fn clear_seed_data(State(app_state): State<AppState>) -> Result<Json<SeedingStats>, StatusCode> {
     info!("Admin user requested seed data clearing");
     let pool = app_state.database.pool().clone();
     let seeding_service = SeedingService::new(pool);
@@ -523,9 +483,7 @@ async fn clear_seed_data(
     Ok(Json(stats))
 }
 
-async fn get_seed_stats(
-    State(app_state): State<AppState>,
-) -> Result<Json<SeedingStats>, StatusCode> {
+async fn get_seed_stats(State(app_state): State<AppState>) -> Result<Json<SeedingStats>, StatusCode> {
     debug!("Getting seeding stats for admin user");
     let pool = app_state.database.pool().clone();
     let seeding_service = SeedingService::new(pool);

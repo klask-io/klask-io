@@ -15,8 +15,8 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     // Connect to database
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://klask:klask@localhost:5432/klask_rs".to_string());
+    let database_url =
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://klask:klask@localhost:5432/klask_rs".to_string());
 
     info!("Connecting to database: {}", database_url);
     let pool = PgPool::connect(&database_url).await?;
@@ -32,8 +32,7 @@ async fn main() -> Result<()> {
     let progress_tracker = Arc::new(ProgressTracker::new());
 
     // Create a test encryption service
-    let encryption_service =
-        Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
+    let encryption_service = Arc::new(EncryptionService::new("test-encryption-key-32bytes").unwrap());
 
     // Initialize crawler service
     let crawler_service = CrawlerService::new(
@@ -41,10 +40,7 @@ async fn main() -> Result<()> {
         search_service.clone(),
         progress_tracker.clone(),
         encryption_service,
-        std::env::temp_dir()
-            .join("klask-crawler")
-            .to_string_lossy()
-            .to_string(),
+        std::env::temp_dir().join("klask-crawler").to_string_lossy().to_string(),
     )?;
 
     // Create a test repository entry for /home/jeremie/temp/
@@ -107,10 +103,7 @@ async fn main() -> Result<()> {
 
     match search_service.search(search_query).await {
         Ok(results) => {
-            info!(
-                "✅ Search completed! Found {} results",
-                results.results.len()
-            );
+            info!("✅ Search completed! Found {} results", results.results.len());
 
             if results.results.is_empty() {
                 warn!("⚠️  No results found for 'server' - this indicates the commit fix may not be working");

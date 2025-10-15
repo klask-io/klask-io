@@ -74,11 +74,7 @@ mod scheduler_tests {
 
         for expr in valid_expressions {
             let result = croner::Cron::new(expr).with_seconds_required().parse();
-            assert!(
-                result.is_ok(),
-                "Should parse valid cron expression: {}",
-                expr
-            );
+            assert!(result.is_ok(), "Should parse valid cron expression: {}", expr);
         }
 
         // Test invalid cron expressions
@@ -93,32 +89,22 @@ mod scheduler_tests {
 
         for expr in invalid_expressions {
             let result = croner::Cron::new(expr).with_seconds_required().parse();
-            assert!(
-                result.is_err(),
-                "Should reject invalid cron expression: {}",
-                expr
-            );
+            assert!(result.is_err(), "Should reject invalid cron expression: {}", expr);
         }
     }
 
     #[test]
     fn test_frequency_to_cron_conversion() {
         // Test converting frequency hours to cron expressions
-        let test_cases = vec![
-            (1, "0 0 */1 * * *"),
-            (6, "0 0 */6 * * *"),
-            (12, "0 0 */12 * * *"),
-            (24, "0 0 */24 * * *"),
-        ];
+        let test_cases =
+            vec![(1, "0 0 */1 * * *"), (6, "0 0 */6 * * *"), (12, "0 0 */12 * * *"), (24, "0 0 */24 * * *")];
 
         for (hours, expected_cron) in test_cases {
             let cron_expr = format!("0 0 */{} * * *", hours);
             assert_eq!(cron_expr, expected_cron);
 
             // Verify the generated expression is valid
-            let result = croner::Cron::new(&cron_expr)
-                .with_seconds_required()
-                .parse();
+            let result = croner::Cron::new(&cron_expr).with_seconds_required().parse();
             assert!(
                 result.is_ok(),
                 "Generated cron expression should be valid: {}",
@@ -135,20 +121,14 @@ mod scheduler_tests {
         let now = Utc.with_ymd_and_hms(2024, 1, 1, 12, 0, 0).unwrap();
 
         // Test hourly schedule
-        let hourly = croner::Cron::new("0 0 * * * *")
-            .with_seconds_required()
-            .parse()
-            .unwrap();
+        let hourly = croner::Cron::new("0 0 * * * *").with_seconds_required().parse().unwrap();
         let next_hourly = hourly.find_next_occurrence(&now, false).unwrap();
         assert_eq!(next_hourly.minute(), 0);
         assert_eq!(next_hourly.second(), 0);
         assert!(next_hourly > now);
 
         // Test daily schedule
-        let daily = croner::Cron::new("0 0 0 * * *")
-            .with_seconds_required()
-            .parse()
-            .unwrap();
+        let daily = croner::Cron::new("0 0 0 * * *").with_seconds_required().parse().unwrap();
         let next_daily = daily.find_next_occurrence(&now, false).unwrap();
         assert_eq!(next_daily.hour(), 0);
         assert_eq!(next_daily.minute(), 0);
@@ -156,10 +136,7 @@ mod scheduler_tests {
         assert!(next_daily > now);
 
         // Test weekly schedule (every Tuesday in this cron system)
-        let weekly = croner::Cron::new("0 0 0 * * 2")
-            .with_seconds_required()
-            .parse()
-            .unwrap();
+        let weekly = croner::Cron::new("0 0 0 * * 2").with_seconds_required().parse().unwrap();
         let next_weekly = weekly.find_next_occurrence(&now, false).unwrap();
 
         // Just verify it's a future date and the time is correct
@@ -172,13 +149,9 @@ mod scheduler_tests {
     #[test]
     fn test_schedule_validation_logic() {
         // Test repository schedule validation logic
-        let repo_with_cron = MockRepository::new("cron-repo")
-            .with_auto_crawl()
-            .with_cron_schedule("0 0 */6 * * *");
+        let repo_with_cron = MockRepository::new("cron-repo").with_auto_crawl().with_cron_schedule("0 0 */6 * * *");
 
-        let repo_with_frequency = MockRepository::new("freq-repo")
-            .with_auto_crawl()
-            .with_frequency_hours(12);
+        let repo_with_frequency = MockRepository::new("freq-repo").with_auto_crawl().with_frequency_hours(12);
 
         let repo_with_both = MockRepository::new("both-repo")
             .with_auto_crawl()
@@ -215,12 +188,10 @@ mod scheduler_tests {
         assert_eq!(repo_custom.max_crawl_duration_minutes.unwrap(), 120);
 
         // Convert to Duration for timeout
-        let default_duration = std::time::Duration::from_secs(
-            (repo_default.max_crawl_duration_minutes.unwrap_or(60) as u64) * 60,
-        );
-        let custom_duration = std::time::Duration::from_secs(
-            (repo_custom.max_crawl_duration_minutes.unwrap() as u64) * 60,
-        );
+        let default_duration =
+            std::time::Duration::from_secs((repo_default.max_crawl_duration_minutes.unwrap_or(60) as u64) * 60);
+        let custom_duration =
+            std::time::Duration::from_secs((repo_custom.max_crawl_duration_minutes.unwrap() as u64) * 60);
 
         assert_eq!(default_duration.as_secs(), 3600); // 60 minutes
         assert_eq!(custom_duration.as_secs(), 7200); // 120 minutes
@@ -231,27 +202,19 @@ mod scheduler_tests {
         // Test edge cases for schedule expressions
 
         // Test every minute (probably not practical but valid)
-        let every_minute = croner::Cron::new("0 * * * * *")
-            .with_seconds_required()
-            .parse();
+        let every_minute = croner::Cron::new("0 * * * * *").with_seconds_required().parse();
         assert!(every_minute.is_ok());
 
         // Test yearly (January 1st at midnight)
-        let yearly = croner::Cron::new("0 0 0 1 1 *")
-            .with_seconds_required()
-            .parse();
+        let yearly = croner::Cron::new("0 0 0 1 1 *").with_seconds_required().parse();
         assert!(yearly.is_ok());
 
         // Test specific day of month and week (should use OR logic)
-        let complex_schedule = croner::Cron::new("0 0 0 1,15 * 1")
-            .with_seconds_required()
-            .parse(); // 1st, 15th of month OR Monday
+        let complex_schedule = croner::Cron::new("0 0 0 1,15 * 1").with_seconds_required().parse(); // 1st, 15th of month OR Monday
         assert!(complex_schedule.is_ok());
 
         // Test multiple hours
-        let multiple_hours = croner::Cron::new("0 0 0,6,12,18 * * *")
-            .with_seconds_required()
-            .parse(); // 4 times a day
+        let multiple_hours = croner::Cron::new("0 0 0,6,12,18 * * *").with_seconds_required().parse(); // 4 times a day
         assert!(multiple_hours.is_ok());
     }
 
@@ -274,10 +237,7 @@ mod scheduler_tests {
         let cutoff_time = now - chrono::Duration::hours(cleanup_threshold_hours);
 
         assert!(old_time < cutoff_time, "Old time should be before cutoff");
-        assert!(
-            recent_time > cutoff_time,
-            "Recent time should be after cutoff"
-        );
+        assert!(recent_time > cutoff_time, "Recent time should be after cutoff");
     }
 
     #[test]
@@ -342,8 +302,7 @@ mod scheduler_tests {
             } else if let Some(ref cron) = repo.cron_schedule {
                 Some(cron.clone())
             } else {
-                repo.crawl_frequency_hours
-                    .map(|hours| format!("0 0 */{} * * *", hours))
+                repo.crawl_frequency_hours.map(|hours| format!("0 0 */{} * * *", hours))
             };
 
             assert_eq!(
@@ -417,19 +376,12 @@ mod scheduler_tests {
 
         for expr in invalid_expressions {
             let result = croner::Cron::new(expr).with_seconds_required().parse();
-            assert!(
-                result.is_err(),
-                "Should reject invalid expression: '{}'",
-                expr
-            );
+            assert!(result.is_err(), "Should reject invalid expression: '{}'", expr);
         }
 
         // Edge case: negative frequency hours (should be handled by validation)
         let negative_frequency = -1;
-        assert!(
-            negative_frequency < 0,
-            "Negative frequency should be invalid"
-        );
+        assert!(negative_frequency < 0, "Negative frequency should be invalid");
 
         // Edge case: zero frequency hours (should be handled by validation)
         let zero_frequency = 0;

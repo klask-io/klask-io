@@ -39,10 +39,7 @@ pub struct AuthenticatedUser {
 impl FromRequestParts<AppState> for AuthenticatedUser {
     type Rejection = AuthError;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &AppState,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
         debug!("Extracting AuthenticatedUser from request");
         // Extract app state
         let app_state = state;
@@ -95,10 +92,7 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
             return Err(AuthError::UserInactive);
         }
 
-        debug!(
-            "AuthenticatedUser extracted successfully: {}",
-            user.username
-        );
+        debug!("AuthenticatedUser extracted successfully: {}", user.username);
         Ok(AuthenticatedUser { user, claims })
     }
 }
@@ -111,10 +105,7 @@ pub struct AdminUser(pub AuthenticatedUser);
 impl FromRequestParts<AppState> for AdminUser {
     type Rejection = AuthError;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &AppState,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
         debug!("Attempting to extract AdminUser from request");
 
         let auth_user = match AuthenticatedUser::from_request_parts(parts, state).await {
@@ -136,10 +127,7 @@ impl FromRequestParts<AppState> for AdminUser {
             return Err(AuthError::InsufficientPermissions);
         }
 
-        debug!(
-            "AdminUser extracted successfully for user: {}",
-            auth_user.user.username
-        );
+        debug!("AdminUser extracted successfully for user: {}", auth_user.user.username);
         Ok(AdminUser(auth_user))
     }
 }
@@ -152,10 +140,7 @@ pub struct OptionalUser(pub Option<AuthenticatedUser>);
 impl FromRequestParts<AppState> for OptionalUser {
     type Rejection = std::convert::Infallible;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &AppState,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
         match AuthenticatedUser::from_request_parts(parts, state).await {
             Ok(user) => Ok(OptionalUser(Some(user))),
             Err(_) => Ok(OptionalUser(None)),

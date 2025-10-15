@@ -82,11 +82,16 @@ export const useDeleteRepository = () => {
       // Remove from repositories list
       queryClient.setQueryData(['repositories'], (old: RepositoryWithStats[] | undefined) => {
         if (!old) return [];
-        return old.filter(repoWithStats => repoWithStats.repository.id !== deletedId);
+        return old.filter(repoWithStats =>
+          repoWithStats?.repository?.id && repoWithStats.repository.id !== deletedId
+        );
       });
-      
+
       // Remove individual repository cache
       queryClient.removeQueries({ queryKey: ['repositories', deletedId] });
+
+      // Also invalidate to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ['repositories'] });
     },
     onError: (error) => {
       console.error('Failed to delete repository:', getErrorMessage(error));
