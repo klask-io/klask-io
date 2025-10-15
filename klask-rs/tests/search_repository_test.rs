@@ -9,8 +9,7 @@ mod search_repository_tests {
     // Global mutex to ensure tests don't interfere with each other
     static TEST_MUTEX: LazyLock<AsyncMutex<()>> = LazyLock::new(|| AsyncMutex::new(()));
 
-    async fn create_test_search_service(
-    ) -> (SearchService, TempDir, tokio::sync::MutexGuard<'static, ()>) {
+    async fn create_test_search_service() -> (SearchService, TempDir, tokio::sync::MutexGuard<'static, ()>) {
         let _guard = TEST_MUTEX.lock().await;
         let temp_dir = TempDir::new().unwrap();
         let test_id = uuid::Uuid::new_v4().to_string()[..8].to_string();
@@ -37,7 +36,7 @@ mod search_repository_tests {
                 file_name: &format!("file{}.rs", i),
                 file_path: &format!("src/file{}.rs", i),
                 content,
-                repository_name: repo_name,
+                repository: repo_name,
                 project: repo_name,
                 version: "main",
                 extension: "rs",
@@ -64,19 +63,12 @@ mod search_repository_tests {
         };
 
         let results = service.search(query).await.unwrap();
-        assert!(
-            results.total >= 1,
-            "Should find results from all repositories"
-        );
+        assert!(results.total >= 1, "Should find results from all repositories");
 
         // Verify facets include all projects
         if let Some(facets) = results.facets {
             assert!(!facets.projects.is_empty(), "Should have project facets");
-            let project_names: Vec<String> = facets
-                .projects
-                .iter()
-                .map(|(name, _)| name.clone())
-                .collect();
+            let project_names: Vec<String> = facets.projects.iter().map(|(name, _)| name.clone()).collect();
             assert!(
                 project_names.contains(&"klask-io/klask".to_string()),
                 "Should include klask-io/klask in facets"
@@ -102,7 +94,7 @@ mod search_repository_tests {
                 file_name: &format!("search{}.rs", i),
                 file_path: &format!("src/search{}.rs", i),
                 content,
-                repository_name: repo_name,
+                repository: repo_name,
                 project: repo_name,
                 version: "main",
                 extension: "rs",
@@ -125,10 +117,7 @@ mod search_repository_tests {
         };
 
         let results = service.search(query).await.unwrap();
-        assert_eq!(
-            results.total, 1,
-            "Should find exactly one result from klask-io/klask"
-        );
+        assert_eq!(results.total, 1, "Should find exactly one result from klask-io/klask");
         assert_eq!(results.results[0].project, "klask-io/klask");
         assert!(results.results[0].content_snippet.contains("Klask"));
     }
@@ -144,7 +133,7 @@ mod search_repository_tests {
             file_name: "main.rs",
             file_path: "src/main.rs",
             content: "fn main() { println!(\"Hello\"); }",
-            repository_name: repo_name,
+            repository: repo_name,
             project: repo_name,
             version: "v1.0.0",
             extension: "rs",
@@ -186,7 +175,7 @@ mod search_repository_tests {
                 file_name: &format!("file{}.rs", i),
                 file_path: &format!("src/file{}.rs", i),
                 content: "test content",
-                repository_name: repo,
+                repository: repo,
                 project: repo,
                 version: "main",
                 extension: "rs",
@@ -214,8 +203,7 @@ mod search_repository_tests {
             "Should find exactly two results from repo-a and repo-c"
         );
 
-        let project_names: Vec<String> =
-            results.results.iter().map(|r| r.project.clone()).collect();
+        let project_names: Vec<String> = results.results.iter().map(|r| r.project.clone()).collect();
         assert!(project_names.contains(&"repo-a".to_string()));
         assert!(project_names.contains(&"repo-c".to_string()));
         assert!(!project_names.contains(&"repo-b".to_string()));
@@ -233,7 +221,7 @@ mod search_repository_tests {
             file_name: "legacy.rs",
             file_path: "src/legacy.rs",
             content: "legacy content",
-            repository_name: "",
+            repository: "",
             project: "", // Empty repository
             version: "main",
             extension: "rs",
@@ -270,7 +258,7 @@ mod search_repository_tests {
                 file_name: &format!("file{}.rs", i),
                 file_path: &format!("src/file{}.rs", i),
                 content: "test content",
-                repository_name: "klask-io/klask",
+                repository: "klask-io/klask",
                 project: "klask-io/klask",
                 version: "main",
                 extension: "rs",
@@ -286,7 +274,7 @@ mod search_repository_tests {
                 file_name: &format!("file{}.rs", i),
                 file_path: &format!("src/file{}.rs", i),
                 content: "test content",
-                repository_name: "rust-lang/rust",
+                repository: "rust-lang/rust",
                 project: "rust-lang/rust",
                 version: "main",
                 extension: "rs",
@@ -312,23 +300,12 @@ mod search_repository_tests {
 
         // Verify facets include correct counts
         if let Some(facets) = results.facets {
-            let klask_count = facets
-                .projects
-                .iter()
-                .find(|(name, _)| name == "klask-io/klask")
-                .map(|(_, count)| *count);
+            let klask_count =
+                facets.projects.iter().find(|(name, _)| name == "klask-io/klask").map(|(_, count)| *count);
 
-            let rust_count = facets
-                .projects
-                .iter()
-                .find(|(name, _)| name == "rust-lang/rust")
-                .map(|(_, count)| *count);
+            let rust_count = facets.projects.iter().find(|(name, _)| name == "rust-lang/rust").map(|(_, count)| *count);
 
-            assert_eq!(
-                klask_count,
-                Some(5),
-                "Should have 5 files in klask-io/klask"
-            );
+            assert_eq!(klask_count, Some(5), "Should have 5 files in klask-io/klask");
             assert_eq!(rust_count, Some(3), "Should have 3 files in rust-lang/rust");
         } else {
             panic!("Facets should be present");
@@ -352,7 +329,7 @@ mod search_repository_tests {
                     file_name: &format!("file{}.rs", file_idx),
                     file_path: &format!("src/file{}.rs", file_idx),
                     content: "fn test() { println!(\"test\"); }",
-                    repository_name: &repo_name,
+                    repository: &repo_name,
                     project: &repo_name,
                     version: "main",
                     extension: "rs",
@@ -390,11 +367,7 @@ mod search_repository_tests {
             duration.as_millis()
         );
 
-        println!(
-            "Search with {} repositories took {}ms",
-            num_repos,
-            duration.as_millis()
-        );
+        println!("Search with {} repositories took {}ms", num_repos, duration.as_millis());
     }
 
     #[tokio::test]
@@ -412,7 +385,7 @@ mod search_repository_tests {
                     file_name: &format!("file{}.rs", i),
                     file_path: &format!("src/file{}.rs", i),
                     content: "test content",
-                    repository_name: repo,
+                    repository: repo,
                     project: repo,
                     version: "main",
                     extension: "rs",
@@ -427,18 +400,11 @@ mod search_repository_tests {
         assert_eq!(service.get_document_count().unwrap(), 6);
 
         // Delete one repository
-        let deleted_count = service
-            .delete_project_documents("repo-to-delete")
-            .await
-            .unwrap();
+        let deleted_count = service.delete_project_documents("repo-to-delete").await.unwrap();
         assert_eq!(deleted_count, 3, "Should delete 3 documents");
 
         // Verify remaining count
-        assert_eq!(
-            service.get_document_count().unwrap(),
-            3,
-            "Should have 3 documents left"
-        );
+        assert_eq!(service.get_document_count().unwrap(), 3, "Should have 3 documents left");
 
         // Search should only find repo-to-keep
         let query = SearchQuery {
@@ -472,7 +438,7 @@ mod search_repository_tests {
                 file_name: &format!("file{}.rs", i),
                 file_path: &format!("src/file{}.rs", i),
                 content: "test content",
-                repository_name: old_name,
+                repository: old_name,
                 project: old_name,
                 version: "main",
                 extension: "rs",
@@ -483,10 +449,7 @@ mod search_repository_tests {
         service.commit().await.unwrap();
 
         // Update repository name
-        let updated_count = service
-            .update_project_name(old_name, new_name)
-            .await
-            .unwrap();
+        let updated_count = service.update_project_name(old_name, new_name).await.unwrap();
         assert_eq!(updated_count, 3, "Should update 3 documents");
 
         // Search with new name should find results
@@ -518,10 +481,7 @@ mod search_repository_tests {
         };
 
         let old_results = service.search(old_query).await.unwrap();
-        assert_eq!(
-            old_results.total, 0,
-            "Should not find results with old name"
-        );
+        assert_eq!(old_results.total, 0, "Should not find results with old name");
     }
 
     #[tokio::test]
@@ -544,7 +504,7 @@ mod search_repository_tests {
                 file_name: &format!("file{}.{}", i, ext),
                 file_path: &format!("src/file{}.{}", i, ext),
                 content: "test content",
-                repository_name: repo,
+                repository: repo,
                 project: repo,
                 version,
                 extension: ext,
@@ -567,10 +527,7 @@ mod search_repository_tests {
         };
 
         let results = service.search(query).await.unwrap();
-        assert_eq!(
-            results.total, 1,
-            "Should find exactly one result matching all filters"
-        );
+        assert_eq!(results.total, 1, "Should find exactly one result matching all filters");
         assert_eq!(results.results[0].project, "repo-a");
         assert_eq!(results.results[0].version, "v1.0");
         assert_eq!(results.results[0].extension, "rs");
