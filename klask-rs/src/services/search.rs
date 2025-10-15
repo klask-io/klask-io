@@ -1453,46 +1453,69 @@ impl SearchService {
     }
 
     /// Get advanced index metrics with repository-level statistics
+    /// Uses Tantivy aggregation API for accurate counts across ALL documents (no limits)
     #[allow(dead_code)]
     pub fn get_advanced_metrics(&self) -> Result<AdvancedIndexMetrics> {
+        use tantivy::aggregation::agg_req::Aggregations;
+        use tantivy::aggregation::agg_result::AggregationResults;
+        use tantivy::aggregation::AggregationCollector;
+        use tantivy::query::AllQuery;
+
         let searcher = self.reader.searcher();
         let total_documents = searcher.num_docs();
         let total_size_mb = self.get_index_size_mb();
 
-        // Use a match-all query to get all documents
-        let match_all_query = tantivy::query::AllQuery;
-        const METRICS_LIMIT: usize = 100000; // Limit for performance
+        // Use a match-all query to count all documents in the index
+        let match_all_query = AllQuery;
 
-        let top_docs = searcher.search(&match_all_query, &TopDocs::with_limit(METRICS_LIMIT))?;
-
-        let mut documents_by_repository: HashMap<String, u64> = HashMap::new();
-        let mut file_types_distribution: HashMap<String, u64> = HashMap::new();
-
-        // Count documents by repository and file type
-        for (_score, doc_address) in top_docs {
-            let doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
-
-            // Count by repository
-            if let Some(repository) = doc
-                .get_first(self.fields.repository)
-                .and_then(|v| v.as_str())
-            {
-                if !repository.is_empty() {
-                    *documents_by_repository
-                        .entry(repository.to_string())
-                        .or_insert(0) += 1;
+        // Build aggregation request for repository counts using JSON
+        let repo_agg_req: Aggregations = serde_json::from_value(serde_json::json!({
+            "repository_terms": {
+                "terms": {
+                    "field": "repository",
+                    "size": 10000  // Large enough to get all repositories
                 }
             }
+        }))?;
 
-            // Count by file type (extension)
-            if let Some(extension) = doc
-                .get_first(self.fields.extension)
-                .and_then(|v| v.as_str())
-            {
-                if !extension.is_empty() {
-                    *file_types_distribution
-                        .entry(extension.to_string())
-                        .or_insert(0) += 1;
+        let repo_collector = AggregationCollector::from_aggs(repo_agg_req, Default::default());
+        let repo_agg_res: AggregationResults = searcher.search(&match_all_query, &repo_collector)?;
+
+        // Extract repository counts from aggregation results
+        let mut documents_by_repository: HashMap<String, u64> = HashMap::new();
+        if let Some(tantivy::aggregation::agg_result::AggregationResult::BucketResult(
+            tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
+        )) = repo_agg_res.0.get("repository_terms")
+        {
+            for entry in buckets {
+                if let tantivy::aggregation::Key::Str(term) = &entry.key {
+                    documents_by_repository.insert(term.to_string(), entry.doc_count);
+                }
+            }
+        }
+
+        // Build aggregation request for extension counts using JSON
+        let ext_agg_req: Aggregations = serde_json::from_value(serde_json::json!({
+            "extension_terms": {
+                "terms": {
+                    "field": "extension",
+                    "size": 1000  // Should be enough for file types
+                }
+            }
+        }))?;
+
+        let ext_collector = AggregationCollector::from_aggs(ext_agg_req, Default::default());
+        let ext_agg_res: AggregationResults = searcher.search(&match_all_query, &ext_collector)?;
+
+        // Extract extension counts from aggregation results
+        let mut file_types_distribution: HashMap<String, u64> = HashMap::new();
+        if let Some(tantivy::aggregation::agg_result::AggregationResult::BucketResult(
+            tantivy::aggregation::agg_result::BucketResult::Terms { buckets, .. },
+        )) = ext_agg_res.0.get("extension_terms")
+        {
+            for entry in buckets {
+                if let tantivy::aggregation::Key::Str(term) = &entry.key {
+                    file_types_distribution.insert(term.to_string(), entry.doc_count);
                 }
             }
         }
