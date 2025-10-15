@@ -18,23 +18,13 @@ pub struct GitTreeWalker;
 
 impl GitTreeWalker {
     /// Recursively walk a Git tree and collect all file entries
-    pub fn walk_tree(
-        repo: &gix::Repository,
-        tree_id: &ObjectId,
-        base_path: &str,
-    ) -> Result<Vec<GitFileEntry>> {
+    pub fn walk_tree(repo: &gix::Repository, tree_id: &ObjectId, base_path: &str) -> Result<Vec<GitFileEntry>> {
         let mut files = Vec::new();
-        let tree = repo
-            .find_object(*tree_id)?
-            .try_into_tree()
-            .map_err(|_| anyhow!("Object is not a tree"))?;
+        let tree = repo.find_object(*tree_id)?.try_into_tree().map_err(|_| anyhow!("Object is not a tree"))?;
 
         for entry in tree.iter() {
             let entry = entry?;
-            let name = entry
-                .filename()
-                .to_str()
-                .map_err(|_| anyhow!("Invalid UTF-8 in filename"))?;
+            let name = entry.filename().to_str().map_err(|_| anyhow!("Invalid UTF-8 in filename"))?;
             let full_path = if base_path.is_empty() {
                 name.to_string()
             } else {
@@ -44,10 +34,7 @@ impl GitTreeWalker {
             // Check entry mode to determine if it's a file or directory
             if entry.mode().is_blob() {
                 // It's a file
-                files.push(GitFileEntry {
-                    path: full_path,
-                    oid: entry.oid().to_owned(),
-                });
+                files.push(GitFileEntry { path: full_path, oid: entry.oid().to_owned() });
             } else if entry.mode().is_tree() {
                 // It's a directory, recurse
                 let subtree_files = Self::walk_tree(repo, &entry.oid().to_owned(), &full_path)?;
@@ -68,15 +55,30 @@ impl GitTreeWalker {
     /// Read the content of a blob as a UTF-8 string
     pub fn read_blob_content(repo: &gix::Repository, oid: &ObjectId) -> Result<Option<String>> {
         let obj = repo.find_object(*oid)?;
-        let blob = obj
-            .try_into_blob()
-            .map_err(|_| anyhow!("Object is not a blob"))?;
+        let blob = obj.try_into_blob().map_err(|_| anyhow!("Object is not a blob"))?;
+
+        let blob_size = blob.data.len();
+        debug!("[BLOB] Attempting to read blob {} ({} bytes)", oid, blob_size);
 
         // Try to convert to UTF-8 string
         match String::from_utf8(blob.data.to_vec()) {
-            Ok(content) => Ok(Some(content)),
-            Err(_) => {
-                debug!("Skipping binary file (not UTF-8)");
+            Ok(content) => {
+                debug!(
+                    "[BLOB] Successfully converted blob {} to UTF-8 ({} bytes, {} chars)",
+                    oid,
+                    content.len(),
+                    content.chars().count()
+                );
+                Ok(Some(content))
+            }
+            Err(e) => {
+                debug!(
+                    "[BLOB] Failed to convert blob {} to UTF-8: {} (blob size: {} bytes, valid up to byte {})",
+                    oid,
+                    e,
+                    blob_size,
+                    e.utf8_error().valid_up_to()
+                );
                 Ok(None)
             }
         }
@@ -91,8 +93,7 @@ impl GitTreeWalker {
         let references = repo.references()?;
 
         for reference in references.all()? {
-            let reference =
-                reference.map_err(|e| anyhow!("Failed to iterate references: {:?}", e))?;
+            let reference = reference.map_err(|e| anyhow!("Failed to iterate references: {:?}", e))?;
             let name = reference.name().as_bstr().to_string();
 
             // Check for local branches (refs/heads/*)
@@ -119,9 +120,7 @@ impl GitTreeWalker {
         let remote_ref = format!("refs/remotes/origin/{}", branch_name);
         let local_ref = format!("refs/heads/{}", branch_name);
 
-        let reference = repo
-            .find_reference(&remote_ref)
-            .or_else(|_| repo.find_reference(&local_ref))?;
+        let reference = repo.find_reference(&remote_ref).or_else(|_| repo.find_reference(&local_ref))?;
 
         let commit_id = reference.id().detach();
         let commit = repo

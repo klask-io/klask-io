@@ -81,9 +81,7 @@ pub struct SearchResult {
 }
 
 pub async fn create_router() -> Result<Router<AppState>> {
-    let router = Router::new()
-        .route("/", get(search_files))
-        .route("/filters", get(get_search_filters));
+    let router = Router::new().route("/", get(search_files)).route("/filters", get(get_search_filters));
 
     Ok(router)
 }
@@ -153,13 +151,7 @@ async fn search_files(
                     .collect(),
             });
 
-            let response = SearchResponse {
-                total: search_response.total,
-                results,
-                page,
-                limit,
-                facets,
-            };
+            let response = SearchResponse { total: search_response.total, results, page, limit, facets };
 
             Ok(Json(response))
         }
@@ -178,9 +170,7 @@ pub struct SearchFilters {
     pub extensions: Vec<FacetValue>,
 }
 
-async fn get_search_filters(
-    State(app_state): State<AppState>,
-) -> Result<Json<SearchFilters>, StatusCode> {
+async fn get_search_filters(State(app_state): State<AppState>) -> Result<Json<SearchFilters>, StatusCode> {
     // Check cache first
     {
         let cache = FILTER_CACHE.read().unwrap();
@@ -212,16 +202,8 @@ async fn get_search_filters(
                         .into_iter()
                         .map(|(value, count)| FacetValue { value, count })
                         .collect(),
-                    projects: facets
-                        .projects
-                        .into_iter()
-                        .map(|(value, count)| FacetValue { value, count })
-                        .collect(),
-                    versions: facets
-                        .versions
-                        .into_iter()
-                        .map(|(value, count)| FacetValue { value, count })
-                        .collect(),
+                    projects: facets.projects.into_iter().map(|(value, count)| FacetValue { value, count }).collect(),
+                    versions: facets.versions.into_iter().map(|(value, count)| FacetValue { value, count }).collect(),
                     extensions: facets
                         .extensions
                         .into_iter()

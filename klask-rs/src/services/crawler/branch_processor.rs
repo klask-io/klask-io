@@ -37,11 +37,7 @@ pub struct BranchProcessor {
 impl BranchProcessor {
     pub fn new(search_service: Arc<SearchService>, progress_tracker: Arc<ProgressTracker>) -> Self {
         let file_processor = FileProcessor::new(search_service.clone());
-        Self {
-            search_service,
-            progress_tracker,
-            file_processor,
-        }
+        Self { search_service, progress_tracker, file_processor }
     }
 
     /// Process all branches in a repository
@@ -91,10 +87,7 @@ impl BranchProcessor {
                 return Ok(());
             }
 
-            info!(
-                "Processing branch '{}' for repository {}",
-                branch_name, repository.name
-            );
+            info!("Processing branch '{}' for repository {}", branch_name, repository.name);
 
             // Process files from this branch's Git tree
             match self
@@ -120,9 +113,7 @@ impl BranchProcessor {
                         "Failed to process branch '{}' for repository {}: {}",
                         branch_name, repository.name, e
                     );
-                    progress
-                        .errors
-                        .push(format!("Branch '{}': {}", branch_name, e));
+                    progress.errors.push(format!("Branch '{}': {}", branch_name, e));
                 }
             }
         }
@@ -183,10 +174,7 @@ impl BranchProcessor {
                 return Ok(());
             }
 
-            info!(
-                "Processing branch '{}' for repository {}",
-                branch_name, repository.name
-            );
+            info!("Processing branch '{}' for repository {}", branch_name, repository.name);
 
             // Process files from this branch's Git tree with tracking
             match self
@@ -212,9 +200,7 @@ impl BranchProcessor {
                         "Failed to process branch '{}' for repository {}: {}",
                         branch_name, repository.name, e
                     );
-                    progress
-                        .errors
-                        .push(format!("Branch '{}': {}", branch_name, e));
+                    progress.errors.push(format!("Branch '{}': {}", branch_name, e));
                 }
             }
         }
@@ -234,7 +220,6 @@ impl BranchProcessor {
         parent_repository_id: Option<Uuid>,
         parent_project_name: Option<&str>, // Parent repository name for GitLab/GitHub multi-project repos
     ) -> Result<()> {
-        use super::file_processing::SUPPORTED_EXTENSIONS;
         use super::git_tree_walker::{GitFileEntry, MAX_FILE_SIZE};
 
         let repo_path_owned = repo_path.to_owned();
@@ -250,11 +235,7 @@ impl BranchProcessor {
             // Walk the tree and collect all files
             let files = GitTreeWalker::walk_tree(&git_repo, &tree_id, "")?;
 
-            info!(
-                "Found {} files in branch '{}'",
-                files.len(),
-                branch_name_owned
-            );
+            info!("Found {} files in branch '{}'", files.len(), branch_name_owned);
             Ok(files)
         })
         .await??;
@@ -262,50 +243,45 @@ impl BranchProcessor {
         // Update progress tracking if parent_repository_id is provided
         if let Some(parent_id) = parent_repository_id {
             let project_with_branch = format!("{} ({})", repository.name, branch_name);
-            self.progress_tracker
-                .set_current_gitlab_project(parent_id, Some(project_with_branch))
-                .await;
+            self.progress_tracker.set_current_gitlab_project(parent_id, Some(project_with_branch)).await;
 
             // Filter to supported files for progress tracking
-            let supported_files: Vec<&GitFileEntry> = files
-                .iter()
-                .filter(|f| {
-                    // Check extension
-                    if let Some(ext) = std::path::Path::new(&f.path).extension() {
-                        if let Some(ext_str) = ext.to_str() {
-                            return SUPPORTED_EXTENSIONS.contains(&ext_str);
-                        }
-                    }
-                    false
-                })
-                .collect();
+            let supported_files: Vec<&GitFileEntry> =
+                files.iter().filter(|f| Self::is_supported_file_static(std::path::Path::new(&f.path))).collect();
 
-            self.progress_tracker
-                .set_current_project_files_total(parent_id, supported_files.len())
-                .await;
+            self.progress_tracker.set_current_project_files_total(parent_id, supported_files.len()).await;
         }
 
         let total_files = files.len();
         let repo_path_owned = repo_path.to_owned();
 
+        info!(
+            "Starting to process {} files for branch '{}' in repository {}",
+            total_files, branch_name, repository.name
+        );
+
+        let mut files_skipped_by_filter = 0;
+        let mut files_read_success = 0;
+        let mut files_read_failed = 0;
+        let mut files_binary_skipped = 0;
+
         // Process each file by reading directly from Git
-        for file_entry in files {
+        for (idx, file_entry) in files.iter().enumerate() {
+            if idx % 100 == 0 && idx > 0 {
+                debug!(
+                    "Progress: {}/{} files in branch '{}' - indexed: {}, skipped_filter: {}, binary/too_large: {}, failed: {}",
+                    idx, total_files, branch_name, files_read_success, files_skipped_by_filter, files_binary_skipped, files_read_failed
+                );
+            }
             // Check for cancellation
             if cancellation_token.is_cancelled() {
                 info!("Crawl cancelled for repository: {}", repository.name);
                 return Ok(());
             }
 
-            // Check extension - skip unsupported files
-            if let Some(ext) = std::path::Path::new(&file_entry.path).extension() {
-                if let Some(ext_str) = ext.to_str() {
-                    if !SUPPORTED_EXTENSIONS.contains(&ext_str) {
-                        continue;
-                    }
-                } else {
-                    continue;
-                }
-            } else {
+            // Check if file is supported - skip unsupported files
+            if !Self::is_supported_file_static(std::path::Path::new(&file_entry.path)) {
+                files_skipped_by_filter += 1;
                 continue;
             }
 
@@ -319,18 +295,34 @@ impl BranchProcessor {
 
                 // Check file size first
                 if !GitTreeWalker::check_blob_size(&git_repo, &oid)? {
-                    debug!("Skipping large file: {} (> {} bytes)", path, MAX_FILE_SIZE);
+                    debug!("[GIT] Skipping large file: {} (> {} bytes)", path, MAX_FILE_SIZE);
                     return Ok(None);
                 }
 
                 // Read the content
-                GitTreeWalker::read_blob_content(&git_repo, &oid)
+                let result = GitTreeWalker::read_blob_content(&git_repo, &oid);
+                match &result {
+                    Ok(Some(content)) => {
+                        debug!(
+                            "[GIT] Successfully read blob for file {} ({} bytes)",
+                            path,
+                            content.len()
+                        );
+                    }
+                    Ok(None) => {
+                        debug!("[GIT] Blob returned None (likely binary) for file {}", path);
+                    }
+                    Err(e) => {
+                        debug!("[GIT] Failed to read blob for file {}: {}", path, e);
+                    }
+                }
+                result
             })
             .await;
 
             match content_result {
-                Ok(Ok(Some(_content))) => {
-                    // Index the file
+                Ok(Ok(Some(content))) => {
+                    // Index the file - pass the content we already read from Git
                     let file_path = std::path::PathBuf::from(&file_entry.path);
                     match self
                         .file_processor
@@ -340,21 +332,22 @@ impl BranchProcessor {
                             &file_entry.path,
                             branch_name,
                             parent_project_name,
+                            Some(content), // Pass the content we already have
                         )
                         .await
                     {
                         Ok(()) => {
                             progress.files_indexed += 1;
+                            files_read_success += 1;
                             debug!(
-                                "Successfully indexed file {} in branch '{}'",
+                                "[GIT] Successfully indexed file {} in branch '{}'",
                                 file_entry.path, branch_name
                             );
                         }
                         Err(e) => {
-                            warn!("Failed to index file {}: {}", file_entry.path, e);
-                            progress
-                                .errors
-                                .push(format!("Failed to index {}: {}", file_entry.path, e));
+                            files_read_failed += 1;
+                            warn!("[GIT] Failed to index file {}: {}", file_entry.path, e);
+                            progress.errors.push(format!("Failed to index {}: {}", file_entry.path, e));
                         }
                     }
 
@@ -362,26 +355,62 @@ impl BranchProcessor {
                 }
                 Ok(Ok(None)) => {
                     // Skipped (binary or too large)
+                    files_binary_skipped += 1;
+                    debug!("[GIT] Skipped file {} (binary or too large)", file_entry.path);
                 }
                 Ok(Err(e)) => {
-                    warn!("Failed to read file {}: {}", file_entry.path, e);
-                    progress
-                        .errors
-                        .push(format!("Failed to read {}: {}", file_entry.path, e));
+                    files_read_failed += 1;
+                    warn!("[GIT] Failed to read file {}: {}", file_entry.path, e);
+                    progress.errors.push(format!("Failed to read {}: {}", file_entry.path, e));
                 }
                 Err(e) => {
-                    warn!("Failed to spawn task for file {}: {}", file_entry.path, e);
-                    progress
-                        .errors
-                        .push(format!("Failed to process {}: {}", file_entry.path, e));
+                    files_read_failed += 1;
+                    warn!("[GIT] Failed to spawn task for file {}: {}", file_entry.path, e);
+                    progress.errors.push(format!("Failed to process {}: {}", file_entry.path, e));
                 }
             }
         }
 
-        debug!(
-            "Processed branch '{}': {} files indexed from {} total files",
-            branch_name, progress.files_indexed, total_files
+        info!(
+            "Completed branch '{}': total={}, indexed={}, skipped_filter={}, binary/too_large={}, failed={}",
+            branch_name,
+            total_files,
+            files_read_success,
+            files_skipped_by_filter,
+            files_binary_skipped,
+            files_read_failed
         );
+
+        // Commit the Tantivy index to make changes visible after each branch
+        let indexed_count = progress.files_indexed;
+        if indexed_count > 0 {
+            info!(
+                "Committing Tantivy index for branch '{}' in repository {} ({} files indexed)",
+                branch_name, repository.name, indexed_count
+            );
+            match tokio::time::timeout(
+                std::time::Duration::from_secs(60), // 1 minute timeout for branch commit
+                self.search_service.commit(),
+            )
+            .await
+            .map_err(|_| anyhow!("Tantivy branch commit timed out after 1 minute"))
+            .and_then(|r| r)
+            {
+                Ok(()) => {
+                    info!(
+                        "Successfully committed Tantivy index for branch '{}' in repository {}",
+                        branch_name, repository.name
+                    );
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to commit Tantivy index for branch '{}' in repository {}: {}",
+                        branch_name, repository.name, e
+                    );
+                    return Err(e);
+                }
+            }
+        }
 
         Ok(())
     }
@@ -396,7 +425,7 @@ impl BranchProcessor {
         progress: &mut CrawlProgress,
         cancellation_token: &CancellationToken,
         gitlab_tracking: Option<(Uuid, usize)>, // (parent_id, _project_start_files_count)
-        parent_project_name: Option<&str>, // Parent repository name for GitLab/GitHub multi-project repos
+        parent_project_name: Option<&str>,      // Parent repository name for GitLab/GitHub multi-project repos
     ) -> Result<()> {
         use super::git_tree_walker::MAX_FILE_SIZE;
         use walkdir::WalkDir;
@@ -410,10 +439,8 @@ impl BranchProcessor {
         // First pass: Count total eligible files for accurate progress reporting (in blocking thread)
         let total_files = tokio::task::spawn_blocking(move || -> Result<usize> {
             let mut total_files = 0;
-            for entry in WalkDir::new(&repo_path_owned)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().is_file())
+            for entry in
+                WalkDir::new(&repo_path_owned).into_iter().filter_map(|e| e.ok()).filter(|e| e.file_type().is_file())
             {
                 let file_path = entry.path();
                 let relative_path = file_path
@@ -451,48 +478,41 @@ impl BranchProcessor {
         );
 
         // Collect all file paths to process (in blocking thread)
-        let files_to_process =
-            tokio::task::spawn_blocking(move || -> Result<Vec<(std::path::PathBuf, String)>> {
-                let mut files = Vec::new();
-                for entry in WalkDir::new(&repo_path_owned2)
-                    .into_iter()
-                    .filter_map(|e| e.ok())
-                    .filter(|e| e.file_type().is_file())
-                {
-                    let file_path = entry.path();
-                    let relative_path = file_path
-                        .strip_prefix(&repo_path_owned2)
-                        .map_err(|e| anyhow!("Failed to get relative path: {}", e))?;
+        let files_to_process = tokio::task::spawn_blocking(move || -> Result<Vec<(std::path::PathBuf, String)>> {
+            let mut files = Vec::new();
+            for entry in
+                WalkDir::new(&repo_path_owned2).into_iter().filter_map(|e| e.ok()).filter(|e| e.file_type().is_file())
+            {
+                let file_path = entry.path();
+                let relative_path = file_path
+                    .strip_prefix(&repo_path_owned2)
+                    .map_err(|e| anyhow!("Failed to get relative path: {}", e))?;
 
-                    let relative_path_str = relative_path.to_string_lossy().to_string();
+                let relative_path_str = relative_path.to_string_lossy().to_string();
 
-                    // Skip hidden files and directories
-                    if relative_path_str.starts_with('.') {
-                        continue;
-                    }
-
-                    // Check file extension
-                    if !Self::is_supported_file_static(file_path) {
-                        continue;
-                    }
-
-                    // Check file size
-                    if let Ok(metadata) = file_path.metadata() {
-                        if metadata.len() > MAX_FILE_SIZE {
-                            debug!(
-                                "Skipping large file: {} ({} bytes)",
-                                relative_path_str,
-                                metadata.len()
-                            );
-                            continue;
-                        }
-                    }
-
-                    files.push((file_path.to_path_buf(), relative_path_str));
+                // Skip hidden files and directories
+                if relative_path_str.starts_with('.') {
+                    continue;
                 }
-                Ok(files)
-            })
-            .await??;
+
+                // Check file extension
+                if !Self::is_supported_file_static(file_path) {
+                    continue;
+                }
+
+                // Check file size
+                if let Ok(metadata) = file_path.metadata() {
+                    if metadata.len() > MAX_FILE_SIZE {
+                        debug!("Skipping large file: {} ({} bytes)", relative_path_str, metadata.len());
+                        continue;
+                    }
+                }
+
+                files.push((file_path.to_path_buf(), relative_path_str));
+            }
+            Ok(files)
+        })
+        .await??;
 
         info!(
             "Collected {} files to process for branch '{}' in repository {}",
@@ -518,9 +538,7 @@ impl BranchProcessor {
             progress.files_processed += 1;
 
             // Update current file being processed
-            self.progress_tracker
-                .set_current_file(repository.id, Some(relative_path_str.clone()))
-                .await;
+            self.progress_tracker.set_current_file(repository.id, Some(relative_path_str.clone())).await;
             self.progress_tracker
                 .update_progress(
                     repository.id,
@@ -533,9 +551,7 @@ impl BranchProcessor {
             // Update GitLab project files progress if applicable
             if let Some((parent_id, project_start)) = gitlab_tracking {
                 let project_files_processed = progress.files_processed - project_start;
-                self.progress_tracker
-                    .update_current_project_files(parent_id, project_files_processed)
-                    .await;
+                self.progress_tracker.update_current_project_files(parent_id, project_files_processed).await;
             }
 
             match self
@@ -546,6 +562,7 @@ impl BranchProcessor {
                     &relative_path_str,
                     branch_name,
                     parent_project_name,
+                    None, // No content provided - will read from disk
                 )
                 .await
             {
@@ -568,9 +585,7 @@ impl BranchProcessor {
                     // Update GitLab project files progress if applicable (files indexed in current project)
                     if let Some((parent_id, project_start)) = gitlab_tracking {
                         let project_files_processed = progress.files_processed - project_start;
-                        self.progress_tracker
-                            .update_current_project_files(parent_id, project_files_processed)
-                            .await;
+                        self.progress_tracker.update_current_project_files(parent_id, project_files_processed).await;
                     }
                 }
                 Err(e) => {
@@ -582,12 +597,16 @@ impl BranchProcessor {
         }
 
         // Clear current file when done
-        self.progress_tracker
-            .set_current_file(repository.id, None)
-            .await;
+        self.progress_tracker.set_current_file(repository.id, None).await;
 
-        info!("Finished processing {} files for branch '{}' in repository {} - indexed: {}, errors: {}",
-              progress.files_processed, branch_name, repository.name, progress.files_indexed, progress.errors.len());
+        info!(
+            "Finished processing {} files for branch '{}' in repository {} - indexed: {}, errors: {}",
+            progress.files_processed,
+            branch_name,
+            repository.name,
+            progress.files_indexed,
+            progress.errors.len()
+        );
 
         // Commit the Tantivy index to make changes visible
         if progress.files_indexed > 0 {

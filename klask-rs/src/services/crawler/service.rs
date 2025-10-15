@@ -43,13 +43,11 @@ impl CrawlerService {
         temp_dir: String,
     ) -> Result<Self> {
         let temp_dir = std::path::PathBuf::from(temp_dir);
-        std::fs::create_dir_all(&temp_dir)
-            .map_err(|e| anyhow!("Failed to create temp directory: {}", e))?;
+        std::fs::create_dir_all(&temp_dir).map_err(|e| anyhow!("Failed to create temp directory: {}", e))?;
 
         // Create specialized crawlers
         let git_operations = GitOperations::new(encryption_service.clone());
-        let branch_processor =
-            BranchProcessor::new(search_service.clone(), progress_tracker.clone());
+        let branch_processor = BranchProcessor::new(search_service.clone(), progress_tracker.clone());
         let gitlab_crawler = GitLabCrawler::new(
             database.clone(),
             search_service.clone(),
@@ -131,11 +129,7 @@ impl CrawlerService {
 
         // Delete all existing documents for this repository/project before crawling
         // This ensures no duplicates when re-crawling
-        match self
-            .search_service
-            .delete_project_documents(&repository.name)
-            .await
-        {
+        match self.search_service.delete_project_documents(&repository.name).await {
             Ok(deleted_count) => {
                 if deleted_count > 0 {
                     info!(
@@ -161,15 +155,8 @@ impl CrawlerService {
         }
 
         // Start tracking progress
-        self.progress_tracker
-            .start_crawl(repository.id, repository.name.clone())
-            .await;
-        self.progress_tracker
-            .update_status(
-                repository.id,
-                crate::services::progress::CrawlStatus::Starting,
-            )
-            .await;
+        self.progress_tracker.start_crawl(repository.id, repository.name.clone()).await;
+        self.progress_tracker.update_status(repository.id, crate::services::progress::CrawlStatus::Starting).await;
 
         // Check for cancellation before starting main work
         if cancellation_token.is_cancelled() {
@@ -186,10 +173,7 @@ impl CrawlerService {
             RepositoryType::Git => {
                 // For Git repositories, use temp directory with cloning
                 self.progress_tracker
-                    .update_status(
-                        repository.id,
-                        crate::services::progress::CrawlStatus::Cloning,
-                    )
+                    .update_status(repository.id, crate::services::progress::CrawlStatus::Cloning)
                     .await;
 
                 // Check for cancellation before cloning
@@ -199,26 +183,15 @@ impl CrawlerService {
                     return Ok(());
                 }
 
-                let temp_path = self
-                    .temp_dir
-                    .join(format!("{}-{}", repository.name, repository.id));
+                let temp_path = self.temp_dir.join(format!("{}-{}", repository.name, repository.id));
 
                 // Try to clone the repository, handle errors gracefully
-                match self
-                    .git_operations
-                    .clone_or_update_repository(repository, &temp_path)
-                    .await
-                {
+                match self.git_operations.clone_or_update_repository(repository, &temp_path).await {
                     Ok(_git_repo) => temp_path,
                     Err(e) => {
                         let error_msg = format!("Failed to clone/update repository: {}", e);
-                        error!(
-                            "Crawl error for repository {}: {}",
-                            repository.name, error_msg
-                        );
-                        self.progress_tracker
-                            .set_error(repository.id, error_msg.clone())
-                            .await;
+                        error!("Crawl error for repository {}: {}", repository.name, error_msg);
+                        self.progress_tracker.set_error(repository.id, error_msg.clone()).await;
                         // Mark crawl as failed in database
                         let _ = repo_repo.fail_crawl(repository.id).await;
                         self.cleanup_cancellation_token(repository.id).await;
@@ -234,9 +207,7 @@ impl CrawlerService {
                     let path = path.to_owned();
                     let git_ops = self.git_operations.clone();
                     Box::pin(async move { git_ops.clone_or_update_repository(&repo, &path).await })
-                        as std::pin::Pin<
-                            Box<dyn std::future::Future<Output = Result<gix::Repository>> + Send>,
-                        >
+                        as std::pin::Pin<Box<dyn std::future::Future<Output = Result<gix::Repository>> + Send>>
                 };
 
                 let process_files_fn = |repo: &Repository,
@@ -269,17 +240,12 @@ impl CrawlerService {
                                 &parent_name,
                             )
                             .await
-                    })
-                        as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
+                    }) as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
                 let update_crawl_time_fn = |repo_id: Uuid, duration: Option<i32>| {
                     let service = self.clone();
-                    Box::pin(async move {
-                        service
-                            .update_repository_crawl_time(repo_id, duration)
-                            .await
-                    })
+                    Box::pin(async move { service.update_repository_crawl_time(repo_id, duration).await })
                         as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
@@ -309,9 +275,7 @@ impl CrawlerService {
                     let path = path.to_owned();
                     let git_ops = self.git_operations.clone();
                     Box::pin(async move { git_ops.clone_or_update_repository(&repo, &path).await })
-                        as std::pin::Pin<
-                            Box<dyn std::future::Future<Output = Result<gix::Repository>> + Send>,
-                        >
+                        as std::pin::Pin<Box<dyn std::future::Future<Output = Result<gix::Repository>> + Send>>
                 };
 
                 let process_files_fn = |repo: &Repository,
@@ -344,17 +308,12 @@ impl CrawlerService {
                                 &parent_name,
                             )
                             .await
-                    })
-                        as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
+                    }) as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
                 let update_crawl_time_fn = |repo_id: Uuid, duration: Option<i32>| {
                     let service = self.clone();
-                    Box::pin(async move {
-                        service
-                            .update_repository_crawl_time(repo_id, duration)
-                            .await
-                    })
+                    Box::pin(async move { service.update_repository_crawl_time(repo_id, duration).await })
                         as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
@@ -388,9 +347,7 @@ impl CrawlerService {
         // Validate that the path exists
         if !repo_path.exists() {
             let error_msg = format!("Repository path does not exist: {:?}", repo_path);
-            self.progress_tracker
-                .set_error(repository.id, error_msg.clone())
-                .await;
+            self.progress_tracker.set_error(repository.id, error_msg.clone()).await;
             // Mark crawl as failed in database
             let _ = repo_repo.fail_crawl(repository.id).await;
             self.cleanup_cancellation_token(repository.id).await;
@@ -399,9 +356,7 @@ impl CrawlerService {
 
         if !repo_path.is_dir() {
             let error_msg = format!("Repository path is not a directory: {:?}", repo_path);
-            self.progress_tracker
-                .set_error(repository.id, error_msg.clone())
-                .await;
+            self.progress_tracker.set_error(repository.id, error_msg.clone()).await;
             // Mark crawl as failed in database
             let _ = repo_repo.fail_crawl(repository.id).await;
             self.cleanup_cancellation_token(repository.id).await;
@@ -409,19 +364,10 @@ impl CrawlerService {
         }
 
         // Update status to processing
-        self.progress_tracker
-            .update_status(
-                repository.id,
-                crate::services::progress::CrawlStatus::Processing,
-            )
-            .await;
+        self.progress_tracker.update_status(repository.id, crate::services::progress::CrawlStatus::Processing).await;
 
         // Process all files in the repository
-        let mut progress = CrawlProgress {
-            files_processed: 0,
-            files_indexed: 0,
-            errors: Vec::new(),
-        };
+        let mut progress = CrawlProgress { files_processed: 0, files_indexed: 0, errors: Vec::new() };
 
         // Check for cancellation before processing
         if cancellation_token.is_cancelled() {
@@ -430,8 +376,7 @@ impl CrawlerService {
             return Ok(());
         }
 
-        self.process_repository_files(repository, &repo_path, &mut progress, &cancellation_token)
-            .await?;
+        self.process_repository_files(repository, &repo_path, &mut progress, &cancellation_token).await?;
 
         // Check for cancellation before indexing
         if cancellation_token.is_cancelled() {
@@ -441,18 +386,10 @@ impl CrawlerService {
         }
 
         // Update status to indexing
-        self.progress_tracker
-            .update_status(
-                repository.id,
-                crate::services::progress::CrawlStatus::Indexing,
-            )
-            .await;
+        self.progress_tracker.update_status(repository.id, crate::services::progress::CrawlStatus::Indexing).await;
 
         // Commit the Tantivy index to make changes searchable
-        info!(
-            "Committing Tantivy index for repository: {}",
-            repository.name
-        );
+        info!("Committing Tantivy index for repository: {}", repository.name);
         tokio::time::timeout(
             std::time::Duration::from_secs(60), // 1 minute timeout for Tantivy commit
             self.search_service.commit(),
@@ -462,8 +399,7 @@ impl CrawlerService {
 
         // Update repository last_crawled timestamp with duration
         let crawl_duration_seconds = crawl_start_time.elapsed().as_secs() as i32;
-        self.update_repository_crawl_time(repository.id, Some(crawl_duration_seconds))
-            .await?;
+        self.update_repository_crawl_time(repository.id, Some(crawl_duration_seconds)).await?;
 
         // Mark crawl as completed in database
         repo_repo.complete_crawl(repository.id).await?;
@@ -476,7 +412,10 @@ impl CrawlerService {
 
         info!(
             "Crawl completed for repository: {}. Files processed: {}, Files indexed: {}, Errors: {}",
-            repository.name, progress.files_processed, progress.files_indexed, progress.errors.len()
+            repository.name,
+            progress.files_processed,
+            progress.files_indexed,
+            progress.errors.len()
         );
 
         if !progress.errors.is_empty() {
@@ -495,17 +434,10 @@ impl CrawlerService {
         cancellation_token: &CancellationToken,
     ) -> Result<()> {
         // Get all branches and process each one
-        match self
-            .branch_processor
-            .process_all_branches(repository, repo_path, progress, cancellation_token)
-            .await
-        {
+        match self.branch_processor.process_all_branches(repository, repo_path, progress, cancellation_token).await {
             Ok(_) => Ok(()),
             Err(e) => {
-                warn!(
-                    "Failed to process all branches, falling back to default branch: {}",
-                    e
-                );
+                warn!("Failed to process all branches, falling back to default branch: {}", e);
                 // Fallback to processing just the current branch
                 let branch_name = repository.branch.as_deref().unwrap_or("HEAD");
                 self.branch_processor
@@ -561,11 +493,7 @@ impl CrawlerService {
     }
 
     /// Update repository last_crawled timestamp and duration
-    pub async fn update_repository_crawl_time(
-        &self,
-        repository_id: Uuid,
-        duration_seconds: Option<i32>,
-    ) -> Result<()> {
+    pub async fn update_repository_crawl_time(&self, repository_id: Uuid, duration_seconds: Option<i32>) -> Result<()> {
         let query = if let Some(duration) = duration_seconds {
             sqlx::query("UPDATE repositories SET last_crawled = $1, last_crawl_duration_seconds = $2, updated_at = $1 WHERE id = $3")
                 .bind(chrono::Utc::now())
@@ -577,10 +505,7 @@ impl CrawlerService {
                 .bind(repository_id)
         };
 
-        query
-            .execute(&self.database)
-            .await
-            .map_err(|e| anyhow!("Failed to update repository crawl time: {}", e))?;
+        query.execute(&self.database).await.map_err(|e| anyhow!("Failed to update repository crawl time: {}", e))?;
 
         if let Some(duration) = duration_seconds {
             info!(
@@ -634,10 +559,7 @@ impl CrawlerService {
             return Ok(());
         }
 
-        info!(
-            "Found {} incomplete crawls to resume",
-            incomplete_repos.len()
-        );
+        info!("Found {} incomplete crawls to resume", incomplete_repos.len());
 
         for repository in incomplete_repos {
             info!(
@@ -648,16 +570,10 @@ impl CrawlerService {
             // Resume the crawl from where it left off
             match self.resume_repository_crawl(&repository).await {
                 Ok(()) => {
-                    info!(
-                        "Successfully resumed crawl for repository: {}",
-                        repository.name
-                    );
+                    info!("Successfully resumed crawl for repository: {}", repository.name);
                 }
                 Err(e) => {
-                    error!(
-                        "Failed to resume crawl for repository {}: {}",
-                        repository.name, e
-                    );
+                    error!("Failed to resume crawl for repository {}: {}", repository.name, e);
                     // Mark as failed so it doesn't get stuck in "in_progress" state
                     let _ = repo_repo.fail_crawl(repository.id).await;
                 }
@@ -682,9 +598,7 @@ impl CrawlerService {
                     let path = path.to_owned();
                     let git_ops = self.git_operations.clone();
                     Box::pin(async move { git_ops.clone_or_update_repository(&repo, &path).await })
-                        as std::pin::Pin<
-                            Box<dyn std::future::Future<Output = Result<gix::Repository>> + Send>,
-                        >
+                        as std::pin::Pin<Box<dyn std::future::Future<Output = Result<gix::Repository>> + Send>>
                 };
 
                 let process_files_fn = |repo: &Repository,
@@ -717,17 +631,12 @@ impl CrawlerService {
                                 &parent_name,
                             )
                             .await
-                    })
-                        as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
+                    }) as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
                 let update_crawl_time_fn = |repo_id: Uuid, duration: Option<i32>| {
                     let service = self.clone();
-                    Box::pin(async move {
-                        service
-                            .update_repository_crawl_time(repo_id, duration)
-                            .await
-                    })
+                    Box::pin(async move { service.update_repository_crawl_time(repo_id, duration).await })
                         as std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
                 };
 
@@ -775,10 +684,7 @@ impl CrawlerService {
             return Ok(());
         }
 
-        info!(
-            "Found {} abandoned crawls to clean up",
-            abandoned_repos.len()
-        );
+        info!("Found {} abandoned crawls to clean up", abandoned_repos.len());
 
         for repository in abandoned_repos {
             warn!(
@@ -803,10 +709,7 @@ impl Clone for CrawlerService {
             temp_dir: self.temp_dir.clone(),
             cancellation_tokens: self.cancellation_tokens.clone(),
             git_operations: GitOperations::new(self.encryption_service.clone()),
-            branch_processor: BranchProcessor::new(
-                self.search_service.clone(),
-                self.progress_tracker.clone(),
-            ),
+            branch_processor: BranchProcessor::new(self.search_service.clone(), self.progress_tracker.clone()),
             gitlab_crawler: GitLabCrawler::new(
                 self.database.clone(),
                 self.search_service.clone(),

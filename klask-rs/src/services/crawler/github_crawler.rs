@@ -30,13 +30,7 @@ impl GitHubCrawler {
         encryption_service: Arc<EncryptionService>,
         temp_dir: PathBuf,
     ) -> Self {
-        Self {
-            database,
-            search_service,
-            progress_tracker,
-            encryption_service,
-            temp_dir,
-        }
+        Self { database, search_service, progress_tracker, encryption_service, temp_dir }
     }
 
     /// Crawl a GitHub repository by discovering all sub-repositories and cloning them
@@ -47,9 +41,8 @@ impl GitHubCrawler {
         clone_or_update_fn: impl Fn(
                 &Repository,
                 &std::path::Path,
-            ) -> std::pin::Pin<
-                Box<dyn std::future::Future<Output = Result<gix::Repository>> + Send>,
-            > + Send
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<gix::Repository>> + Send>>
+            + Send
             + Sync,
         process_files_fn: impl Fn(
                 &Repository,
@@ -58,39 +51,25 @@ impl GitHubCrawler {
                 &CancellationToken,
                 Uuid,
                 &str,
-            )
-                -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
             + Send
             + Sync,
-        update_crawl_time_fn: impl Fn(
-                Uuid,
-                Option<i32>,
-            )
-                -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
+        update_crawl_time_fn: impl Fn(Uuid, Option<i32>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send>>
             + Send
             + Sync,
-        cleanup_token_fn: impl Fn(Uuid) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>
-            + Send
-            + Sync,
+        cleanup_token_fn: impl Fn(Uuid) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> + Send + Sync,
     ) -> Result<()> {
         let github_crawl_start_time = std::time::Instant::now();
         let repo_repo = RepositoryRepository::new(self.database.clone());
 
-        info!(
-            "Starting GitHub discovery for repository: {}",
-            repository.name
-        );
+        info!("Starting GitHub discovery for repository: {}", repository.name);
 
         // Mark crawl as started in database
         repo_repo.start_crawl(repository.id, None).await?;
 
         // Delete all existing documents for this repository before crawling
         // This ensures no duplicates when re-crawling
-        match self
-            .search_service
-            .delete_project_documents(&repository.name)
-            .await
-        {
+        match self.search_service.delete_project_documents(&repository.name).await {
             Ok(deleted_count) => {
                 if deleted_count > 0 {
                     info!(
@@ -109,22 +88,15 @@ impl GitHubCrawler {
         }
 
         // Extract and decrypt access token from repository
-        let encrypted_token = repository
-            .access_token
-            .as_ref()
-            .ok_or_else(|| anyhow!("GitHub repository missing access token"))?;
+        let encrypted_token =
+            repository.access_token.as_ref().ok_or_else(|| anyhow!("GitHub repository missing access token"))?;
 
         let access_token = self
             .encryption_service
             .decrypt(encrypted_token)
             .map_err(|e| anyhow!("Failed to decrypt GitHub access token: {}", e))?;
 
-        self.progress_tracker
-            .update_status(
-                repository.id,
-                crate::services::progress::CrawlStatus::Cloning,
-            )
-            .await;
+        self.progress_tracker.update_status(repository.id, crate::services::progress::CrawlStatus::Cloning).await;
 
         // Test GitHub token first
         let github_service = GitHubService::new();
@@ -137,9 +109,7 @@ impl GitHubCrawler {
                     "GitHub token validation failed for repository {}: {}",
                     repository.name, error_msg
                 );
-                self.progress_tracker
-                    .set_error(repository.id, error_msg.to_string())
-                    .await;
+                self.progress_tracker.set_error(repository.id, error_msg.to_string()).await;
                 // Mark crawl as failed in database
                 let _ = repo_repo.fail_crawl(repository.id).await;
                 cleanup_token_fn(repository.id).await;
@@ -151,9 +121,7 @@ impl GitHubCrawler {
                     "GitHub token test error for repository {}: {}",
                     repository.name, error_msg
                 );
-                self.progress_tracker
-                    .set_error(repository.id, error_msg.clone())
-                    .await;
+                self.progress_tracker.set_error(repository.id, error_msg.clone()).await;
                 // Mark crawl as failed in database
                 let _ = repo_repo.fail_crawl(repository.id).await;
                 cleanup_token_fn(repository.id).await;
@@ -162,51 +130,34 @@ impl GitHubCrawler {
         }
 
         // Discover GitHub repositories
-        info!(
-            "Discovering GitHub repositories for repository: {}",
-            repository.name
-        );
-        let repositories = match github_service
-            .discover_repositories(&access_token, repository.github_namespace.as_deref())
-            .await
-        {
-            Ok(repos) => repos,
-            Err(e) => {
-                let error_msg = format!("Failed to discover GitHub repositories: {}", e);
-                error!(
-                    "GitHub discovery error for repository {}: {}",
-                    repository.name, error_msg
-                );
-                self.progress_tracker
-                    .set_error(repository.id, error_msg.clone())
-                    .await;
-                // Mark crawl as failed in database
-                let _ = repo_repo.fail_crawl(repository.id).await;
-                cleanup_token_fn(repository.id).await;
-                return Err(anyhow!(error_msg));
-            }
-        };
+        info!("Discovering GitHub repositories for repository: {}", repository.name);
+        let repositories =
+            match github_service.discover_repositories(&access_token, repository.github_namespace.as_deref()).await {
+                Ok(repos) => repos,
+                Err(e) => {
+                    let error_msg = format!("Failed to discover GitHub repositories: {}", e);
+                    error!(
+                        "GitHub discovery error for repository {}: {}",
+                        repository.name, error_msg
+                    );
+                    self.progress_tracker.set_error(repository.id, error_msg.clone()).await;
+                    // Mark crawl as failed in database
+                    let _ = repo_repo.fail_crawl(repository.id).await;
+                    cleanup_token_fn(repository.id).await;
+                    return Err(anyhow!(error_msg));
+                }
+            };
 
         // Filter out excluded repositories using repository-specific exclusions
         let excluded_repositories: Vec<String> = repository
             .github_excluded_repositories
             .as_ref()
-            .map(|s| {
-                s.split(',')
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect()
-            })
+            .map(|s| s.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
             .unwrap_or_default();
         let excluded_patterns: Vec<String> = repository
             .github_excluded_patterns
             .as_ref()
-            .map(|s| {
-                s.split(',')
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect()
-            })
+            .map(|s| s.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
             .unwrap_or_default();
 
         let filtered_repositories = github_service.filter_excluded_repositories_with_config(
@@ -217,9 +168,7 @@ impl GitHubCrawler {
 
         if filtered_repositories.is_empty() {
             let error_msg = "No accessible GitHub repositories found after exclusion filtering";
-            self.progress_tracker
-                .set_error(repository.id, error_msg.to_string())
-                .await;
+            self.progress_tracker.set_error(repository.id, error_msg.to_string()).await;
             // Mark crawl as failed in database
             let _ = repo_repo.fail_crawl(repository.id).await;
             cleanup_token_fn(repository.id).await;
@@ -233,14 +182,10 @@ impl GitHubCrawler {
         );
 
         // Initialize hierarchical progress tracking for GitHub
-        self.progress_tracker
-            .set_gitlab_projects_total(repository.id, filtered_repositories.len())
-            .await;
+        self.progress_tracker.set_gitlab_projects_total(repository.id, filtered_repositories.len()).await;
 
         // Create base directory for this GitHub repository
-        let base_repo_path = self
-            .temp_dir
-            .join(format!("{}-{}", repository.name, repository.id));
+        let base_repo_path = self.temp_dir.join(format!("{}-{}", repository.name, repository.id));
         std::fs::create_dir_all(&base_repo_path)?;
 
         let mut total_files_processed = 0;
@@ -250,9 +195,7 @@ impl GitHubCrawler {
         // Process each discovered repository
         for (repo_index, github_repo) in filtered_repositories.iter().enumerate() {
             // Update progress in database before processing each repository
-            repo_repo
-                .update_crawl_progress(repository.id, Some(github_repo.full_name.clone()))
-                .await?;
+            repo_repo.update_crawl_progress(repository.id, Some(github_repo.full_name.clone())).await?;
 
             // Check for cancellation before each repository
             if cancellation_token.is_cancelled() {
@@ -269,16 +212,14 @@ impl GitHubCrawler {
             );
 
             // Update current project in progress tracker
-            self.progress_tracker
-                .set_current_gitlab_project(repository.id, Some(github_repo.full_name.clone()))
-                .await;
+            self.progress_tracker.set_current_gitlab_project(repository.id, Some(github_repo.full_name.clone())).await;
 
             // Create sub-directory for this repository
             let repo_path = base_repo_path.join(&github_repo.full_name);
 
             // Create a temporary repository object for this GitHub repo
             let temp_repository = Repository {
-                id: repository.id, // Use same ID so it's grouped under the same repository
+                id: repository.id,                   // Use same ID so it's grouped under the same repository
                 name: github_repo.full_name.clone(), // Use full repo name
                 url: github_repo.clone_url.clone(),
                 repository_type: RepositoryType::Git, // Treat as Git for cloning
@@ -310,11 +251,7 @@ impl GitHubCrawler {
             match clone_or_update_fn(&temp_repository, &repo_path).await {
                 Ok(_) => {
                     // Create progress tracker for this repository
-                    let mut repo_progress = CrawlProgress {
-                        files_processed: 0,
-                        files_indexed: 0,
-                        errors: Vec::new(),
-                    };
+                    let mut repo_progress = CrawlProgress { files_processed: 0, files_indexed: 0, errors: Vec::new() };
 
                     // Process files in this repository with hierarchical tracking
                     match process_files_fn(
@@ -328,10 +265,7 @@ impl GitHubCrawler {
                     .await
                     {
                         Ok(()) => {
-                            info!(
-                                "Successfully processed GitHub repository: {}",
-                                github_repo.full_name
-                            );
+                            info!("Successfully processed GitHub repository: {}", github_repo.full_name);
                             total_files_processed += repo_progress.files_processed;
                             total_files_indexed += repo_progress.files_indexed;
                             all_errors.extend(repo_progress.errors);
@@ -347,15 +281,10 @@ impl GitHubCrawler {
                     }
 
                     // Complete this repository in the tracker
-                    self.progress_tracker
-                        .complete_current_gitlab_project(repository.id)
-                        .await;
+                    self.progress_tracker.complete_current_gitlab_project(repository.id).await;
                 }
                 Err(e) => {
-                    let error_msg = format!(
-                        "Failed to clone GitHub repository {}: {}",
-                        github_repo.full_name, e
-                    );
+                    let error_msg = format!("Failed to clone GitHub repository {}: {}", github_repo.full_name, e);
                     warn!("{}", error_msg);
                     all_errors.push(error_msg);
                 }
@@ -363,22 +292,12 @@ impl GitHubCrawler {
         }
 
         // Update final progress
-        self.progress_tracker
-            .update_progress(
-                repository.id,
-                total_files_processed,
-                None,
-                total_files_indexed,
-            )
-            .await;
+        self.progress_tracker.update_progress(repository.id, total_files_processed, None, total_files_indexed).await;
 
         if !all_errors.is_empty() {
             let combined_errors = all_errors.join("; ");
             self.progress_tracker
-                .set_error(
-                    repository.id,
-                    format!("Some repositories failed: {}", combined_errors),
-                )
+                .set_error(repository.id, format!("Some repositories failed: {}", combined_errors))
                 .await;
         }
 

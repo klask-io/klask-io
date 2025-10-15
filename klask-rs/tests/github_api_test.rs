@@ -15,26 +15,18 @@ async fn test_github_service_pattern_matching() {
     let repo = create_test_github_repository("test-project", "testuser", 1);
 
     // Test with different exclusion patterns
-    let excluded_patterns = vec![
-        "*-archive".to_string(),
-        "test/*".to_string(),
-        "*/large-*".to_string(),
-    ];
+    let excluded_patterns = vec!["*-archive".to_string(), "test/*".to_string(), "*/large-*".to_string()];
 
     // This repository should not be excluded
     assert!(
-        !service
-            .filter_excluded_repositories_with_config(vec![repo.clone()], &[], &excluded_patterns)
-            .is_empty(),
+        !service.filter_excluded_repositories_with_config(vec![repo.clone()], &[], &excluded_patterns).is_empty(),
         "Repository should not be excluded with current patterns"
     );
 
     // Create repository that matches exclusion pattern
     let archive_repo = create_test_github_repository("project-archive", "testuser", 2);
     assert!(
-        service
-            .filter_excluded_repositories_with_config(vec![archive_repo], &[], &excluded_patterns)
-            .is_empty(),
+        service.filter_excluded_repositories_with_config(vec![archive_repo], &[], &excluded_patterns).is_empty(),
         "Archive repository should be excluded"
     );
 
@@ -45,10 +37,7 @@ async fn test_github_service_pattern_matching() {
 async fn test_github_repository_exclusion_exact_match() {
     let service = GitHubService::new();
 
-    let excluded_repositories = vec![
-        "testuser/exclude-me".to_string(),
-        "org/legacy-project".to_string(),
-    ];
+    let excluded_repositories = vec!["testuser/exclude-me".to_string(), "org/legacy-project".to_string()];
 
     let repos = vec![
         create_test_github_repository("keep-me", "testuser", 1),
@@ -56,14 +45,9 @@ async fn test_github_repository_exclusion_exact_match() {
         create_test_github_repository("another-keep", "testuser", 3),
     ];
 
-    let filtered =
-        service.filter_excluded_repositories_with_config(repos, &excluded_repositories, &[]);
+    let filtered = service.filter_excluded_repositories_with_config(repos, &excluded_repositories, &[]);
 
-    assert_eq!(
-        filtered.len(),
-        2,
-        "Should keep 2 repositories after excluding 1"
-    );
+    assert_eq!(filtered.len(), 2, "Should keep 2 repositories after excluding 1");
     assert_eq!(filtered[0].full_name, "testuser/keep-me");
     assert_eq!(filtered[1].full_name, "testuser/another-keep");
 
@@ -90,11 +74,7 @@ async fn test_github_repository_exclusion_patterns() {
 
     let filtered = service.filter_excluded_repositories_with_config(repos, &[], &excluded_patterns);
 
-    assert_eq!(
-        filtered.len(),
-        2,
-        "Should keep 2 repositories after pattern exclusions"
-    );
+    assert_eq!(filtered.len(), 2, "Should keep 2 repositories after pattern exclusions");
     assert_eq!(filtered[0].full_name, "testuser/active-project");
     assert_eq!(filtered[1].full_name, "testuser/production-app");
 
@@ -120,14 +100,9 @@ async fn test_github_repository_data_structure() {
     assert!(test_repo_data.is_object());
     assert_eq!(test_repo_data["name"].as_str().unwrap(), "test-repo");
     assert_eq!(test_repo_data["repositoryType"].as_str().unwrap(), "GitHub");
+    assert_eq!(test_repo_data["githubNamespace"].as_str().unwrap(), "test-org");
     assert_eq!(
-        test_repo_data["githubNamespace"].as_str().unwrap(),
-        "test-org"
-    );
-    assert_eq!(
-        test_repo_data["githubExcludedRepositories"]
-            .as_str()
-            .unwrap(),
+        test_repo_data["githubExcludedRepositories"].as_str().unwrap(),
         "org/archive-1,org/archive-2"
     );
     assert_eq!(
@@ -177,10 +152,7 @@ async fn test_github_repository_model_fields() {
         repo.github_excluded_repositories,
         Some("org/repo1,org/repo2".to_string())
     );
-    assert_eq!(
-        repo.github_excluded_patterns,
-        Some("*-archive,*-temp".to_string())
-    );
+    assert_eq!(repo.github_excluded_patterns, Some("*-archive,*-temp".to_string()));
 
     // Verify GitLab fields are not set
     assert_eq!(repo.gitlab_namespace, None);
@@ -209,8 +181,7 @@ async fn test_github_repository_type_serialization() {
     assert_eq!(serialized, "\"GitHub\"");
 
     // Test deserialization
-    let deserialized: RepositoryType =
-        serde_json::from_str(&serialized).expect("Should deserialize");
+    let deserialized: RepositoryType = serde_json::from_str(&serialized).expect("Should deserialize");
     assert!(matches!(deserialized, RepositoryType::GitHub));
 
     println!("✅ GitHub repository type serialization test passed!");
@@ -252,17 +223,9 @@ async fn test_github_repository_with_multiple_exclusions() {
         create_test_github_repository("production", "org", 5),
     ];
 
-    let filtered = service.filter_excluded_repositories_with_config(
-        repos,
-        &excluded_repositories,
-        &excluded_patterns,
-    );
+    let filtered = service.filter_excluded_repositories_with_config(repos, &excluded_repositories, &excluded_patterns);
 
-    assert_eq!(
-        filtered.len(),
-        2,
-        "Should keep 2 repositories after all exclusions"
-    );
+    assert_eq!(filtered.len(), 2, "Should keep 2 repositories after all exclusions");
     assert_eq!(filtered[0].full_name, "org/active-project");
     assert_eq!(filtered[1].full_name, "org/production");
 
@@ -281,14 +244,8 @@ async fn test_github_archived_repositories_excluded() {
 
     // In the real discover_repositories implementation, archived repos are filtered out
     // Here we test the repository structure
-    assert!(
-        archived_repo.archived,
-        "Repository should be marked as archived"
-    );
-    assert!(
-        !active_repo.archived,
-        "Repository should not be marked as archived"
-    );
+    assert!(archived_repo.archived, "Repository should be marked as archived");
+    assert!(!active_repo.archived, "Repository should not be marked as archived");
 
     println!("✅ GitHub archived repositories exclusion test passed!");
 }
@@ -315,10 +272,7 @@ async fn test_github_private_public_repositories() {
 
     let public_repo = create_test_github_repository("public-repo", "org", 2);
 
-    assert!(
-        private_repo.private,
-        "Private repository should be marked as private"
-    );
+    assert!(private_repo.private, "Private repository should be marked as private");
     assert!(
         !public_repo.private,
         "Public repository should not be marked as private"
@@ -355,11 +309,7 @@ async fn test_github_wildcard_pattern_edge_cases() {
 
     let filtered = service.filter_excluded_repositories_with_config(repos, &[], &patterns);
 
-    assert_eq!(
-        filtered.len(),
-        0,
-        "Wildcard * should exclude all repositories"
-    );
+    assert_eq!(filtered.len(), 0, "Wildcard * should exclude all repositories");
 
     // Test empty pattern
     let empty_patterns: Vec<String> = vec![];
@@ -367,11 +317,7 @@ async fn test_github_wildcard_pattern_edge_cases() {
 
     let filtered = service.filter_excluded_repositories_with_config(repos, &[], &empty_patterns);
 
-    assert_eq!(
-        filtered.len(),
-        1,
-        "Empty patterns should keep all repositories"
-    );
+    assert_eq!(filtered.len(), 1, "Empty patterns should keep all repositories");
 
     println!("✅ GitHub wildcard pattern edge cases test passed!");
 }
@@ -388,12 +334,12 @@ async fn test_github_complex_patterns() {
     ];
 
     let repos = vec![
-        create_test_github_repository("prod-app", "org", 1), // Keep
-        create_test_github_repository("test-archive", "org", 2), // Exclude: org/*-archive
+        create_test_github_repository("prod-app", "org", 1),         // Keep
+        create_test_github_repository("test-archive", "org", 2),     // Exclude: org/*-archive
         create_test_github_repository("test-experiment", "team", 3), // Exclude: */test-*
-        create_test_github_repository("legacy-old", "org", 4), // Exclude: *-old
+        create_test_github_repository("legacy-old", "org", 4),       // Exclude: *-old
         create_test_github_repository("prefix-feature-suffix", "org", 5), // Exclude: org/prefix-*-suffix
-        create_test_github_repository("active-project", "org", 6),        // Keep
+        create_test_github_repository("active-project", "org", 6),   // Keep
     ];
 
     let filtered = service.filter_excluded_repositories_with_config(repos, &[], &patterns);
@@ -422,9 +368,6 @@ fn create_test_github_repository(name: &str, owner: &str, id: i64) -> GitHubRepo
         html_url: format!("https://github.com/{}/{}", owner, name),
         private: false,
         archived: false,
-        owner: GitHubOwner {
-            login: owner.to_string(),
-            owner_type: "User".to_string(),
-        },
+        owner: GitHubOwner { login: owner.to_string(), owner_type: "User".to_string() },
     }
 }

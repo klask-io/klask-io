@@ -83,11 +83,7 @@ impl FileProcessor {
     }
 
     /// Generate a deterministic UUID for a file based on repository, specific branch, and path
-    pub fn generate_deterministic_file_id(
-        repository: &Repository,
-        relative_path: &str,
-        branch_name: &str,
-    ) -> Uuid {
+    pub fn generate_deterministic_file_id(repository: &Repository, relative_path: &str, branch_name: &str) -> Uuid {
         let mut hasher = Sha256::new();
 
         // Create deterministic input based on repository type
@@ -123,6 +119,9 @@ impl FileProcessor {
     }
 
     /// Process a single file and index it in the search service
+    ///
+    /// If `provided_content` is Some, it will be used directly instead of reading from disk.
+    /// This is useful when reading from Git trees without checking out files.
     pub async fn process_single_file(
         &self,
         repository: &Repository,
@@ -130,60 +129,70 @@ impl FileProcessor {
         relative_path: &str,
         branch_name: &str,
         parent_project_name: Option<&str>,
+        provided_content: Option<String>,
     ) -> Result<()> {
-        debug!(
-            "Processing file {} in branch '{}' for repository {}",
-            relative_path, branch_name, repository.name
-        );
+        // Read file content - use provided content if available, otherwise read from disk
+        let content = if let Some(content) = provided_content {
+            debug!(
+                "[GIT READ] Processing file {} in branch '{}' from Git (provided content: {} bytes)",
+                relative_path,
+                branch_name,
+                content.len()
+            );
 
-        // Read file content
-        let content = match tokio::fs::read_to_string(file_path).await {
-            Ok(content) => {
-                // Skip binary files or files with invalid UTF-8
-                if content.chars().any(|c| c == '\0') {
-                    debug!("Skipping binary file: {}", relative_path);
-                    return Ok(());
-                }
-
-                // Log first few characters for debugging (Unicode-safe)
-                let preview = if content.chars().count() > 100 {
-                    format!("{}...", content.chars().take(100).collect::<String>())
-                } else {
-                    content.clone()
-                };
+            // Skip binary files or files with invalid UTF-8
+            if content.chars().any(|c| c == '\0') {
                 debug!(
-                    "Read content for file {} in branch '{}': {} bytes, starts with: {}",
-                    relative_path,
-                    branch_name,
-                    content.len(),
-                    preview.trim()
+                    "[GIT READ] Skipping binary file (contains null bytes): {}",
+                    relative_path
                 );
-
-                Some(content)
+                return Ok(());
             }
-            Err(_) => {
-                debug!("Could not read file as UTF-8: {}", relative_path);
-                None
+
+            Some(content)
+        } else {
+            debug!(
+                "[DISK READ] Reading file {} in branch '{}' from filesystem",
+                relative_path, branch_name
+            );
+
+            // Read from disk
+            match tokio::fs::read_to_string(file_path).await {
+                Ok(content) => {
+                    // Skip binary files or files with invalid UTF-8
+                    if content.chars().any(|c| c == '\0') {
+                        debug!(
+                            "[DISK READ] Skipping binary file (contains null bytes): {}",
+                            relative_path
+                        );
+                        return Ok(());
+                    }
+
+                    debug!(
+                        "[DISK READ] Successfully read file {} ({} bytes)",
+                        relative_path,
+                        content.len()
+                    );
+                    Some(content)
+                }
+                Err(e) => {
+                    debug!(
+                        "[DISK READ] Could not read file as UTF-8: {} - Error: {}",
+                        relative_path, e
+                    );
+                    None
+                }
             }
         };
 
-        let extension = file_path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("")
-            .to_string();
+        let extension = file_path.extension().and_then(|ext| ext.to_str()).unwrap_or("").to_string();
 
-        let file_name = file_path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("")
-            .to_string();
+        let file_name = file_path.file_name().and_then(|name| name.to_str()).unwrap_or("").to_string();
 
         // Index in Tantivy search engine if content is available
         if let Some(content) = content {
             // Generate a deterministic ID for Tantivy indexing to prevent duplicates
-            let file_id =
-                Self::generate_deterministic_file_id(repository, relative_path, branch_name);
+            let file_id = Self::generate_deterministic_file_id(repository, relative_path, branch_name);
             let version = branch_name.to_string();
 
             // For repository: use parent project name if provided (for GitLab/GitHub multi-project repos),
@@ -266,10 +275,7 @@ impl FileProcessor {
     pub fn collect_supported_files(repo_path: &Path) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
         Self::collect_files_recursive(repo_path, &mut files)?;
-        Ok(files
-            .into_iter()
-            .filter(|path| Self::is_supported_file(path))
-            .collect())
+        Ok(files.into_iter().filter(|path| Self::is_supported_file(path)).collect())
     }
 
     /// Recursively collect files from a directory

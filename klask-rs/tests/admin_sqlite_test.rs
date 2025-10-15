@@ -113,11 +113,7 @@ async fn test_sqlite_concurrent_access() -> Result<()> {
                 username: format!("user_{}", i),
                 email: format!("user_{}@example.com", i),
                 password_hash: format!("hash_{}", i),
-                role: if i % 2 == 0 {
-                    UserRole::Admin
-                } else {
-                    UserRole::User
-                },
+                role: if i % 2 == 0 { UserRole::Admin } else { UserRole::User },
                 active: true,
                 created_at: Utc::now(),
                 updated_at: Utc::now(),

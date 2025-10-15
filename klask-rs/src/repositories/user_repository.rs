@@ -85,16 +85,8 @@ impl UserRepository {
         Ok(users)
     }
 
-    pub async fn update_user(
-        &self,
-        id: Uuid,
-        username: Option<&str>,
-        email: Option<&str>,
-    ) -> Result<User> {
-        let existing_user = self
-            .get_user(id)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+    pub async fn update_user(&self, id: Uuid, username: Option<&str>, email: Option<&str>) -> Result<User> {
+        let existing_user = self.get_user(id).await?.ok_or_else(|| anyhow::anyhow!("User not found"))?;
 
         let updated_username = username.unwrap_or(&existing_user.username);
         let updated_email = email.unwrap_or(&existing_user.email);
@@ -142,48 +134,33 @@ impl UserRepository {
     }
 
     pub async fn delete_user(&self, id: Uuid) -> Result<()> {
-        sqlx::query("DELETE FROM users WHERE id = $1")
-            .bind(id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query("DELETE FROM users WHERE id = $1").bind(id).execute(&self.pool).await?;
 
         Ok(())
     }
 
     pub async fn count_users(&self) -> Result<i64> {
-        let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
-            .fetch_one(&self.pool)
-            .await?;
+        let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users").fetch_one(&self.pool).await?;
         Ok(count)
     }
 
     pub async fn get_user_stats(&self) -> Result<UserStats> {
-        let total_users = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
+        let total_users = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users").fetch_one(&self.pool).await?;
+
+        let active_users = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE active = true")
             .fetch_one(&self.pool)
             .await?;
 
-        let active_users =
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE active = true")
+        let admin_users = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE role = 'Admin'")
+            .fetch_one(&self.pool)
+            .await?;
+
+        let recent_registrations =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '30 days'")
                 .fetch_one(&self.pool)
                 .await?;
 
-        let admin_users =
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE role = 'Admin'")
-                .fetch_one(&self.pool)
-                .await?;
-
-        let recent_registrations = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '30 days'",
-        )
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(UserStats {
-            total_users,
-            active_users,
-            admin_users,
-            recent_registrations,
-        })
+        Ok(UserStats { total_users, active_users, admin_users, recent_registrations })
     }
 
     pub async fn update_last_login(&self, id: Uuid) -> Result<User> {

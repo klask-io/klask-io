@@ -47,24 +47,16 @@ impl GitHubService {
             if let Ok(remaining_str) = remaining.to_str() {
                 if let Ok(remaining_count) = remaining_str.parse::<i32>() {
                     if remaining_count == 0 {
-                        tracing::error!(
-                            "GitHub rate limit exhausted! Check x-ratelimit-reset header."
-                        );
+                        tracing::error!("GitHub rate limit exhausted! Check x-ratelimit-reset header.");
 
                         // Try to get reset time for better error message
                         if let Some(reset) = response.headers().get("x-ratelimit-reset") {
                             if let Ok(reset_str) = reset.to_str() {
-                                tracing::error!(
-                                    "Rate limit will reset at timestamp: {}",
-                                    reset_str
-                                );
+                                tracing::error!("Rate limit will reset at timestamp: {}", reset_str);
                             }
                         }
                     } else if remaining_count < 100 {
-                        tracing::warn!(
-                            "GitHub rate limit low: {} requests remaining",
-                            remaining_count
-                        );
+                        tracing::warn!("GitHub rate limit low: {} requests remaining", remaining_count);
                     }
                 }
             }
@@ -72,14 +64,11 @@ impl GitHubService {
     }
 
     pub fn new() -> Self {
-        let mut builder = Client::builder()
-            .user_agent("klask-rs/2.0")
-            .timeout(std::time::Duration::from_secs(30));
+        let mut builder = Client::builder().user_agent("klask-rs/2.0").timeout(std::time::Duration::from_secs(30));
 
         // GitHub doesn't typically need invalid cert acceptance, but include it for consistency
-        let accept_invalid_certs = std::env::var("KLASK_GITHUB_ACCEPT_INVALID_CERTS")
-            .map(|v| v.to_lowercase() == "true")
-            .unwrap_or(false);
+        let accept_invalid_certs =
+            std::env::var("KLASK_GITHUB_ACCEPT_INVALID_CERTS").map(|v| v.to_lowercase() == "true").unwrap_or(false);
 
         if accept_invalid_certs {
             tracing::warn!(
@@ -116,11 +105,7 @@ impl GitHubService {
             );
         }
 
-        Self {
-            client: builder.build().unwrap_or_else(|_| Client::new()),
-            excluded_repositories,
-            excluded_patterns,
-        }
+        Self { client: builder.build().unwrap_or_else(|_| Client::new()), excluded_repositories, excluded_patterns }
     }
 
     /// Discover all accessible repositories for the authenticated user
@@ -194,17 +179,11 @@ impl GitHubService {
                     status,
                     error_body
                 );
-                return Err(anyhow::anyhow!(
-                    "GitHub API error: {} - {}",
-                    status,
-                    error_body
-                ));
+                return Err(anyhow::anyhow!("GitHub API error: {} - {}", status, error_body));
             }
 
-            let page_repos: Vec<GitHubRepository> = response
-                .json()
-                .await
-                .context("Failed to parse GitHub repositories response")?;
+            let page_repos: Vec<GitHubRepository> =
+                response.json().await.context("Failed to parse GitHub repositories response")?;
 
             if page_repos.is_empty() {
                 break;
@@ -222,11 +201,7 @@ impl GitHubService {
 
     /// Fetch repositories for a specific organization
     #[allow(dead_code)]
-    async fn fetch_org_repositories(
-        &self,
-        access_token: &str,
-        org: &str,
-    ) -> Result<Vec<GitHubRepository>> {
+    async fn fetch_org_repositories(&self, access_token: &str, org: &str) -> Result<Vec<GitHubRepository>> {
         let mut repositories = Vec::new();
         let mut page = 1;
         let per_page = 100;
@@ -260,17 +235,11 @@ impl GitHubService {
                     status,
                     error_body
                 );
-                return Err(anyhow::anyhow!(
-                    "GitHub API error: {} - {}",
-                    status,
-                    error_body
-                ));
+                return Err(anyhow::anyhow!("GitHub API error: {} - {}", status, error_body));
             }
 
-            let page_repos: Vec<GitHubRepository> = response
-                .json()
-                .await
-                .context("Failed to parse GitHub organization repositories response")?;
+            let page_repos: Vec<GitHubRepository> =
+                response.json().await.context("Failed to parse GitHub organization repositories response")?;
 
             if page_repos.is_empty() {
                 break;
@@ -307,10 +276,8 @@ impl GitHubService {
                 Self::check_github_rate_limit(&resp);
 
                 if status.is_success() {
-                    let user_info: serde_json::Value = resp
-                        .json()
-                        .await
-                        .context("Failed to parse GitHub user response")?;
+                    let user_info: serde_json::Value =
+                        resp.json().await.context("Failed to parse GitHub user response")?;
                     tracing::info!(
                         "GitHub token valid for user: {}",
                         user_info["login"].as_str().unwrap_or("unknown")
@@ -339,11 +306,7 @@ impl GitHubService {
     /// Check if a repository should be excluded from crawling
     #[allow(dead_code)]
     pub fn should_exclude_repository(&self, repository: &GitHubRepository) -> bool {
-        self.should_exclude_repository_with_config(
-            repository,
-            &self.excluded_repositories,
-            &self.excluded_patterns,
-        )
+        self.should_exclude_repository_with_config(repository, &self.excluded_repositories, &self.excluded_patterns)
     }
 
     /// Check if a repository should be excluded with custom exclusion config
@@ -355,21 +318,14 @@ impl GitHubService {
     ) -> bool {
         // Check exact matches
         if excluded_repositories.contains(&repository.full_name) {
-            tracing::info!(
-                "Excluding repository (exact match): {}",
-                repository.full_name
-            );
+            tracing::info!("Excluding repository (exact match): {}", repository.full_name);
             return true;
         }
 
         // Check pattern matches
         for pattern in excluded_patterns {
             if self.matches_pattern(pattern, &repository.full_name) {
-                tracing::info!(
-                    "Excluding repository (pattern '{}'): {}",
-                    pattern,
-                    repository.full_name
-                );
+                tracing::info!("Excluding repository (pattern '{}'): {}", pattern, repository.full_name);
                 return true;
             }
         }
@@ -425,10 +381,7 @@ impl GitHubService {
 
     /// Filter out excluded repositories from a list
     #[allow(dead_code)]
-    pub fn filter_excluded_repositories(
-        &self,
-        repositories: Vec<GitHubRepository>,
-    ) -> Vec<GitHubRepository> {
+    pub fn filter_excluded_repositories(&self, repositories: Vec<GitHubRepository>) -> Vec<GitHubRepository> {
         self.filter_excluded_repositories_with_config(
             repositories,
             &self.excluded_repositories,
@@ -447,11 +400,7 @@ impl GitHubService {
         let filtered: Vec<GitHubRepository> = repositories
             .into_iter()
             .filter(|repository| {
-                !self.should_exclude_repository_with_config(
-                    repository,
-                    excluded_repositories,
-                    excluded_patterns,
-                )
+                !self.should_exclude_repository_with_config(repository, excluded_repositories, excluded_patterns)
             })
             .collect();
 
@@ -484,20 +433,13 @@ mod tests {
             html_url: format!("https://github.com/{}/{}", owner, name),
             private: false,
             archived: false,
-            owner: GitHubOwner {
-                login: owner.to_string(),
-                owner_type: "User".to_string(),
-            },
+            owner: GitHubOwner { login: owner.to_string(), owner_type: "User".to_string() },
         }
     }
 
     #[test]
     fn test_pattern_matching() {
-        let service = GitHubService {
-            client: Client::new(),
-            excluded_repositories: vec![],
-            excluded_patterns: vec![],
-        };
+        let service = GitHubService { client: Client::new(), excluded_repositories: vec![], excluded_patterns: vec![] };
 
         // Exact match
         assert!(service.matches_pattern("user/project", "user/project"));
@@ -532,10 +474,7 @@ mod tests {
     fn test_should_exclude_repository_exact_match() {
         let service = GitHubService {
             client: Client::new(),
-            excluded_repositories: vec![
-                "user/large-project".to_string(),
-                "org/archive".to_string(),
-            ],
+            excluded_repositories: vec!["user/large-project".to_string(), "org/archive".to_string()],
             excluded_patterns: vec![],
         };
 
@@ -553,11 +492,7 @@ mod tests {
         let service = GitHubService {
             client: Client::new(),
             excluded_repositories: vec![],
-            excluded_patterns: vec![
-                "*-archive".to_string(),
-                "test/*".to_string(),
-                "*/large-*".to_string(),
-            ],
+            excluded_patterns: vec!["*-archive".to_string(), "test/*".to_string(), "*/large-*".to_string()],
         };
 
         let repo1 = create_test_repository("project-archive", "user", 1);
@@ -597,16 +532,10 @@ mod tests {
 
     #[test]
     fn test_empty_exclusion_config() {
-        let service = GitHubService {
-            client: Client::new(),
-            excluded_repositories: vec![],
-            excluded_patterns: vec![],
-        };
+        let service = GitHubService { client: Client::new(), excluded_repositories: vec![], excluded_patterns: vec![] };
 
-        let repositories = vec![
-            create_test_repository("project1", "user", 1),
-            create_test_repository("project2", "user", 2),
-        ];
+        let repositories =
+            vec![create_test_repository("project1", "user", 1), create_test_repository("project2", "user", 2)];
 
         let filtered = service.filter_excluded_repositories(repositories.clone());
         assert_eq!(filtered.len(), repositories.len());
@@ -620,10 +549,8 @@ mod tests {
             excluded_patterns: vec!["*".to_string()],
         };
 
-        let repositories = vec![
-            create_test_repository("project1", "user", 1),
-            create_test_repository("project2", "user", 2),
-        ];
+        let repositories =
+            vec![create_test_repository("project1", "user", 1), create_test_repository("project2", "user", 2)];
 
         let filtered = service.filter_excluded_repositories(repositories);
         assert_eq!(filtered.len(), 0);

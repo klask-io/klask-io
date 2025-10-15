@@ -39,33 +39,35 @@ impl GitOperations {
                     // Fetch from remote using gix
                     // We attempt to fetch but continue with existing data if it fails
                     match git_repo.find_remote("origin") {
-                        Ok(remote) => match remote.connect(gix::remote::Direction::Fetch) {
-                            Ok(connection) => {
-                                match connection
-                                    .prepare_fetch(gix::progress::Discard, Default::default())
-                                {
-                                    Ok(prepare) => {
-                                        match prepare.receive(
-                                            gix::progress::Discard,
-                                            &gix::interrupt::IS_INTERRUPTED,
-                                        ) {
-                                            Ok(_outcome) => {
-                                                info!("Successfully fetched latest changes");
-                                            }
-                                            Err(e) => {
-                                                warn!("Failed to receive fetch: {}", e);
+                        Ok(remote) => {
+                            // Configure for non-interactive mode
+                            let connection_result = remote.connect(gix::remote::Direction::Fetch);
+
+                            match connection_result {
+                                Ok(connection) => {
+                                    match connection.prepare_fetch(gix::progress::Discard, Default::default()) {
+                                        Ok(prepare) => {
+                                            match prepare
+                                                .receive(gix::progress::Discard, &gix::interrupt::IS_INTERRUPTED)
+                                            {
+                                                Ok(_outcome) => {
+                                                    info!("Successfully fetched latest changes");
+                                                }
+                                                Err(e) => {
+                                                    warn!("Failed to receive fetch: {}", e);
+                                                }
                                             }
                                         }
-                                    }
-                                    Err(e) => {
-                                        warn!("Failed to prepare fetch: {}", e);
+                                        Err(e) => {
+                                            warn!("Failed to prepare fetch: {}", e);
+                                        }
                                     }
                                 }
+                                Err(e) => {
+                                    warn!("Failed to connect to remote: {}", e);
+                                }
                             }
-                            Err(e) => {
-                                warn!("Failed to connect to remote: {}", e);
-                            }
-                        },
+                        }
                         Err(e) => {
                             warn!("Failed to find remote 'origin': {}", e);
                         }
@@ -79,10 +81,7 @@ impl GitOperations {
                 Ok(Ok(Ok(git_repo))) => Ok(git_repo),
                 Ok(Ok(Err(e))) => {
                     // If we can't open/fetch, delete and re-clone
-                    warn!(
-                        "Failed to update existing repository, will delete and re-clone: {}",
-                        e
-                    );
+                    warn!("Failed to update existing repository, will delete and re-clone: {}", e);
                     std::fs::remove_dir_all(repo_path)?;
                     self.clone_fresh_repository(repository, repo_path).await
                 }
@@ -103,23 +102,14 @@ impl GitOperations {
     }
 
     /// Clone a fresh repository using gix with authentication
-    pub async fn clone_fresh_repository(
-        &self,
-        repository: &Repository,
-        repo_path: &Path,
-    ) -> Result<gix::Repository> {
+    pub async fn clone_fresh_repository(&self, repository: &Repository, repo_path: &Path) -> Result<gix::Repository> {
         debug!("Cloning repository to: {:?}", repo_path);
 
         // Create parent directories if they don't exist
         // This is necessary for nested paths like "group/subgroup/project"
         if let Some(parent) = repo_path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| {
-                anyhow!(
-                    "Failed to create parent directories for {:?}: {}",
-                    parent,
-                    e
-                )
-            })?;
+            std::fs::create_dir_all(parent)
+                .map_err(|e| anyhow!("Failed to create parent directories for {:?}: {}", parent, e))?;
         }
 
         // Prepare authentication configuration
@@ -127,9 +117,7 @@ impl GitOperations {
         let (clone_url, auth_config) = if let Some(encrypted_token) = &repository.access_token {
             match self.encryption_service.decrypt(encrypted_token) {
                 Ok(token) => {
-                    let auth_header = if repository.url.contains("gitlab.com")
-                        || repository.url.contains("gitlab")
-                    {
+                    let auth_header = if repository.url.contains("gitlab.com") || repository.url.contains("gitlab") {
                         // GitLab: Authorization: Bearer TOKEN
                         format!("Authorization: Bearer {}", token)
                     } else if repository.url.contains("github.com") {
@@ -144,7 +132,10 @@ impl GitOperations {
                     (repository.url.clone(), Some(auth_header))
                 }
                 Err(e) => {
-                    warn!("Failed to decrypt access token, attempting clone without authentication: {}", e);
+                    warn!(
+                        "Failed to decrypt access token, attempting clone without authentication: {}",
+                        e
+                    );
                     (repository.url.clone(), None)
                 }
             }
@@ -160,29 +151,37 @@ impl GitOperations {
             std::time::Duration::from_secs(300), // 5 minutes timeout
             tokio::task::spawn_blocking(move || -> Result<gix::Repository> {
                 // Prepare clone with authentication header if provided
-                let prepare_clone = gix::prepare_clone(clone_url, &repo_path_owned)
+                let mut prepare_clone = gix::prepare_clone(clone_url, &repo_path_owned)
                     .map_err(|e| anyhow!("Failed to prepare clone: {}", e))?;
+
+                // Configure for non-interactive mode (no credential prompts)
+                // This is critical for public repositories and server environments
+                let mut config_overrides = vec![
+                    "credential.helper=".to_string(), // Disable credential helpers
+                ];
 
                 // Configure authentication using http.extraHeader if we have a token
                 // This is more secure than embedding the token in the URL
-                let mut prepare_clone = if let Some(header) = auth_config {
-                    prepare_clone.with_in_memory_config_overrides([format!(
-                        "http.extraHeader={}",
-                        header
-                    )
-                    .as_str()])
-                } else {
-                    prepare_clone
-                };
+                if let Some(header) = auth_config {
+                    config_overrides.push(format!("http.extraHeader={}", header));
+                }
 
-                // Perform the fetch
+                prepare_clone =
+                    prepare_clone.with_in_memory_config_overrides(config_overrides.iter().map(|s| s.as_str()));
+
+                // Configure shallow clone (depth=1) to speed up large repositories
+                // This clones only the latest commit, significantly reducing download time
+                prepare_clone =
+                    prepare_clone.configure_remote(|remote| Ok(remote.with_fetch_tags(gix::remote::fetch::Tags::None)));
+
+                // Perform the fetch with shallow clone
                 let (_prepared_clone, _outcome) = prepare_clone
                     .fetch_only(gix::progress::Discard, &gix::interrupt::IS_INTERRUPTED)
                     .map_err(|e| anyhow!("Failed to fetch: {}", e))?;
 
                 // Open the cloned repository
-                let repo = gix::open(&repo_path_owned)
-                    .map_err(|e| anyhow!("Failed to open cloned repository: {}", e))?;
+                let repo =
+                    gix::open(&repo_path_owned).map_err(|e| anyhow!("Failed to open cloned repository: {}", e))?;
 
                 info!("Successfully cloned repository with secure authentication");
                 Ok(repo)

@@ -37,9 +37,7 @@ impl SeedingService {
         info!("Clearing all seed data...");
 
         // Clear in reverse order due to foreign key constraints
-        sqlx::query("DELETE FROM repositories")
-            .execute(&self.pool)
-            .await?;
+        sqlx::query("DELETE FROM repositories").execute(&self.pool).await?;
         sqlx::query("DELETE FROM users").execute(&self.pool).await?;
 
         info!("All seed data cleared!");
@@ -49,20 +47,15 @@ impl SeedingService {
     pub async fn get_stats(&self) -> Result<SeedingStats> {
         // Count only the seeded users (exclude integration test admin users)
         let users_created = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM users WHERE username IN ('admin', 'demo', 'viewer', 'inactive', 'tester')"
+            "SELECT COUNT(*) FROM users WHERE username IN ('admin', 'demo', 'viewer', 'inactive', 'tester')",
         )
         .fetch_one(&self.pool)
         .await?;
 
         let repositories_created =
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories")
-                .fetch_one(&self.pool)
-                .await?;
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM repositories").fetch_one(&self.pool).await?;
 
-        Ok(SeedingStats {
-            users_created,
-            repositories_created,
-        })
+        Ok(SeedingStats { users_created, repositories_created })
     }
 
     async fn seed_users(&self) -> Result<()> {
@@ -74,8 +67,7 @@ impl SeedingService {
                 id: Uuid::new_v4(),
                 username: "admin".to_string(),
                 email: "admin@klask.dev".to_string(),
-                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS"
-                    .to_string(), // "admin123"
+                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS".to_string(), // "admin123"
                 role: UserRole::Admin,
                 active: true,
                 created_at: Utc::now() - Duration::days(30),
@@ -87,8 +79,7 @@ impl SeedingService {
                 id: Uuid::new_v4(),
                 username: "demo".to_string(),
                 email: "demo@klask.dev".to_string(),
-                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS"
-                    .to_string(), // "demo123"
+                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS".to_string(), // "demo123"
                 role: UserRole::User,
                 active: true,
                 created_at: Utc::now() - Duration::days(15),
@@ -100,8 +91,7 @@ impl SeedingService {
                 id: Uuid::new_v4(),
                 username: "viewer".to_string(),
                 email: "viewer@klask.dev".to_string(),
-                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS"
-                    .to_string(), // "viewer123"
+                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS".to_string(), // "viewer123"
                 role: UserRole::User,
                 active: true,
                 created_at: Utc::now() - Duration::days(7),
@@ -113,8 +103,7 @@ impl SeedingService {
                 id: Uuid::new_v4(),
                 username: "inactive".to_string(),
                 email: "inactive@klask.dev".to_string(),
-                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS"
-                    .to_string(), // "inactive123"
+                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS".to_string(), // "inactive123"
                 role: UserRole::User,
                 active: false, // Inactive user
                 created_at: Utc::now() - Duration::days(60),
@@ -126,8 +115,7 @@ impl SeedingService {
                 id: Uuid::new_v4(),
                 username: "tester".to_string(),
                 email: "tester@klask.dev".to_string(),
-                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS"
-                    .to_string(), // "tester123"
+                password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewDR8F4Ap5xV/2zS".to_string(), // "tester123"
                 role: UserRole::User,
                 active: true,
                 created_at: Utc::now() - Duration::days(5),
