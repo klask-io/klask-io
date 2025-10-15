@@ -1,6 +1,6 @@
 apiVersion: v2
 name: klask
-description: A Helm chart for Klask - Modern code search engine with native PostgreSQL
+description: A Helm chart for Klask - Modern code search engine written in Rust
 type: application
 version: 0.2.0
 appVersion: "0.1.0"
