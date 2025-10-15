@@ -33,14 +33,23 @@ describe('RepositoryForm - GitHub Integration', () => {
     const githubRadio = screen.getByRole('radio', { name: /github/i });
     await user.click(githubRadio);
 
+    // Navigate to GitHub Settings tab
+    const githubSettingsTab = screen.getByRole('button', { name: /GitHub Settings/i });
+    await user.click(githubSettingsTab);
+
     // Verify GitHub-specific text is shown
     await waitFor(() => {
       expect(screen.getByText(/GitHub repositories will be automatically discovered/i)).toBeInTheDocument();
     });
 
-    // Verify placeholders for GitHub fields exist
+    // Verify placeholders for GitHub fields exist (first check GitHub Settings tab)
     expect(screen.getByPlaceholderText('ghp_...')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('organization-name or username')).toBeInTheDocument();
+
+    // Navigate to Filters tab for exclusion fields
+    const filtersTab = screen.getByRole('button', { name: /Filters & Exclusions/i });
+    await user.click(filtersTab);
+
     expect(screen.getByPlaceholderText('org/repo-archive, user/legacy-project')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('*-archive, test-*, *-temp')).toBeInTheDocument();
   });
@@ -89,10 +98,22 @@ describe('RepositoryForm - GitHub Integration', () => {
     const githubRadio = screen.getByRole('radio', { name: /github/i });
     await user.click(githubRadio);
 
-    // Fill in required and optional fields
+    // Fill in repository name in Basic tab
     await user.type(screen.getByPlaceholderText('My Repository'), 'GitHub Test Repo');
+
+    // Navigate to GitHub Settings tab
+    const githubSettingsTab = screen.getByRole('button', { name: /GitHub Settings/i });
+    await user.click(githubSettingsTab);
+
+    // Fill in GitHub-specific fields
     await user.type(screen.getByPlaceholderText('ghp_...'), 'ghp_test_token');
     await user.type(screen.getByPlaceholderText('organization-name or username'), 'test-org');
+
+    // Navigate to Filters tab
+    const filtersTab = screen.getByRole('button', { name: /Filters & Exclusions/i });
+    await user.click(filtersTab);
+
+    // Fill in filter fields
     await user.type(screen.getByPlaceholderText('org/repo-archive, user/legacy-project'), 'test-org/archive');
     await user.type(screen.getByPlaceholderText('*-archive, test-*, *-temp'), '*-temp');
 
@@ -127,8 +148,12 @@ describe('RepositoryForm - GitHub Integration', () => {
     const githubRadio = screen.getByRole('radio', { name: /github/i });
     await user.click(githubRadio);
 
-    // Fill in only required fields
+    // Fill in repository name in Basic tab
     await user.type(screen.getByPlaceholderText('My Repository'), 'GitHub All Repos');
+
+    // Navigate to GitHub Settings tab and fill in token
+    const githubSettingsTab = screen.getByRole('button', { name: /GitHub Settings/i });
+    await user.click(githubSettingsTab);
     await user.type(screen.getByPlaceholderText('ghp_...'), 'ghp_token');
 
     // Submit without namespace
@@ -144,6 +169,8 @@ describe('RepositoryForm - GitHub Integration', () => {
   });
 
   it('should edit existing GitHub repository', async () => {
+    const user = userEvent.setup();
+
     const existingRepo: Repository = {
       id: 'test-id-123',
       name: 'Existing GitHub Repo',
@@ -182,14 +209,24 @@ describe('RepositoryForm - GitHub Integration', () => {
       />
     );
 
-    // Verify existing values are populated
+    // Verify existing values are populated in Basic tab
     expect(screen.getByDisplayValue('Existing GitHub Repo')).toBeInTheDocument();
+
+    // Navigate to GitHub Settings tab to verify namespace
+    const githubSettingsTab = screen.getByRole('button', { name: /GitHub Settings/i });
+    await user.click(githubSettingsTab);
     expect(screen.getByDisplayValue('original-org')).toBeInTheDocument();
+
+    // Navigate to Filters tab to verify exclusions
+    const filtersTab = screen.getByRole('button', { name: /Filters & Exclusions/i });
+    await user.click(filtersTab);
     expect(screen.getByDisplayValue('original-org/old-repo')).toBeInTheDocument();
     expect(screen.getByDisplayValue('*-old')).toBeInTheDocument();
   });
 
   it('should show token configured indicator when editing with existing token', async () => {
+    const user = userEvent.setup();
+
     const existingRepo: Repository = {
       id: 'test-id-456',
       name: 'Repo With Token',
@@ -229,6 +266,10 @@ describe('RepositoryForm - GitHub Integration', () => {
       />
     );
 
+    // Navigate to GitHub Settings tab to see token configured indicator
+    const githubSettingsTab = screen.getByRole('button', { name: /GitHub Settings/i });
+    await user.click(githubSettingsTab);
+
     // Should show token configured indicator
     expect(screen.getByText(/Access token configured/i)).toBeInTheDocument();
 
@@ -252,10 +293,22 @@ describe('RepositoryForm - GitHub Integration', () => {
     const githubRadio = screen.getByRole('radio', { name: /github/i });
     await user.click(githubRadio);
 
-    // Check placeholders
+    // Navigate to GitHub Settings tab
+    const githubSettingsTab = screen.getByRole('button', { name: /GitHub Settings/i });
+    await user.click(githubSettingsTab);
+
+    // Check GitHub Settings placeholders
     await waitFor(() => {
       expect(screen.getByPlaceholderText('ghp_...')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('organization-name or username')).toBeInTheDocument();
+    });
+
+    // Navigate to Filters tab
+    const filtersTab = screen.getByRole('button', { name: /Filters & Exclusions/i });
+    await user.click(filtersTab);
+
+    // Check Filters placeholders
+    await waitFor(() => {
       expect(screen.getByPlaceholderText('org/repo-archive, user/legacy-project')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('*-archive, test-*, *-temp')).toBeInTheDocument();
     });
@@ -276,6 +329,10 @@ describe('RepositoryForm - GitHub Integration', () => {
     // Select GitHub type
     const githubRadio = screen.getByRole('radio', { name: /github/i });
     await user.click(githubRadio);
+
+    // Navigate to GitHub Settings tab
+    const githubSettingsTab = screen.getByRole('button', { name: /GitHub Settings/i });
+    await user.click(githubSettingsTab);
 
     await waitFor(() => {
       // GitLab message should not be present

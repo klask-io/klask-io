@@ -7,7 +7,7 @@ import {
   useBulkRepositoryOperations,
   useActiveProgress,
 } from '../useRepositories';
-import { apiClient } from '../../lib/api';
+import { apiClient, api } from '../../lib/api';
 import type { Repository, CrawlProgressInfo } from '../../types';
 import { renderHookWithQueryClient } from '../../test/react-query-test-utils';
 
@@ -29,17 +29,26 @@ vi.mock('../../lib/api', () => {
   };
 });
 
-// Mock useActiveProgress to avoid polling intervals and state pollution
-vi.mock('../useProgress', () => ({
-  useActiveProgress: vi.fn(() => ({
-    activeProgress: [],
-    isLoading: false,
-    error: null,
-    refreshActiveProgress: vi.fn(),
-  })),
-  isRepositoryCrawling: vi.fn(),
-  getRepositoryProgressFromActive: vi.fn(),
-}));
+// Mock utility functions from useProgress but patch the main hook to disable polling in tests
+vi.mock('../useProgress', async () => {
+  const actual = await vi.importActual('../useProgress') as any;
+
+  // Wrap the original useActiveProgress to disable polling in tests
+  const originalUseActiveProgress = actual.useActiveProgress;
+  const testUseActiveProgress = (options: any = {}) => {
+    return originalUseActiveProgress({
+      ...options,
+      pollingInterval: 0, // Disable polling in tests
+    });
+  };
+
+  return {
+    ...actual,
+    useActiveProgress: testUseActiveProgress,
+    isRepositoryCrawling: vi.fn(),
+    getRepositoryProgressFromActive: vi.fn(),
+  };
+});
 
 import * as useProgressModule from '../useProgress';
 
@@ -47,6 +56,7 @@ import * as useProgressModule from '../useProgress';
 // No mocking of the module itself
 
 const mockApiClient = apiClient as any;
+const mockApi = api as any;
 
 // NOTE: These tests have test isolation issues when run together.
 // All tests PASS when run individually but some fail when run in sequence.
@@ -61,6 +71,7 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
     vi.resetAllMocks();
 
     // Set default mock implementations to avoid hanging promises
+    // Both apiClient and api should be mocked since they're the same object in the mock
     mockApiClient.getActiveProgress.mockResolvedValue([]);
     mockApiClient.getRepositoryProgress.mockResolvedValue(null);
     mockApiClient.crawlRepository.mockResolvedValue({ message: 'Success' });
@@ -72,13 +83,17 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
     mockApiClient.deleteRepository.mockResolvedValue(undefined);
     mockApiClient.getRepositories.mockResolvedValue([]);
 
-    // Re-establish the default mock for useActiveProgress after reset
-    vi.mocked(useProgressModule.useActiveProgress).mockImplementation(() => ({
-      activeProgress: [],
-      isLoading: false,
-      error: null,
-      refreshActiveProgress: vi.fn(),
-    }));
+    // Also set up api mocks (they should be the same object, but just to be safe)
+    mockApi.getActiveProgress.mockResolvedValue([]);
+    mockApi.getRepositoryProgress.mockResolvedValue(null);
+    mockApi.crawlRepository.mockResolvedValue({ message: 'Success' });
+    mockApi.updateRepository.mockResolvedValue({
+      id: 'test-repo',
+      name: 'Test Repository',
+      enabled: true,
+    } as any);
+    mockApi.deleteRepository.mockResolvedValue(undefined);
+    mockApi.getRepositories.mockResolvedValue([]);
   });
 
   afterEach(async () => {
@@ -313,7 +328,7 @@ describe('Repository Hooks - Edge Cases & Race Conditions', () => {
       }];
 
       let callCount = 0;
-      mockApiClient.getActiveProgress.mockImplementation(() => {
+      mockApi.getActiveProgress.mockImplementation(() => {
         callCount++;
         if (callCount <= 2) return Promise.resolve(mockProgress1);
         if (callCount === 3) return Promise.resolve(mockProgress2);

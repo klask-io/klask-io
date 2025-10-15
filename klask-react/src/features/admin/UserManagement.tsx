@@ -453,6 +453,12 @@ const UserManagement: React.FC = () => {
                       Edit
                     </button>
                     <button
+                      onClick={() => handleToggleRole(user)}
+                      className="text-purple-600 hover:text-purple-900"
+                    >
+                      {user.role === 'Admin' ? 'Make User' : 'Make Admin'}
+                    </button>
+                    <button
                       onClick={() => handleToggleStatus(user)}
                       className={user.active ? "text-red-600 hover:text-red-900" : "text-green-600 hover:text-green-900"}
                     >

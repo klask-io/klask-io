@@ -272,10 +272,10 @@ const SearchPageV3: React.FC = () => {
           onFiltersChange={handleFiltersChange}
           availableFilters={{
             // Use dynamic facets from search results if available, fallback to static filters
-            repositories: facets?.repositories?.map(([value, count]) => ({ value, label: value, count })) || availableFilters?.repositories || [],
-            projects: facets?.projects?.map(([value, count]) => ({ value, label: value, count })) || availableFilters?.projects || [],
-            versions: facets?.versions?.map(([value, count]) => ({ value, label: value, count })) || availableFilters?.versions || [],
-            extensions: facets?.extensions?.map(([value, count]) => ({ value, label: value, count })) || availableFilters?.extensions || [],
+            repositories: facets?.repositories?.map(([value, count]: [string, number]) => ({ value, label: value, count })) || availableFilters?.repositories || [],
+            projects: facets?.projects?.map(([value, count]: [string, number]) => ({ value, label: value, count })) || availableFilters?.projects || [],
+            versions: facets?.versions?.map(([value, count]: [string, number]) => ({ value, label: value, count })) || availableFilters?.versions || [],
+            extensions: facets?.extensions?.map(([value, count]: [string, number]) => ({ value, label: value, count })) || availableFilters?.extensions || [],
             languages: availableFilters?.languages || [],
           }}
           isLoading={filtersLoading || isFetching}
