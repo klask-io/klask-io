@@ -211,7 +211,7 @@ export const RepositoryCard: React.FC<RepositoryCardProps> = ({
   };
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 ${className}`}>
+    <div className={`bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 relative z-10 ${className}`}>
       <div className="p-6 relative">
         {/* Actions Menu - positioned absolutely in top-right */}
         <div className="absolute top-2 right-2">
