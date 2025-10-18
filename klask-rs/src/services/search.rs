@@ -1048,7 +1048,7 @@ impl SearchService {
                 "repository_terms": {
                     "terms": {
                         "field": "repository",
-                        "size": 100
+                        "size": 1000
                     }
                 }
             }))?;
@@ -1080,7 +1080,7 @@ impl SearchService {
                 "project_terms": {
                     "terms": {
                         "field": "project",
-                        "size": 100
+                        "size": 10000
                     }
                 }
             }))?;
@@ -1111,7 +1111,7 @@ impl SearchService {
                 "version_terms": {
                     "terms": {
                         "field": "version",
-                        "size": 100
+                        "size": 10000
                     }
                 }
             }))?;
@@ -1141,7 +1141,7 @@ impl SearchService {
                 "extension_terms": {
                     "terms": {
                         "field": "extension",
-                        "size": 100
+                        "size": 10000
                     }
                 }
             }))?;
