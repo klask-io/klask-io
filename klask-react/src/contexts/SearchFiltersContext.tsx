@@ -102,6 +102,19 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
     { enabled: true, staleTime: 60000, debounceMs: 300 }
   );
 
+  // Initialize lastValidFacets with staticFilters when they become available
+  // This ensures we have initial data even before any filter is applied
+  React.useEffect(() => {
+    if (staticFilters && !lastValidFacets) {
+      setLastValidFacets({
+        projects: staticFilters.projects || [],
+        versions: staticFilters.versions || [],
+        extensions: staticFilters.extensions || [],
+        repositories: staticFilters.repositories || [],
+      });
+    }
+  }, [staticFilters, lastValidFacets]);
+
   // Update lastValidFacets when new data arrives from API
   React.useEffect(() => {
     if (filterFacets) {
@@ -208,38 +221,38 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
   // - If filters selected in a category → show all items (static) with current counts (dynamic)
   // Use lastValidFacets instead of dynamicFilters to avoid showing zero counts during debounce
   const hybridFilters: Record<string, Array<{ value: string; count: number }>> = React.useMemo(() => ({
-    projects: (filters.project && filters.project.length > 0)
-      ? mergeFiltersWithDynamicCounts(
+      projects: (filters.project && filters.project.length > 0)
+        ? mergeFiltersWithDynamicCounts(
+            (staticFilters?.projects as Array<{ value: string; count: number }>) || [],
+            (lastValidFacets?.projects as Array<{ value: string; count: number }>) || [],
+            filters.project
+          )
+        : (lastValidFacets?.projects as Array<{ value: string; count: number }>) ||
           (staticFilters?.projects as Array<{ value: string; count: number }>) || [],
-          (lastValidFacets?.projects as Array<{ value: string; count: number }>) || [],
-          filters.project
-        )
-      : (lastValidFacets?.projects as Array<{ value: string; count: number }>) ||
-        (staticFilters?.projects as Array<{ value: string; count: number }>) || [],
-    versions: (filters.version && filters.version.length > 0)
-      ? mergeFiltersWithDynamicCounts(
+      versions: (filters.version && filters.version.length > 0)
+        ? mergeFiltersWithDynamicCounts(
+            (staticFilters?.versions as Array<{ value: string; count: number }>) || [],
+            (lastValidFacets?.versions as Array<{ value: string; count: number }>) || [],
+            filters.version
+          )
+        : (lastValidFacets?.versions as Array<{ value: string; count: number }>) ||
           (staticFilters?.versions as Array<{ value: string; count: number }>) || [],
-          (lastValidFacets?.versions as Array<{ value: string; count: number }>) || [],
-          filters.version
-        )
-      : (lastValidFacets?.versions as Array<{ value: string; count: number }>) ||
-        (staticFilters?.versions as Array<{ value: string; count: number }>) || [],
-    extensions: (filters.extension && filters.extension.length > 0)
-      ? mergeFiltersWithDynamicCounts(
+      extensions: (filters.extension && filters.extension.length > 0)
+        ? mergeFiltersWithDynamicCounts(
+            (staticFilters?.extensions as Array<{ value: string; count: number }>) || [],
+            (lastValidFacets?.extensions as Array<{ value: string; count: number }>) || [],
+            filters.extension
+          )
+        : (lastValidFacets?.extensions as Array<{ value: string; count: number }>) ||
           (staticFilters?.extensions as Array<{ value: string; count: number }>) || [],
-          (lastValidFacets?.extensions as Array<{ value: string; count: number }>) || [],
-          filters.extension
-        )
-      : (lastValidFacets?.extensions as Array<{ value: string; count: number }>) ||
-        (staticFilters?.extensions as Array<{ value: string; count: number }>) || [],
-    repositories: (filters.repository && filters.repository.length > 0)
-      ? mergeFiltersWithDynamicCounts(
+      repositories: (filters.repository && filters.repository.length > 0)
+        ? mergeFiltersWithDynamicCounts(
+            (staticFilters?.repositories as Array<{ value: string; count: number }>) || [],
+            (lastValidFacets?.repositories as Array<{ value: string; count: number }>) || [],
+            filters.repository
+          )
+        : (lastValidFacets?.repositories as Array<{ value: string; count: number }>) ||
           (staticFilters?.repositories as Array<{ value: string; count: number }>) || [],
-          (lastValidFacets?.repositories as Array<{ value: string; count: number }>) || [],
-          filters.repository
-        )
-      : (lastValidFacets?.repositories as Array<{ value: string; count: number }>) ||
-        (staticFilters?.repositories as Array<{ value: string; count: number }>) || [],
   }), [filters, staticFilters, lastValidFacets, mergeFiltersWithDynamicCounts]);
 
   // Fix 2: Memoize availableFiltersList to prevent .map() recreations every render
