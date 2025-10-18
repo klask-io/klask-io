@@ -89,6 +89,10 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   });
 
+  // Track facets from search results when a query is performed
+  // These facets are for the current search query and take precedence over filter-based facets
+  const [searchResultsFacets, setSearchResultsFacets] = React.useState<DynamicFilters | null>(null);
+
   // Use a ref to track whether we need to reset on filter clear
   const shouldResetRef = React.useRef(false);
 
@@ -141,10 +145,18 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
     setFilters({});
   }, []);
 
-  // Note: updateDynamicFilters is kept for backward compatibility with SearchPage
-  // but the facet updates are now handled via useFacetsWithFilters hook
-  const updateDynamicFilters = useCallback(() => {
-    // No-op: Dynamic filters are now automatically updated via useFacetsWithFilters
+  // Update dynamic filters from search results
+  // When a search query is performed, SearchPage calls this with the facets from the response
+  // These facets are specific to the current search query
+  const updateDynamicFilters = useCallback((facets: DynamicFilters | null) => {
+    if (facets) {
+      // We have facets from search results, use them
+      setSearchResultsFacets(facets);
+      setLastValidFacets(facets);
+    } else {
+      // No facets (e.g., cleared search), clear search result facets
+      setSearchResultsFacets(null);
+    }
   }, []);
 
   /**

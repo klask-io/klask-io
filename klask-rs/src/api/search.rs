@@ -106,6 +106,7 @@ pub struct SearchResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchFacets {
+    pub repositories: Vec<FacetValue>,
     pub projects: Vec<FacetValue>,
     pub versions: Vec<FacetValue>,
     pub extensions: Vec<FacetValue>,
@@ -189,6 +190,11 @@ async fn search_files(
 
             // Convert facets to API format if present
             let facets = search_response.facets.map(|service_facets| SearchFacets {
+                repositories: service_facets
+                    .repositories
+                    .into_iter()
+                    .map(|(value, count)| FacetValue { value, count })
+                    .collect(),
                 projects: service_facets
                     .projects
                     .into_iter()
@@ -344,6 +350,11 @@ async fn get_facets_with_filters(
             let facets = search_response
                 .facets
                 .map(|service_facets| SearchFacets {
+                    repositories: service_facets
+                        .repositories
+                        .into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
                     projects: service_facets
                         .projects
                         .into_iter()
@@ -361,6 +372,7 @@ async fn get_facets_with_filters(
                         .collect(),
                 })
                 .unwrap_or_else(|| SearchFacets {
+                    repositories: vec![],
                     projects: vec![],
                     versions: vec![],
                     extensions: vec![],
