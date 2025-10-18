@@ -9,7 +9,67 @@ use axum::{
     Router,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
 use tracing;
+
+// Cache for search filters to avoid expensive recalculations
+struct FilterCache {
+    data: Option<SearchFilters>,
+    timestamp: Instant,
+}
+
+fn get_filter_cache() -> &'static Arc<RwLock<FilterCache>> {
+    use once_cell::sync::Lazy;
+    static FILTER_CACHE: Lazy<Arc<RwLock<FilterCache>>> = Lazy::new(|| {
+        Arc::new(RwLock::new(FilterCache {
+            data: None,
+            timestamp: Instant::now() - Duration::from_secs(600), // Start expired
+        }))
+    });
+    &FILTER_CACHE
+}
+
+const CACHE_TTL: Duration = Duration::from_secs(5 * 60); // 5 minutes
+const MAX_FILTER_LENGTH: usize = 1000; // Maximum length for filter parameters
+
+/// Validates filter parameters for search endpoints.
+///
+/// Checks that filter parameters:
+/// - Are not longer than MAX_FILTER_LENGTH (1000 characters)
+/// - Do not contain empty values when split by comma (e.g., "value1,,value2" is invalid)
+/// - Are properly formatted as comma-separated strings
+fn validate_filter_param(param_name: &str, param_value: &str) -> Result<(), String> {
+    // Check length
+    if param_value.len() > MAX_FILTER_LENGTH {
+        return Err(format!(
+            "Filter parameter '{}' exceeds maximum length of {} characters",
+            param_name, MAX_FILTER_LENGTH
+        ));
+    }
+
+    // Check for empty values when split by comma
+    let trimmed = param_value.trim();
+    if trimmed.is_empty() {
+        return Err(format!(
+            "Filter parameter '{}' cannot be empty after trimming",
+            param_name
+        ));
+    }
+
+    // Split by comma and check for empty values
+    for part in trimmed.split(',') {
+        let trimmed_part = part.trim();
+        if trimmed_part.is_empty() {
+            return Err(format!(
+                "Filter parameter '{}' contains empty values (e.g., comma-separated items with no content)",
+                param_name
+            ));
+        }
+    }
+
+    Ok(())
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
@@ -19,10 +79,20 @@ pub struct SearchRequest {
     pub limit: Option<u32>,
     pub page: Option<u32>,
     // Multi-select filters as comma-separated strings
+    pub repositories: Option<String>,
     pub projects: Option<String>,
     pub versions: Option<String>,
     pub extensions: Option<String>,
     pub include_facets: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FacetsRequest {
+    // Multi-select filters as comma-separated strings
+    pub repositories: Option<String>,
+    pub projects: Option<String>,
+    pub versions: Option<String>,
+    pub extensions: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,12 +106,13 @@ pub struct SearchResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchFacets {
+    pub repositories: Vec<FacetValue>,
     pub projects: Vec<FacetValue>,
     pub versions: Vec<FacetValue>,
     pub extensions: Vec<FacetValue>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FacetValue {
     pub value: String,
     pub count: u64,
@@ -65,7 +136,8 @@ pub struct SearchResult {
 pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/", get(search_files))
-        .route("/filters", get(get_search_filters));
+        .route("/filters", get(get_search_filters))
+        .route("/facets", get(get_facets_with_filters));
 
     Ok(router)
 }
@@ -86,6 +158,7 @@ async fn search_files(
     // Build search query - filters are already comma-separated strings
     let search_query = SearchQuery {
         query: query_string,
+        repository_filter: params.repositories,
         project_filter: params.projects,
         version_filter: params.versions,
         extension_filter: params.extensions,
@@ -117,6 +190,11 @@ async fn search_files(
 
             // Convert facets to API format if present
             let facets = search_response.facets.map(|service_facets| SearchFacets {
+                repositories: service_facets
+                    .repositories
+                    .into_iter()
+                    .map(|(value, count)| FacetValue { value, count })
+                    .collect(),
                 projects: service_facets
                     .projects
                     .into_iter()
@@ -134,13 +212,7 @@ async fn search_files(
                     .collect(),
             });
 
-            let response = SearchResponse {
-                total: search_response.total,
-                results,
-                page,
-                limit,
-                facets,
-            };
+            let response = SearchResponse { total: search_response.total, results, page, limit, facets };
 
             Ok(Json(response))
         }
@@ -151,19 +223,29 @@ async fn search_files(
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchFilters {
+    pub repositories: Vec<FacetValue>,
     pub projects: Vec<FacetValue>,
     pub versions: Vec<FacetValue>,
     pub extensions: Vec<FacetValue>,
 }
 
-async fn get_search_filters(
-    State(app_state): State<AppState>,
-) -> Result<Json<SearchFilters>, StatusCode> {
+async fn get_search_filters(State(app_state): State<AppState>) -> Result<Json<SearchFilters>, StatusCode> {
+    // Check cache first
+    {
+        let cache = get_filter_cache().read().unwrap();
+        if let Some(ref cached_data) = cache.data {
+            if cache.timestamp.elapsed() < CACHE_TTL {
+                return Ok(Json(cached_data.clone()));
+            }
+        }
+    }
+
     // Get all facets by performing an empty search
     let search_query = SearchQuery {
         query: "*".to_string(), // Match all documents
+        repository_filter: None,
         project_filter: None,
         version_filter: None,
         extension_filter: None,
@@ -176,26 +258,32 @@ async fn get_search_filters(
         Ok(search_response) => {
             if let Some(facets) = search_response.facets {
                 let filters = SearchFilters {
-                    projects: facets
-                        .projects
+                    repositories: facets
+                        .repositories
                         .into_iter()
                         .map(|(value, count)| FacetValue { value, count })
                         .collect(),
-                    versions: facets
-                        .versions
-                        .into_iter()
-                        .map(|(value, count)| FacetValue { value, count })
-                        .collect(),
+                    projects: facets.projects.into_iter().map(|(value, count)| FacetValue { value, count }).collect(),
+                    versions: facets.versions.into_iter().map(|(value, count)| FacetValue { value, count }).collect(),
                     extensions: facets
                         .extensions
                         .into_iter()
                         .map(|(value, count)| FacetValue { value, count })
                         .collect(),
                 };
+
+                // Update cache
+                {
+                    let mut cache = get_filter_cache().write().unwrap();
+                    cache.data = Some(filters.clone());
+                    cache.timestamp = Instant::now();
+                }
+
                 Ok(Json(filters))
             } else {
                 // No facets available, return empty filters
                 Ok(Json(SearchFilters {
+                    repositories: vec![],
                     projects: vec![],
                     versions: vec![],
                     extensions: vec![],
@@ -205,6 +293,210 @@ async fn get_search_filters(
         Err(e) => {
             tracing::error!("Failed to get search filters: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_facets_with_filters(
+    State(app_state): State<AppState>,
+    Query(params): Query<FacetsRequest>,
+) -> Result<Json<SearchFacets>, StatusCode> {
+    tracing::debug!("Facets request params: {:?}", params);
+
+    // Validate filter parameters
+    if let Some(ref repos) = params.repositories {
+        if let Err(e) = validate_filter_param("repositories", repos) {
+            tracing::warn!("Invalid filter parameter - repositories: {}", e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    if let Some(ref projects) = params.projects {
+        if let Err(e) = validate_filter_param("projects", projects) {
+            tracing::warn!("Invalid filter parameter - projects: {}", e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    if let Some(ref versions) = params.versions {
+        if let Err(e) = validate_filter_param("versions", versions) {
+            tracing::warn!("Invalid filter parameter - versions: {}", e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    if let Some(ref extensions) = params.extensions {
+        if let Err(e) = validate_filter_param("extensions", extensions) {
+            tracing::warn!("Invalid filter parameter - extensions: {}", e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    // Build search query with an empty search (match all) and filters
+    let search_query = SearchQuery {
+        query: "*".to_string(), // Match all documents
+        repository_filter: params.repositories,
+        project_filter: params.projects,
+        version_filter: params.versions,
+        extension_filter: params.extensions,
+        limit: 0, // We only need facets, not results
+        offset: 0,
+        include_facets: true, // Always include facets for this endpoint
+    };
+
+    // Perform search using Tantivy
+    match app_state.search_service.search(search_query).await {
+        Ok(search_response) => {
+            let facets = search_response
+                .facets
+                .map(|service_facets| SearchFacets {
+                    repositories: service_facets
+                        .repositories
+                        .into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                    projects: service_facets
+                        .projects
+                        .into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                    versions: service_facets
+                        .versions
+                        .into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                    extensions: service_facets
+                        .extensions
+                        .into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                })
+                .unwrap_or_else(|| SearchFacets {
+                    repositories: vec![],
+                    projects: vec![],
+                    versions: vec![],
+                    extensions: vec![],
+                });
+
+            Ok(Json(facets))
+        }
+        Err(e) => {
+            tracing::error!("Failed to get facets with filters: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+#[cfg(test)]
+mod validation_tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_filter_param_valid_single_value() {
+        let result = validate_filter_param("test", "value1");
+        assert!(result.is_ok(), "Single value should be valid");
+    }
+
+    #[test]
+    fn test_validate_filter_param_valid_multiple_values() {
+        let result = validate_filter_param("test", "value1,value2,value3");
+        assert!(
+            result.is_ok(),
+            "Multiple comma-separated values should be valid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_valid_with_spaces() {
+        let result = validate_filter_param("test", "value1, value2, value3");
+        assert!(
+            result.is_ok(),
+            "Values with spaces around commas should be valid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_valid_with_leading_trailing_whitespace() {
+        let result = validate_filter_param("test", "  value1,value2  ");
+        assert!(
+            result.is_ok(),
+            "Leading and trailing whitespace should be trimmed"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_empty_after_trim() {
+        let result = validate_filter_param("test", "   ");
+        assert!(
+            result.is_err(),
+            "Empty string after trimming should be invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_empty_values() {
+        let result = validate_filter_param("test", "value1,,value2");
+        assert!(
+            result.is_err(),
+            "Empty values (consecutive commas) should be invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_empty_values_with_spaces() {
+        let result = validate_filter_param("test", "value1, , value2");
+        assert!(
+            result.is_err(),
+            "Empty values with only spaces should be invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_exceeds_max_length() {
+        let long_value = "x".repeat(MAX_FILTER_LENGTH + 1);
+        let result = validate_filter_param("test", &long_value);
+        assert!(
+            result.is_err(),
+            "Value exceeding max length should be invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_at_max_length() {
+        let long_value = "x".repeat(MAX_FILTER_LENGTH);
+        let result = validate_filter_param("test", &long_value);
+        assert!(result.is_ok(), "Value at max length should be valid");
+    }
+
+    #[test]
+    fn test_validate_filter_param_comma_at_end() {
+        let result = validate_filter_param("test", "value1,value2,");
+        assert!(
+            result.is_err(),
+            "Trailing comma should be invalid (empty value)"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_comma_at_start() {
+        let result = validate_filter_param("test", ",value1,value2");
+        assert!(
+            result.is_err(),
+            "Leading comma should be invalid (empty value)"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_error_message_contains_param_name() {
+        let result = validate_filter_param("repositories", "   ");
+        match result {
+            Err(e) => {
+                assert!(
+                    e.contains("repositories"),
+                    "Error message should contain parameter name"
+                );
+            }
+            Ok(_) => panic!("Should have returned an error"),
         }
     }
 }
