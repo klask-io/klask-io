@@ -7,13 +7,14 @@ description = "Modern Rust-based code search engine"
 
 [dependencies]
 # Web framework and async runtime
-axum = "0.7"
+axum = "0.8"
+async-trait = "0.1"
 tokio = { version = "1.0", features = ["full"] }
 tokio-stream = "0.1"
 tokio-util = "0.7"
 futures = "0.3"
 tower = "0.5"
-tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
+tower-http = { version = "0.6", features = ["cors", "fs", "trace"] }
 
 # Database and ORM
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "sqlite", "uuid", "chrono", "migrate"] }
@@ -24,16 +25,17 @@ tantivy = "0.25"
 # Serialization and validation
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-validator = { version = "0.18", features = ["derive"] }
-regex = "1.0"
+validator = { version = "0.20", features = ["derive"] }
+regex = "1.12"
 
 # Authentication and security
-jsonwebtoken = "9.0"
+# Using rust_crypto feature for pure Rust cryptography (no OpenSSL)
+jsonwebtoken = { version = "10.0", features = ["rust_crypto"] }
 argon2 = "0.5"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 
 # Configuration and environment
-config = "0.14"
+config = "0.15"
 dotenvy = "0.15"
 
 # Logging and tracing
@@ -42,11 +44,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Error handling
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 
 # Date and time
 chrono = { version = "0.4", features = ["serde"] }
-chrono-tz = "0.8"
+chrono-tz = "0.10"
 
 # Repository crawling - using pure Rust gitoxide instead of git2
 # Using reqwest for HTTP transport to avoid OpenSSL dependency
@@ -63,10 +65,10 @@ urlencoding = "2.1"
 # Encryption for tokens
 aes-gcm = "0.10"
 base64 = "0.22"
-rand = "0.8"
+rand = "0.9"
 
 # Scheduling and cron jobs
-croner = "2.0"
+croner = "3.0"
 
 # Cryptographic hashing for deterministic IDs
 sha2 = "0.10"
@@ -81,5 +83,5 @@ test-utils = []
 # Testing
 tokio-test = "0.4"
 tempfile = "3.0"
-httpmock = "0.7"
-axum-test = "15.0"
+httpmock = "0.8"
+axum-test = "18.0"

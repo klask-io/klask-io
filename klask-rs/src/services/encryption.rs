@@ -1,6 +1,6 @@
 use aes_gcm::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
-    Aes256Gcm, Key, Nonce,
+    Aes256Gcm,
 };
 use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
@@ -23,8 +23,9 @@ impl EncryptionService {
             hasher.finalize().to_vec()
         };
 
-        let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
-        let cipher = Aes256Gcm::new(key);
+        // Create key from slice
+        let cipher = Aes256Gcm::new_from_slice(&key_bytes)
+            .map_err(|_| anyhow::anyhow!("Invalid key length - must be 32 bytes"))?;
 
         Ok(Self { cipher })
     }
@@ -50,6 +51,8 @@ impl EncryptionService {
 
     /// Decrypt a token or sensitive data
     pub fn decrypt(&self, encrypted: &str) -> Result<String> {
+        use aes_gcm::aead::generic_array::GenericArray;
+
         // Decode from base64
         let combined = general_purpose::STANDARD
             .decode(encrypted)
@@ -61,7 +64,7 @@ impl EncryptionService {
         }
 
         let (nonce_bytes, ciphertext) = combined.split_at(12);
-        let nonce = Nonce::from_slice(nonce_bytes);
+        let nonce = GenericArray::from_slice(nonce_bytes);
 
         // Decrypt
         let plaintext =

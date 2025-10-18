@@ -87,9 +87,8 @@ impl SchedulerService {
         };
 
         // Parse and validate the cron expression (with 6-field format: seconds minutes hours day month weekday)
-        let _cron = Cron::new(&cron_expr)
-            .with_seconds_required()
-            .parse()
+        // croner 3.0 uses parse() directly - validate by attempting to parse
+        let _cron: croner::Cron = cron_expr.parse()
             .with_context(|| format!("Failed to parse cron expression: {}", cron_expr))?;
 
         info!(
@@ -111,7 +110,7 @@ impl SchedulerService {
                 let now = Utc::now();
 
                 // Parse cron expression (we need to do this in the loop since cron is not Clone)
-                let cron_result = Cron::new(&cron_expr_clone).with_seconds_required().parse();
+                let cron_result: Result<Cron, _> = cron_expr_clone.parse();
 
                 let cron = match cron_result {
                     Ok(c) => c,
@@ -226,7 +225,7 @@ impl SchedulerService {
 
         if let Some(job) = jobs.get(&repository_id) {
             // Parse the cron and get next occurrence
-            if let Ok(cron) = Cron::new(&job.cron_expression).with_seconds_required().parse() {
+            if let Ok(cron) = job.cron_expression.parse::<Cron>() {
                 if let Ok(next) = cron.find_next_occurrence(&Utc::now(), false) {
                     return Some(next);
                 }
@@ -238,9 +237,7 @@ impl SchedulerService {
 
     /// Update the next crawl time for a repository in the database
     async fn update_next_crawl_time(&self, repository_id: Uuid, cron_expr: &str) -> Result<()> {
-        let cron = Cron::new(cron_expr)
-            .with_seconds_required()
-            .parse()
+        let cron: Cron = cron_expr.parse()
             .with_context(|| format!("Failed to parse cron expression: {}", cron_expr))?;
 
         let next_run = cron.find_next_occurrence(&Utc::now(), false).context("Failed to calculate next occurrence")?;
@@ -347,7 +344,7 @@ impl SchedulerService {
                 .map(|r| r.name.clone())
                 .unwrap_or_else(|| format!("Unknown ({})", repo_id));
 
-            if let Ok(cron) = Cron::new(&job.cron_expression).with_seconds_required().parse() {
+            if let Ok(cron) = job.cron_expression.parse::<Cron>() {
                 if let Ok(next_run) = cron.find_next_occurrence(&Utc::now(), false) {
                     next_runs.push(NextRun {
                         repository_id: *repo_id,
