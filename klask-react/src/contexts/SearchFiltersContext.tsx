@@ -78,8 +78,19 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
   }), [filters.project, filters.version, filters.extension, filters.repository]);
 
   // Track the last successfully fetched facets to avoid showing zero counts during debounce
-  const [lastValidFacets, setLastValidFacets] = React.useState<DynamicFilters | null>(null);
-  const [lastRequestedFilters, setLastRequestedFilters] = React.useState<typeof filterParams | null>(null);
+  // Initialize with staticFilters to have data during first filter selection debounce
+  const [lastValidFacets, setLastValidFacets] = React.useState<DynamicFilters | null>(() => {
+    if (!staticFilters) return null;
+    return {
+      projects: staticFilters.projects,
+      versions: staticFilters.versions,
+      extensions: staticFilters.extensions,
+      repositories: staticFilters.repositories,
+    };
+  });
+
+  // Use a ref to track whether we need to reset on filter clear
+  const shouldResetRef = React.useRef(false);
 
   // Check if any filters are active
   const hasActiveFilters = Object.values(filterParams).some(arr => arr && arr.length > 0);
@@ -91,36 +102,27 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
     { enabled: true, staleTime: 60000, debounceMs: 300 }
   );
 
-  // Update lastValidFacets and track requested filters when new data arrives
+  // Update lastValidFacets when new data arrives from API
   React.useEffect(() => {
     if (filterFacets) {
+      // We have new facets from the API, use them
       setLastValidFacets(filterFacets);
-      // Store the current filterParams as the "requested" filters that just got updated
-      setLastRequestedFilters(filterParams);
+      shouldResetRef.current = true; // Next time filters clear, we should reset
     }
-  }, [filterFacets, filterParams]);
+  }, [filterFacets]);
 
-  // When filters are cleared (no active filters), reset to staticFilters
-  // This ensures we show all available options again instead of keeping filtered facets
+  // When all filters are cleared, reset to staticFilters to show all options again
   React.useEffect(() => {
-    if (!hasActiveFilters && lastValidFacets) {
-      // Reset to initial state when all filters are cleared
-      setLastValidFacets(null);
-      setLastRequestedFilters(null);
-    }
-  }, [hasActiveFilters, lastValidFacets]);
-
-  // Initialize lastValidFacets with staticFilters on first load
-  React.useEffect(() => {
-    if (!lastValidFacets && staticFilters && (staticFilters.projects?.length ?? 0) > 0) {
+    if (!hasActiveFilters && shouldResetRef.current && staticFilters) {
       setLastValidFacets({
-        projects: staticFilters.projects,
-        versions: staticFilters.versions,
-        extensions: staticFilters.extensions,
-        repositories: staticFilters.repositories,
+        projects: staticFilters.projects || [],
+        versions: staticFilters.versions || [],
+        extensions: staticFilters.extensions || [],
+        repositories: staticFilters.repositories || [],
       });
+      shouldResetRef.current = false; // Only reset once per clear
     }
-  }, [staticFilters, lastValidFacets]);
+  }, [hasActiveFilters]);
 
   const clearFilters = useCallback(() => {
     setFilters({});
