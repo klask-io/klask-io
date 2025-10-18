@@ -18,6 +18,21 @@ interface FilterOption {
   count: number;
 }
 
+interface FilterOptionButtonProps {
+  option: FilterOption;
+  isSelected: boolean;
+  onFilterChange: (filterKey: string, value: string, isSelected: boolean) => void;
+  filterKey: string;
+}
+
+interface FilterSectionProps {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  options: FilterOption[];
+  selectedValues: string[];
+  filterKey: string;
+}
+
 interface SidebarFiltersProps {
   filters?: SearchFilters;
   onFiltersChange?: (filters: SearchFilters) => void;
@@ -91,13 +106,34 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
 
   const hasActiveFilters = Object.values(filters).some(filterArray => filterArray && filterArray.length > 0);
 
-  const FilterSection: React.FC<{
-    title: string;
-    icon: React.ComponentType<{ className?: string }>;
-    options: FilterOption[];
-    selectedValues: string[];
-    filterKey: keyof SearchFilters;
-  }> = ({ title, icon: Icon, options, selectedValues, filterKey }) => {
+  // Memoized button component to prevent unnecessary re-renders during hover
+  const FilterOptionButton = React.memo(
+    ({ option, isSelected, onFilterChange: handleChange, filterKey: key }: FilterOptionButtonProps) => (
+      <button
+        type="button"
+        onClick={() => handleChange(key, option.value, !isSelected)}
+        className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors text-sm w-full text-left ${
+          isSelected
+            ? 'bg-blue-50 text-blue-700'
+            : 'hover:bg-gray-50 text-gray-700'
+        }`}
+        aria-pressed={isSelected}
+      >
+        <span className="truncate text-xs min-w-0 flex-1" title={option.label}>
+          {option.label}
+        </span>
+        <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded ml-2">
+          {option.count}
+        </span>
+      </button>
+    )
+  );
+
+  FilterOptionButton.displayName = 'FilterOptionButton';
+
+  // Memoized section component to prevent re-renders when sibling sections update
+  const FilterSection = React.memo(
+    ({ title, icon: Icon, options, selectedValues, filterKey }: FilterSectionProps) => {
     const [searchTerm, setSearchTerm] = React.useState('');
 
     if (options.length === 0) return null;
@@ -162,31 +198,23 @@ export const SidebarFilters: React.FC<SidebarFiltersProps> = ({
             sortedOptions.map((option) => {
               const isSelected = selectedValues.includes(option.value);
               return (
-                <button
-                  type="button"
+                <FilterOptionButton
                   key={option.value}
-                  onClick={() => handleFilterChange(filterKey, option.value, !isSelected)}
-                  className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors text-sm w-full text-left ${
-                    isSelected
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'hover:bg-gray-50 text-gray-700'
-                  }`}
-                  aria-pressed={isSelected}
-                >
-                  <span className="truncate text-xs min-w-0 flex-1" title={option.label}>
-                    {option.label}
-                  </span>
-                  <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded ml-2">
-                    {option.count}
-                  </span>
-                </button>
+                  option={option}
+                  isSelected={isSelected}
+                  onFilterChange={handleFilterChange}
+                  filterKey={filterKey}
+                />
               );
             })
           )}
         </div>
       </div>
     );
-  };
+    }
+  );
+
+  FilterSection.displayName = 'FilterSection';
 
   return (
     <div>

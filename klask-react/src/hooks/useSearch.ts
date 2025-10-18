@@ -456,16 +456,19 @@ export const useFacetsWithFilters = (
       setDebouncedFilters(filters);
     }, debounceMs);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [filters, debounceMs]);
 
   // Serialize filters for consistent query key generation
+  // Create sorted copies to avoid mutating original arrays and ensure stable references
   const filterKey = React.useMemo(() => {
     return {
-      project: debouncedFilters.project?.sort() || [],
-      version: debouncedFilters.version?.sort() || [],
-      extension: debouncedFilters.extension?.sort() || [],
-      repository: debouncedFilters.repository?.sort() || [],
+      project: [...(debouncedFilters.project || [])].sort(),
+      version: [...(debouncedFilters.version || [])].sort(),
+      extension: [...(debouncedFilters.extension || [])].sort(),
+      repository: [...(debouncedFilters.repository || [])].sort(),
     };
   }, [debouncedFilters]);
 

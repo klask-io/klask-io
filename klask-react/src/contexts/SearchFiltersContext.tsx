@@ -63,40 +63,74 @@ export const useSearchFiltersContext = () => {
 export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [filters, setFilters] = useState<SearchFilters>({});
   const [currentQuery, setCurrentQuery] = useState('');
-  const [dynamicFilters, setDynamicFilters] = useState<DynamicFilters | null>(null);
 
   const {
     data: staticFilters,
     isLoading,
   } = useSearchFilters({ enabled: true }); // Only load filters in search context
 
+  // Fix 5: Memoize filterParams to prevent unnecessary hook re-triggers
+  const filterParams = React.useMemo(() => ({
+    project: filters.project,
+    version: filters.version,
+    extension: filters.extension,
+    repository: filters.repository,
+  }), [filters.project, filters.version, filters.extension, filters.repository]);
+
+  // Track the last successfully fetched facets to avoid showing zero counts during debounce
+  const [lastValidFacets, setLastValidFacets] = React.useState<DynamicFilters | null>(null);
+  const [lastRequestedFilters, setLastRequestedFilters] = React.useState<typeof filterParams | null>(null);
+
+  // Check if any filters are active
+  const hasActiveFilters = Object.values(filterParams).some(arr => arr && arr.length > 0);
+
   // Fetch facets when filters change (automatically triggered when filters have values)
   // Debounce is set to 300ms to prevent excessive API calls during rapid filter selections
-  const { data: filterFacets } = useFacetsWithFilters(
-    {
-      project: filters.project,
-      version: filters.version,
-      extension: filters.extension,
-      repository: filters.repository,
-    },
+  const { data: filterFacets, isLoading: isFacetsLoading } = useFacetsWithFilters(
+    filterParams,
     { enabled: true, staleTime: 60000, debounceMs: 300 }
   );
+
+  // Update lastValidFacets and track requested filters when new data arrives
+  React.useEffect(() => {
+    if (filterFacets) {
+      setLastValidFacets(filterFacets);
+      // Store the current filterParams as the "requested" filters that just got updated
+      setLastRequestedFilters(filterParams);
+    }
+  }, [filterFacets, filterParams]);
+
+  // When filters are cleared (no active filters), reset to staticFilters
+  // This ensures we show all available options again instead of keeping filtered facets
+  React.useEffect(() => {
+    if (!hasActiveFilters && lastValidFacets) {
+      // Reset to initial state when all filters are cleared
+      setLastValidFacets(null);
+      setLastRequestedFilters(null);
+    }
+  }, [hasActiveFilters, lastValidFacets]);
+
+  // Initialize lastValidFacets with staticFilters on first load
+  React.useEffect(() => {
+    if (!lastValidFacets && staticFilters && (staticFilters.projects?.length ?? 0) > 0) {
+      setLastValidFacets({
+        projects: staticFilters.projects,
+        versions: staticFilters.versions,
+        extensions: staticFilters.extensions,
+        repositories: staticFilters.repositories,
+      });
+    }
+  }, [staticFilters, lastValidFacets]);
 
   const clearFilters = useCallback(() => {
     setFilters({});
   }, []);
 
-  const updateDynamicFilters = useCallback((facets: DynamicFilters | null) => {
-    setDynamicFilters(facets);
+  // Note: updateDynamicFilters is kept for backward compatibility with SearchPage
+  // but the facet updates are now handled via useFacetsWithFilters hook
+  const updateDynamicFilters = useCallback(() => {
+    // No-op: Dynamic filters are now automatically updated via useFacetsWithFilters
   }, []);
-
-  // Effect: Update dynamicFilters when filter facets are fetched from API
-  // This enables real-time facet count updates as filters are changed
-  useEffect(() => {
-    if (filterFacets) {
-      setDynamicFilters(filterFacets);
-    }
-  }, [filterFacets]);
 
   /**
    * Merges static filter lists with dynamic facet counts from the API.
@@ -123,90 +157,97 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
    * @param selectedValues - Currently selected filter values by the user
    * @returns Merged list with accurate counts and relevant options for current filter state
    */
-  const mergeFiltersWithDynamicCounts = (
-    staticList: Array<{ value: string; count: number }>,
-    dynamicList: Array<{ value: string; count: number }>,
-    selectedValues: string[] = []
-  ): Array<{ value: string; count: number }> => {
-    if (!staticList) return dynamicList || [];
-    if (!dynamicList) return staticList;
+  // Fix 4: Memoize mergeFiltersWithDynamicCounts to avoid unnecessary array recreations
+  const mergeFiltersWithDynamicCounts = useCallback(
+    (
+      staticList: Array<{ value: string; count: number }>,
+      dynamicList: Array<{ value: string; count: number }>,
+      selectedValues: string[] = []
+    ): Array<{ value: string; count: number }> => {
+      if (!staticList) return dynamicList || [];
+      if (!dynamicList) return staticList;
 
-    // Create a map of dynamic counts for O(1) lookup
-    const dynamicMap = new Map(dynamicList.map(item => [item.value, item.count]));
+      // Create a map of dynamic counts for O(1) lookup
+      const dynamicMap = new Map(dynamicList.map(item => [item.value, item.count]));
 
-    // Merge static and dynamic lists, keeping selected items even if not in static
-    const staticValues = new Set(staticList.map(item => item.value));
-    const allItems = [...staticList];
+      // Merge static and dynamic lists, keeping selected items even if not in static
+      const staticValues = new Set(staticList.map(item => item.value));
+      const allItems = [...staticList];
 
-    // Add selected items that are not in static list (handles edge cases)
-    selectedValues.forEach(selected => {
-      if (!staticValues.has(selected)) {
-        const dynamicItem = dynamicList.find(d => d.value === selected);
-        if (dynamicItem) {
-          allItems.push(dynamicItem);
-        } else {
-          allItems.push({ value: selected, count: 0 });
+      // Add selected items that are not in static list (handles edge cases)
+      selectedValues.forEach(selected => {
+        if (!staticValues.has(selected)) {
+          const dynamicItem = dynamicList.find(d => d.value === selected);
+          if (dynamicItem) {
+            allItems.push(dynamicItem);
+          } else {
+            allItems.push({ value: selected, count: 0 });
+          }
         }
-      }
-    });
+      });
 
-    // Update all items with dynamic counts and filter meaningfully
-    const result = allItems
-      .map(item => ({
-        value: item.value,
-        count: dynamicMap.get(item.value) || 0
-      }))
-      // Keep items that either have results OR are currently selected
-      .filter(item => item.count > 0 || selectedValues.includes(item.value));
+      // Update all items with dynamic counts and filter meaningfully
+      const result = allItems
+        .map(item => ({
+          value: item.value,
+          count: dynamicMap.get(item.value) || 0
+        }))
+        // Keep items that either have results OR are currently selected
+        .filter(item => item.count > 0 || selectedValues.includes(item.value));
 
-    return result;
-  };
+      return result;
+    },
+    []
+  );
 
+  // Fix 3: Memoize hybridFilters to prevent recreation every render
   // Smart hybrid strategy:
   // - If no filter selected in a category → show only items with results (dynamic)
   // - If filters selected in a category → show all items (static) with current counts (dynamic)
-  const hybridFilters: Record<string, Array<{ value: string; count: number }>> = {
+  // Use lastValidFacets instead of dynamicFilters to avoid showing zero counts during debounce
+  const hybridFilters: Record<string, Array<{ value: string; count: number }>> = React.useMemo(() => ({
     projects: (filters.project && filters.project.length > 0)
       ? mergeFiltersWithDynamicCounts(
           (staticFilters?.projects as Array<{ value: string; count: number }>) || [],
-          (dynamicFilters?.projects as Array<{ value: string; count: number }>) || [],
+          (lastValidFacets?.projects as Array<{ value: string; count: number }>) || [],
           filters.project
         )
-      : (dynamicFilters?.projects as Array<{ value: string; count: number }>) ||
+      : (lastValidFacets?.projects as Array<{ value: string; count: number }>) ||
         (staticFilters?.projects as Array<{ value: string; count: number }>) || [],
     versions: (filters.version && filters.version.length > 0)
       ? mergeFiltersWithDynamicCounts(
           (staticFilters?.versions as Array<{ value: string; count: number }>) || [],
-          (dynamicFilters?.versions as Array<{ value: string; count: number }>) || [],
+          (lastValidFacets?.versions as Array<{ value: string; count: number }>) || [],
           filters.version
         )
-      : (dynamicFilters?.versions as Array<{ value: string; count: number }>) ||
+      : (lastValidFacets?.versions as Array<{ value: string; count: number }>) ||
         (staticFilters?.versions as Array<{ value: string; count: number }>) || [],
     extensions: (filters.extension && filters.extension.length > 0)
       ? mergeFiltersWithDynamicCounts(
           (staticFilters?.extensions as Array<{ value: string; count: number }>) || [],
-          (dynamicFilters?.extensions as Array<{ value: string; count: number }>) || [],
+          (lastValidFacets?.extensions as Array<{ value: string; count: number }>) || [],
           filters.extension
         )
-      : (dynamicFilters?.extensions as Array<{ value: string; count: number }>) ||
+      : (lastValidFacets?.extensions as Array<{ value: string; count: number }>) ||
         (staticFilters?.extensions as Array<{ value: string; count: number }>) || [],
     repositories: (filters.repository && filters.repository.length > 0)
       ? mergeFiltersWithDynamicCounts(
           (staticFilters?.repositories as Array<{ value: string; count: number }>) || [],
-          (dynamicFilters?.repositories as Array<{ value: string; count: number }>) || [],
+          (lastValidFacets?.repositories as Array<{ value: string; count: number }>) || [],
           filters.repository
         )
-      : (dynamicFilters?.repositories as Array<{ value: string; count: number }>) ||
+      : (lastValidFacets?.repositories as Array<{ value: string; count: number }>) ||
         (staticFilters?.repositories as Array<{ value: string; count: number }>) || [],
-  };
+  }), [filters, staticFilters, lastValidFacets, mergeFiltersWithDynamicCounts]);
 
+  // Fix 2: Memoize availableFiltersList to prevent .map() recreations every render
   const availableFiltersList: {
     projects: FilterOption[];
     versions: FilterOption[];
     extensions: FilterOption[];
     repositories: FilterOption[];
     languages: FilterOption[];
-  } = {
+  } = React.useMemo(() => ({
     projects: (hybridFilters.projects || []).map((p: { value: string; count: number }) => ({
       value: p.value,
       label: p.value,
@@ -228,9 +269,10 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
       count: r.count || 0,
     })),
     languages: [], // Will be derived from extensions in the future
-  };
+  }), [hybridFilters]);
 
-  const value: SearchFiltersContextType = {
+  // Fix 1: Memoize the context value to prevent all consumers from re-rendering
+  const value: SearchFiltersContextType = React.useMemo(() => ({
     filters,
     setFilters,
     clearFilters,
@@ -239,7 +281,7 @@ export const SearchFiltersProvider: React.FC<{ children: React.ReactNode }> = ({
     availableFilters: availableFiltersList,
     isLoading,
     updateDynamicFilters,
-  };
+  }), [filters, setFilters, clearFilters, currentQuery, setCurrentQuery, availableFiltersList, isLoading, updateDynamicFilters]);
 
   return (
     <SearchFiltersContext.Provider value={value}>
