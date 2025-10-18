@@ -15,7 +15,6 @@ import {
 import { clsx } from 'clsx';
 
 import { authSelectors, useAuthStore } from '../../stores/auth-store';
-import { searchSelectors, useSearchStore } from '../../stores/search-store';
 import { IconButton } from '../ui/Button';
 
 export const Navbar: React.FC = () => {
@@ -25,10 +24,8 @@ export const Navbar: React.FC = () => {
 
   const user = authSelectors.user();
   const isAdmin = authSelectors.isAdmin();
-  const sidebarOpen = searchSelectors.sidebarOpen();
 
   const logout = useAuthStore((state) => state.logout);
-  const toggleSidebar = useSearchStore((state) => state.toggleSidebar);
 
   const handleLogout = () => {
     logout();
@@ -59,16 +56,6 @@ export const Navbar: React.FC = () => {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               className="md:hidden mr-2"
-            />
-
-            {/* Desktop sidebar toggle */}
-            <IconButton
-              variant="ghost"
-              size="md"
-              icon={<Bars3Icon className="w-5 h-5" />}
-              onClick={toggleSidebar}
-              aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
-              className="hidden md:block mr-2"
             />
 
             {/* Logo and brand */}

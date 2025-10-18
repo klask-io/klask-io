@@ -1,6 +1,8 @@
 ---
 name: deployment-expert
 description: Expert in Kubernetes deployment, CI/CD, Docker, and infrastructure - use for deploying Klask, managing infrastructure, CI/CD pipeline issues
+model: haiku
+color: purple
 ---
 
 # Deployment Expert for Klask

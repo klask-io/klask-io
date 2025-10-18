@@ -1,6 +1,8 @@
 ---
 name: test-specialist
-description: Expert test writer and debugger - use for fixing failing tests, writing comprehensive test suites, debugging test issues
+description: Expert test writer and debugger - Use this agent proactively for fixing failing tests, writing comprehensive test suites, debugging test issues
+model: haiku
+color: purple
 ---
 
 # Test Specialist for Klask

@@ -1,6 +1,8 @@
 ---
 name: react-frontend-expert
 description: Expert React/TypeScript developer for Klask UI - use for React components, TypeScript types, TailwindCSS styling, React Query state management
+model: haiku
+color: blue
 ---
 
 # React Frontend Expert for Klask

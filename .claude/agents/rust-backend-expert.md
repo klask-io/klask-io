@@ -1,6 +1,8 @@
 ---
 name: rust-backend-expert
 description: Expert Rust backend developer for Klask search engine - use for Tantivy search optimization, Axum API development, PostgreSQL integration
+model: haiku
+color: orange
 ---
 
 # Rust Backend Expert for Klask

@@ -166,8 +166,8 @@ impl GitOperations {
                     config_overrides.push(format!("http.extraHeader={}", header));
                 }
 
-                prepare_clone =
-                    prepare_clone.with_in_memory_config_overrides(config_overrides.iter().map(|s| s.as_str()));
+                prepare_clone = prepare_clone
+                    .with_in_memory_config_overrides(config_overrides.iter().map(|s| s.as_str()));
 
                 // Configure shallow clone (depth=1) to speed up large repositories
                 // This clones only the latest commit, significantly reducing download time

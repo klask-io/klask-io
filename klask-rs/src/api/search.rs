@@ -27,6 +27,45 @@ lazy_static::lazy_static! {
 }
 
 const CACHE_TTL: Duration = Duration::from_secs(5 * 60); // 5 minutes
+const MAX_FILTER_LENGTH: usize = 1000; // Maximum length for filter parameters
+
+/// Validates filter parameters for search endpoints.
+///
+/// Checks that filter parameters:
+/// - Are not longer than MAX_FILTER_LENGTH (1000 characters)
+/// - Do not contain empty values when split by comma (e.g., "value1,,value2" is invalid)
+/// - Are properly formatted as comma-separated strings
+fn validate_filter_param(param_name: &str, param_value: &str) -> Result<(), String> {
+    // Check length
+    if param_value.len() > MAX_FILTER_LENGTH {
+        return Err(format!(
+            "Filter parameter '{}' exceeds maximum length of {} characters",
+            param_name, MAX_FILTER_LENGTH
+        ));
+    }
+
+    // Check for empty values when split by comma
+    let trimmed = param_value.trim();
+    if trimmed.is_empty() {
+        return Err(format!(
+            "Filter parameter '{}' cannot be empty after trimming",
+            param_name
+        ));
+    }
+
+    // Split by comma and check for empty values
+    for part in trimmed.split(',') {
+        let trimmed_part = part.trim();
+        if trimmed_part.is_empty() {
+            return Err(format!(
+                "Filter parameter '{}' contains empty values (e.g., comma-separated items with no content)",
+                param_name
+            ));
+        }
+    }
+
+    Ok(())
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchRequest {
@@ -41,6 +80,15 @@ pub struct SearchRequest {
     pub versions: Option<String>,
     pub extensions: Option<String>,
     pub include_facets: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FacetsRequest {
+    // Multi-select filters as comma-separated strings
+    pub repositories: Option<String>,
+    pub projects: Option<String>,
+    pub versions: Option<String>,
+    pub extensions: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -81,7 +129,10 @@ pub struct SearchResult {
 }
 
 pub async fn create_router() -> Result<Router<AppState>> {
-    let router = Router::new().route("/", get(search_files)).route("/filters", get(get_search_filters));
+    let router = Router::new()
+        .route("/", get(search_files))
+        .route("/filters", get(get_search_filters))
+        .route("/facets", get(get_facets_with_filters));
 
     Ok(router)
 }
@@ -232,6 +283,204 @@ async fn get_search_filters(State(app_state): State<AppState>) -> Result<Json<Se
         Err(e) => {
             tracing::error!("Failed to get search filters: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn get_facets_with_filters(
+    State(app_state): State<AppState>,
+    Query(params): Query<FacetsRequest>,
+) -> Result<Json<SearchFacets>, StatusCode> {
+    tracing::debug!("Facets request params: {:?}", params);
+
+    // Validate filter parameters
+    if let Some(ref repos) = params.repositories {
+        if let Err(e) = validate_filter_param("repositories", repos) {
+            tracing::warn!("Invalid filter parameter - repositories: {}", e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    if let Some(ref projects) = params.projects {
+        if let Err(e) = validate_filter_param("projects", projects) {
+            tracing::warn!("Invalid filter parameter - projects: {}", e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    if let Some(ref versions) = params.versions {
+        if let Err(e) = validate_filter_param("versions", versions) {
+            tracing::warn!("Invalid filter parameter - versions: {}", e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    if let Some(ref extensions) = params.extensions {
+        if let Err(e) = validate_filter_param("extensions", extensions) {
+            tracing::warn!("Invalid filter parameter - extensions: {}", e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    // Build search query with an empty search (match all) and filters
+    let search_query = SearchQuery {
+        query: "*".to_string(), // Match all documents
+        repository_filter: params.repositories,
+        project_filter: params.projects,
+        version_filter: params.versions,
+        extension_filter: params.extensions,
+        limit: 0, // We only need facets, not results
+        offset: 0,
+        include_facets: true, // Always include facets for this endpoint
+    };
+
+    // Perform search using Tantivy
+    match app_state.search_service.search(search_query).await {
+        Ok(search_response) => {
+            let facets = search_response
+                .facets
+                .map(|service_facets| SearchFacets {
+                    projects: service_facets
+                        .projects
+                        .into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                    versions: service_facets
+                        .versions
+                        .into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                    extensions: service_facets
+                        .extensions
+                        .into_iter()
+                        .map(|(value, count)| FacetValue { value, count })
+                        .collect(),
+                })
+                .unwrap_or_else(|| SearchFacets {
+                    projects: vec![],
+                    versions: vec![],
+                    extensions: vec![],
+                });
+
+            Ok(Json(facets))
+        }
+        Err(e) => {
+            tracing::error!("Failed to get facets with filters: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+#[cfg(test)]
+mod validation_tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_filter_param_valid_single_value() {
+        let result = validate_filter_param("test", "value1");
+        assert!(result.is_ok(), "Single value should be valid");
+    }
+
+    #[test]
+    fn test_validate_filter_param_valid_multiple_values() {
+        let result = validate_filter_param("test", "value1,value2,value3");
+        assert!(
+            result.is_ok(),
+            "Multiple comma-separated values should be valid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_valid_with_spaces() {
+        let result = validate_filter_param("test", "value1, value2, value3");
+        assert!(
+            result.is_ok(),
+            "Values with spaces around commas should be valid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_valid_with_leading_trailing_whitespace() {
+        let result = validate_filter_param("test", "  value1,value2  ");
+        assert!(
+            result.is_ok(),
+            "Leading and trailing whitespace should be trimmed"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_empty_after_trim() {
+        let result = validate_filter_param("test", "   ");
+        assert!(
+            result.is_err(),
+            "Empty string after trimming should be invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_empty_values() {
+        let result = validate_filter_param("test", "value1,,value2");
+        assert!(
+            result.is_err(),
+            "Empty values (consecutive commas) should be invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_empty_values_with_spaces() {
+        let result = validate_filter_param("test", "value1, , value2");
+        assert!(
+            result.is_err(),
+            "Empty values with only spaces should be invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_exceeds_max_length() {
+        let long_value = "x".repeat(MAX_FILTER_LENGTH + 1);
+        let result = validate_filter_param("test", &long_value);
+        assert!(
+            result.is_err(),
+            "Value exceeding max length should be invalid"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_at_max_length() {
+        let long_value = "x".repeat(MAX_FILTER_LENGTH);
+        let result = validate_filter_param("test", &long_value);
+        assert!(result.is_ok(), "Value at max length should be valid");
+    }
+
+    #[test]
+    fn test_validate_filter_param_comma_at_end() {
+        let result = validate_filter_param("test", "value1,value2,");
+        assert!(
+            result.is_err(),
+            "Trailing comma should be invalid (empty value)"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_comma_at_start() {
+        let result = validate_filter_param("test", ",value1,value2");
+        assert!(
+            result.is_err(),
+            "Leading comma should be invalid (empty value)"
+        );
+    }
+
+    #[test]
+    fn test_validate_filter_param_error_message_contains_param_name() {
+        let result = validate_filter_param("repositories", "   ");
+        match result {
+            Err(e) => {
+                assert!(
+                    e.contains("repositories"),
+                    "Error message should contain parameter name"
+                );
+            }
+            Ok(_) => panic!("Should have returned an error"),
         }
     }
 }

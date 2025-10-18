@@ -111,6 +111,18 @@ export interface FacetValue {
   count: number;
 }
 
+export interface FacetResponseItem {
+  value: string;
+  count: number;
+}
+
+export interface FacetsApiResponse {
+  projects: FacetResponseItem[];
+  versions: FacetResponseItem[];
+  extensions: FacetResponseItem[];
+  repositories: FacetResponseItem[];
+}
+
 export interface SearchFacets {
   projects: FacetValue[];
   versions: FacetValue[];
