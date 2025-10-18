@@ -160,12 +160,12 @@ pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/", get(list_repositories).post(create_repository))
         .route(
-            "/:id",
+            "/{id}",
             get(get_repository).put(update_repository).delete(delete_repository),
         )
-        .route("/:id/crawl", post(crawl_repository).delete(stop_crawl_repository))
-        .route("/:id/test", post(test_repository_connection))
-        .route("/:id/stats", get(get_repository_stats))
+        .route("/{id}/crawl", post(crawl_repository).delete(stop_crawl_repository))
+        .route("/{id}/test", post(test_repository_connection))
+        .route("/{id}/stats", get(get_repository_stats))
         .route("/import/gitlab", post(import_gitlab_projects))
         .route("/github/discover", post(discover_github_repositories))
         .route("/github/test-token", post(test_github_token))

@@ -72,9 +72,9 @@ impl From<User> for UserResponse {
 pub async fn create_router() -> Result<Router<AppState>> {
     let router = Router::new()
         .route("/", get(list_users).post(create_user))
-        .route("/:id", get(get_user).put(update_user).delete(delete_user))
-        .route("/:id/role", put(update_user_role))
-        .route("/:id/status", put(update_user_status))
+        .route("/{id}", get(get_user).put(update_user).delete(delete_user))
+        .route("/{id}/role", put(update_user_role))
+        .route("/{id}/status", put(update_user_status))
         .route("/stats", get(get_user_stats));
 
     Ok(router)

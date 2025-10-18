@@ -51,8 +51,6 @@ impl EncryptionService {
 
     /// Decrypt a token or sensitive data
     pub fn decrypt(&self, encrypted: &str) -> Result<String> {
-        use aes_gcm::aead::generic_array::GenericArray;
-
         // Decode from base64
         let combined = general_purpose::STANDARD
             .decode(encrypted)
@@ -64,11 +62,13 @@ impl EncryptionService {
         }
 
         let (nonce_bytes, ciphertext) = combined.split_at(12);
-        let nonce = GenericArray::from_slice(nonce_bytes);
+        // Create nonce from slice using try_into - aes_gcm's Nonce can be created from [u8; 12]
+        let nonce_array: [u8; 12] = nonce_bytes.try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid nonce length"))?;
 
         // Decrypt
         let plaintext =
-            self.cipher.decrypt(nonce, ciphertext).map_err(|e| anyhow::anyhow!("Decryption failed: {:?}", e))?;
+            self.cipher.decrypt((&nonce_array).into(), ciphertext).map_err(|e| anyhow::anyhow!("Decryption failed: {:?}", e))?;
 
         String::from_utf8(plaintext).map_err(|e| anyhow::anyhow!("Failed to convert decrypted data to string: {:?}", e))
     }

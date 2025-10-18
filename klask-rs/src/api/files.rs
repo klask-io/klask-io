@@ -23,7 +23,7 @@ pub struct FileResponse {
 }
 
 pub async fn create_router() -> Result<Router<AppState>> {
-    let router = Router::new().route("/:id", get(get_file)).route("/doc/:doc_address", get(get_file_by_doc_address));
+    let router = Router::new().route("/{id}", get(get_file)).route("/doc/{doc_address}", get(get_file_by_doc_address));
 
     Ok(router)
 }

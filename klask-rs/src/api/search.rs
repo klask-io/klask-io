@@ -19,11 +19,15 @@ struct FilterCache {
     timestamp: Instant,
 }
 
-lazy_static::lazy_static! {
-    static ref FILTER_CACHE: Arc<RwLock<FilterCache>> = Arc::new(RwLock::new(FilterCache {
-        data: None,
-        timestamp: Instant::now() - Duration::from_secs(600), // Start expired
-    }));
+fn get_filter_cache() -> &'static Arc<RwLock<FilterCache>> {
+    use once_cell::sync::Lazy;
+    static FILTER_CACHE: Lazy<Arc<RwLock<FilterCache>>> = Lazy::new(|| {
+        Arc::new(RwLock::new(FilterCache {
+            data: None,
+            timestamp: Instant::now() - Duration::from_secs(600), // Start expired
+        }))
+    });
+    &FILTER_CACHE
 }
 
 const CACHE_TTL: Duration = Duration::from_secs(5 * 60); // 5 minutes
@@ -224,7 +228,7 @@ pub struct SearchFilters {
 async fn get_search_filters(State(app_state): State<AppState>) -> Result<Json<SearchFilters>, StatusCode> {
     // Check cache first
     {
-        let cache = FILTER_CACHE.read().unwrap();
+        let cache = get_filter_cache().read().unwrap();
         if let Some(ref cached_data) = cache.data {
             if cache.timestamp.elapsed() < CACHE_TTL {
                 return Ok(Json(cached_data.clone()));
@@ -264,7 +268,7 @@ async fn get_search_filters(State(app_state): State<AppState>) -> Result<Json<Se
 
                 // Update cache
                 {
-                    let mut cache = FILTER_CACHE.write().unwrap();
+                    let mut cache = get_filter_cache().write().unwrap();
                     cache.data = Some(filters.clone());
                     cache.timestamp = Instant::now();
                 }

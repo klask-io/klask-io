@@ -6,7 +6,6 @@ use crate::services::{encryption::EncryptionService, progress::ProgressTracker};
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use std::collections::HashMap;
-use std::future::Future;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
@@ -40,17 +39,12 @@ pub struct AuthenticatedUser {
 impl FromRequestParts<AppState> for AuthenticatedUser {
     type Rejection = AuthError;
 
-    fn from_request_parts(
+    async fn from_request_parts(
         parts: &mut Parts,
         state: &AppState,
-    ) -> std::pin::Pin<Box<dyn Future<Output = Result<Self, Self::Rejection>> + Send>> {
-        let state_clone = state.clone();
-        let headers = parts.headers.clone();
-
-        Box::pin(async move {
-            let token = extract_token_from_auth_header(&headers)?;
-            extract_authenticated_user(&state_clone, &token).await
-        })
+    ) -> Result<Self, Self::Rejection> {
+        let token = extract_token_from_auth_header(&parts.headers)?;
+        extract_authenticated_user(state, &token).await
     }
 }
 
@@ -61,30 +55,25 @@ pub struct AdminUser(pub AuthenticatedUser);
 impl FromRequestParts<AppState> for AdminUser {
     type Rejection = AuthError;
 
-    fn from_request_parts(
+    async fn from_request_parts(
         parts: &mut Parts,
         state: &AppState,
-    ) -> std::pin::Pin<Box<dyn Future<Output = Result<Self, Self::Rejection>> + Send>> {
-        let state_clone = state.clone();
-        let headers = parts.headers.clone();
+    ) -> Result<Self, Self::Rejection> {
+        debug!("Attempting to extract AdminUser from request");
 
-        Box::pin(async move {
-            debug!("Attempting to extract AdminUser from request");
+        let token = extract_token_from_auth_header(&parts.headers)?;
+        let auth_user = extract_authenticated_user(state, &token).await?;
 
-            let token = extract_token_from_auth_header(&headers)?;
-            let auth_user = extract_authenticated_user(&state_clone, &token).await?;
+        if auth_user.user.role != UserRole::Admin {
+            warn!(
+                "User {} attempted to access admin endpoint without admin role",
+                auth_user.user.username
+            );
+            return Err(AuthError::InsufficientPermissions);
+        }
 
-            if auth_user.user.role != UserRole::Admin {
-                warn!(
-                    "User {} attempted to access admin endpoint without admin role",
-                    auth_user.user.username
-                );
-                return Err(AuthError::InsufficientPermissions);
-            }
-
-            debug!("AdminUser extracted successfully for user: {}", auth_user.user.username);
-            Ok(AdminUser(auth_user))
-        })
+        debug!("AdminUser extracted successfully for user: {}", auth_user.user.username);
+        Ok(AdminUser(auth_user))
     }
 }
 
@@ -95,24 +84,19 @@ pub struct OptionalUser(pub Option<AuthenticatedUser>);
 impl FromRequestParts<AppState> for OptionalUser {
     type Rejection = std::convert::Infallible;
 
-    fn from_request_parts(
+    async fn from_request_parts(
         parts: &mut Parts,
         state: &AppState,
-    ) -> std::pin::Pin<Box<dyn Future<Output = Result<Self, Self::Rejection>> + Send>> {
-        let state_clone = state.clone();
-        let headers = parts.headers.clone();
+    ) -> Result<Self, Self::Rejection> {
+        let token = match extract_token_from_auth_header(&parts.headers) {
+            Ok(t) => t,
+            Err(_) => return Ok(OptionalUser(None)),
+        };
 
-        Box::pin(async move {
-            let token = match extract_token_from_auth_header(&headers) {
-                Ok(t) => t,
-                Err(_) => return Ok(OptionalUser(None)),
-            };
-
-            match extract_authenticated_user(&state_clone, &token).await {
-                Ok(user) => Ok(OptionalUser(Some(user))),
-                Err(_) => Ok(OptionalUser(None)),
-            }
-        })
+        match extract_authenticated_user(state, &token).await {
+            Ok(user) => Ok(OptionalUser(Some(user))),
+            Err(_) => Ok(OptionalUser(None)),
+        }
     }
 }
 
